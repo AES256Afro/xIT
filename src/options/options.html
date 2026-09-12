@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xit - Settings</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="page-head">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4.5 21 11l-6.5 6.5V13H10a4.5 4.5 0 0 0-4.5 4.5V20H3v-2.5A7 7 0 0 1 10 10.5h4.5V4.5Z"/></svg>
+    <div>
+      <h1>Xit</h1>
+      <p class="sub">Copied X links go through the redirector you pick. Nothing leaves your browser.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>Default redirector</h2>
+    <p class="hint">Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.</p>
+    <select id="default-select" class="select wide"></select>
+    <div id="default-preview" class="sample"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Copy behaviour</h2>
+    <label class="switch"><input type="checkbox" id="t-button">
+      <span><b>Show a button on every tweet</b><i>A split button in the action bar: click copies with the default, the chevron opens the full list. Right-click or long-press also opens it.</i></span></label>
+    <label class="switch"><input type="checkbox" id="t-hijack">
+      <span><b>Rewrite X's own “Copy link”</b><i>X's native share menu returns the redirected URL, so both routes give you the same thing.</i></span></label>
+    <label class="switch"><input type="checkbox" id="t-strip">
+      <span><b>Strip tracking parameters</b><i>Drops <code>?s=20&amp;t=…</code> and similar share telemetry.</i></span></label>
+    <label class="switch"><input type="checkbox" id="t-toast">
+      <span><b>Confirm copies with a toast</b><i>A brief banner showing exactly what landed on the clipboard.</i></span></label>
+    <label class="switch"><input type="checkbox" id="t-menu">
+      <span><b>Right-click menu on tweet links</b><i>Copy or open any tweet link anywhere on the web, not just on X.</i></span></label>
+  </section>
+
+  <section class="panel">
+    <h2>Redirect page loads</h2>
+    <p class="hint">Off by default. When on, visiting x.com sends you straight to your chosen frontend. Your logged-in X session stays untouched — you just stop landing on it.</p>
+    <label class="switch"><input type="checkbox" id="t-browse">
+      <span><b>Redirect x.com and twitter.com as I browse</b></span></label>
+    <div class="indent">
+      <label class="field">
+        <span class="field-label">Send me to</span>
+        <select id="browse-select" class="select"></select>
+      </label>
+      <fieldset class="scopes">
+        <legend>Which pages</legend>
+        <label><input type="checkbox" id="s-status"> Tweets</label>
+        <label><input type="checkbox" id="s-profile"> Profiles</label>
+        <label><input type="checkbox" id="s-other"> Everything else <i>(timeline, search, lists)</i></label>
+      </fieldset>
+      <p class="hint">Your own home timeline, messages, notifications and settings are never redirected — you would just be locked out of them.</p>
+      <p id="browse-warn" class="warn-text"></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Redirectors</h2>
+    <p class="hint">Untick any you do not want cluttering the dropdown. <button id="test-all" class="link-btn">Check which are reachable</button></p>
+    <div id="redirector-list"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Custom redirector</h2>
+    <p class="hint">For a self-hosted instance or anything not listed. Tokens:
+      <code>{path}</code> <code>{query}</code> <code>{user}</code> <code>{id}</code> <code>{hash}</code> <code>{host}</code>.
+      A plain mirror is usually <code>https://your.host/{path}{query}</code>.</p>
+    <form id="custom-form" class="custom-form">
+      <input id="c-name" type="text" placeholder="Name, e.g. My Nitter" required maxlength="48">
+      <input id="c-template" type="text" placeholder="https://nitter.example.com/{path}{query}" required spellcheck="false">
+      <button type="submit" class="primary">Add</button>
+    </form>
+    <p id="custom-error" class="warn-text"></p>
+    <div id="custom-preview" class="sample"></div>
+    <div id="custom-list"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Keyboard shortcut</h2>
+    <p class="hint">Copy the tweet under the pointer with the default redirector.
+      Default <kbd id="kbd">Alt+Shift+C</kbd>.</p>
+    <p class="hint">To change it: Chrome <code>chrome://extensions/shortcuts</code> · Firefox <code>about:addons</code> → gear → Manage Extension Shortcuts. Those pages cannot be opened from here, so paste the address in yourself.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Backup</h2>
+    <div class="actions">
+      <button id="export" class="ghost">Export settings</button>
+      <button id="import" class="ghost">Import settings</button>
+      <button id="reset" class="ghost danger">Reset to defaults</button>
+    </div>
+    <input id="import-file" type="file" accept="application/json,.json" hidden>
+  </section>
+
+  <p id="saved" class="saved" role="status" aria-live="polite"></p>
+</main>
+
+<script src="../lib/redirectors.js"></script>
+<script src="../lib/storage.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

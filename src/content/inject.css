@@ -1,0 +1,200 @@
+/* Xit - in-page UI. All class names are xit- prefixed so they
+   cannot collide with X's own (hashed) styles. */
+
+:root {
+  --xit-fg: rgb(113, 118, 123);
+  --xit-fg-strong: rgb(231, 233, 234);
+  --xit-accent: rgb(29, 155, 240);
+  --xit-accent-soft: rgba(29, 155, 240, 0.1);
+  --xit-panel: rgb(0, 0, 0);
+  --xit-panel-border: rgb(47, 51, 54);
+  --xit-shadow: rgba(255, 255, 255, 0.2) 0 0 15px, rgba(255, 255, 255, 0.15) 0 0 3px 1px;
+  --xit-row-hover: rgba(231, 233, 234, 0.1);
+  --xit-muted: rgb(113, 118, 123);
+}
+
+html[data-xit-theme="light"] {
+  --xit-fg: rgb(83, 100, 113);
+  --xit-fg-strong: rgb(15, 20, 25);
+  --xit-panel: rgb(255, 255, 255);
+  --xit-panel-border: rgb(239, 243, 244);
+  --xit-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
+  --xit-row-hover: rgba(15, 20, 25, 0.06);
+  --xit-muted: rgb(83, 100, 113);
+}
+
+/* ---- the split button in the tweet action bar ---- */
+
+.xit-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 2px;
+  flex-shrink: 0;
+}
+
+.xit-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--xit-fg);
+  border-radius: 9999px;
+  transition: color 0.15s, background-color 0.15s;
+  min-height: 26px;
+}
+
+.xit-btn-main { width: 30px; height: 26px; }
+.xit-btn-caret { width: 16px; height: 26px; }
+
+.xit-btn:hover,
+.xit-btn:focus-visible,
+.xit-wrap[data-open="1"] .xit-btn {
+  color: var(--xit-accent);
+  background-color: var(--xit-accent-soft);
+}
+
+.xit-btn:focus-visible { outline: 2px solid var(--xit-accent); outline-offset: 1px; }
+
+.xit-btn svg { width: 17px; height: 17px; fill: currentColor; pointer-events: none; }
+.xit-btn-caret svg { width: 12px; height: 12px; }
+
+.xit-btn[data-busy="1"] { opacity: 0.5; }
+
+/* ---- dropdown ---- */
+
+.xit-menu {
+  position: fixed;
+  z-index: 2147483000;
+  min-width: 268px;
+  max-width: 340px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+  border: 1px solid var(--xit-panel-border);
+  border-radius: 16px;
+  background: var(--xit-panel);
+  box-shadow: var(--xit-shadow);
+  font-family: "TwitterChirp", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--xit-fg-strong);
+}
+
+.xit-menu[hidden] { display: none !important; }
+
+.xit-group-label {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--xit-muted);
+}
+
+.xit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.xit-row:hover,
+.xit-row.xit-active { background: var(--xit-row-hover); }
+
+.xit-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: transparent;
+}
+
+.xit-row[data-default="1"] .xit-row-dot { background: var(--xit-accent); }
+
+.xit-row-label { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.xit-row-name { display: block; font-weight: 600; }
+
+.xit-row-note {
+  display: block;
+  font-size: 11.5px;
+  font-style: normal;
+  color: var(--xit-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xit-row-act {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  cursor: pointer;
+  color: var(--xit-muted);
+  opacity: 0;
+  flex: 0 0 auto;
+}
+
+.xit-row:hover .xit-row-act,
+.xit-row.xit-active .xit-row-act,
+.xit-row-act:focus-visible { opacity: 1; }
+
+.xit-row-act:hover { color: var(--xit-accent); background: var(--xit-accent-soft); }
+.xit-row-act svg { width: 15px; height: 15px; fill: currentColor; pointer-events: none; }
+
+.xit-sep { height: 1px; margin: 6px 0; background: var(--xit-panel-border); }
+
+.xit-foot {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 2px 8px 2px;
+}
+
+.xit-foot button {
+  all: unset;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--xit-muted);
+}
+
+.xit-foot button:hover { color: var(--xit-accent); background: var(--xit-accent-soft); }
+.xit-foot button:focus-visible { outline: 2px solid var(--xit-accent); }
+
+/* ---- toast ---- */
+
+.xit-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translate(-50%, 12px);
+  z-index: 2147483001;
+  max-width: min(520px, 88vw);
+  padding: 11px 16px;
+  border-radius: 8px;
+  background: var(--xit-accent);
+  color: #fff;
+  font-family: "TwitterChirp", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.xit-toast[data-show="1"] { opacity: 1; transform: translate(-50%, 0); }
+.xit-toast[data-kind="error"] { background: rgb(244, 33, 46); }
+
+@media (prefers-reduced-motion: reduce) {
+  .xit-btn, .xit-toast { transition: none; }
+}

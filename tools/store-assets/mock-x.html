@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>timeline</title>
+<link rel="stylesheet" href="content/inject.css">
+<style>
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:#15202b;color:#e7e9ea;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;width:598px}
+  .tw{border-bottom:1px solid #2f3336;padding:12px 16px;display:flex;gap:12px}
+  .av{width:40px;height:40px;border-radius:50%;flex:0 0 auto;background:linear-gradient(135deg,#1d9bf0,#0f6ba8)}
+  .av.b{background:linear-gradient(135deg,#8b5cf6,#5b21b6)}
+  .bd{flex:1;min-width:0}
+  .hd{display:flex;gap:5px;align-items:baseline;font-size:14px}
+  .hd b{font-weight:700}.hd span,.hd time{color:#71767b;font-weight:400}
+  .tx{margin:2px 0 10px;font-size:14.5px;line-height:1.35}
+  [role=group]{display:flex;align-items:center;justify-content:space-between;max-width:340px;color:#71767b}
+  .act{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:#71767b;background:none;border:0;padding:0;cursor:pointer}
+  .act svg{width:16px;height:16px;fill:currentColor}
+  a{color:inherit;text-decoration:none}
+</style></head>
+<body>
+<article data-testid="tweet"><div class="tw">
+  <div class="av"></div>
+  <div class="bd">
+    <div class="hd"><b>Jack</b><span>@jack</span><span>·</span><a href="https://x.com/jack/status/20?s=20&t=abc"><time datetime="2006-03-21">21 Mar 2006</time></a></div>
+    <p class="tx">just setting up my twttr</p>
+    <div role="group">
+      <button class="act" data-testid="reply"><svg viewBox="0 0 24 24"><path d="M1.75 12A10.25 10.25 0 1 1 12 22.25a10.2 10.2 0 0 1-4.6-1.09l-4.2 1.2 1.2-4.2A10.2 10.2 0 0 1 1.75 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>128</button>
+      <button class="act" data-testid="retweet"><svg viewBox="0 0 24 24"><path d="M4.5 9.5V15a3 3 0 0 0 3 3H14l-2.5 2.5M19.5 14.5V9a3 3 0 0 0-3-3H10l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>1.2K</button>
+      <button class="act" data-testid="like"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.6-7-9.3A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.7C19 15.4 12 20 12 20Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>4.8K</button>
+      <button class="act" data-testid="bookmark"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4-6 4v-17Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    </div>
+  </div>
+</div></article>
+
+<article data-testid="tweet"><div class="tw">
+  <div class="av b"></div>
+  <div class="bd">
+    <div class="hd"><b>Ada</b><span>@ada</span><span>·</span><a href="https://x.com/ada/status/1789012345678901234"><time datetime="2024-06-02">2 Jun</time></a></div>
+    <p class="tx">the analytical engine has no pretensions whatever to originate anything</p>
+    <div role="group">
+      <button class="act" data-testid="reply"><svg viewBox="0 0 24 24"><path d="M1.75 12A10.25 10.25 0 1 1 12 22.25a10.2 10.2 0 0 1-4.6-1.09l-4.2 1.2 1.2-4.2A10.2 10.2 0 0 1 1.75 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>42</button>
+      <button class="act" data-testid="retweet"><svg viewBox="0 0 24 24"><path d="M4.5 9.5V15a3 3 0 0 0 3 3H14l-2.5 2.5M19.5 14.5V9a3 3 0 0 0-3-3H10l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>310</button>
+      <button class="act" data-testid="like"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.6-7-9.3A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.7C19 15.4 12 20 12 20Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>2.1K</button>
+      <button class="act" data-testid="bookmark"><svg viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4-6 4v-17Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    </div>
+  </div>
+</div></article>
+
+<script src="stub.js"></script>
+<script src="lib/redirectors.js"></script>
+<script src="lib/storage.js"></script>
+<script src="content/inject.js"></script>
+<script>
+  // Open the dropdown on the first tweet for the hero shot.
+  if (new URLSearchParams(location.search).get('open') === '1') {
+    setTimeout(() => {
+      const caret = document.querySelector('.xit-btn-caret');
+      if (caret) caret.click();
+    }, 250);
+  }
+</script>
+</body></html>

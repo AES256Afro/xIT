@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}html,body{margin:0}
+body{width:1400px;height:560px;overflow:hidden;display:flex;align-items:center;gap:70px;padding:0 96px;
+ background:linear-gradient(120deg,#0b1622,#16304a 55%,#10263c);color:#fff;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;position:relative}
+body::after{content:"";position:absolute;inset:0;background:radial-gradient(760px 420px at 74% 18%,rgba(29,155,240,.28),transparent 70%)}
+.left{position:relative;z-index:2;max-width:620px}
+.mark{display:flex;align-items:center;gap:22px;margin-bottom:26px}
+.ic{width:104px;height:104px;border-radius:25px;background:#1d9bf0;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 40px rgba(29,155,240,.45)}
+.ic svg{width:66px;height:66px;fill:#fff}
+h1{margin:0;font-size:92px;font-weight:800;letter-spacing:-.035em;line-height:1}
+p{margin:0;font-size:26px;line-height:1.4;color:#a8cbe9}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}
+.chip{padding:9px 17px;border-radius:9999px;border:1px solid rgba(29,155,240,.5);background:rgba(29,155,240,.13);color:#7cc5fb;font-size:17px;font-weight:600}
+.right{position:relative;z-index:2;flex:1;display:flex;justify-content:center}
+.card{background:#15202b;border:1px solid #2f3336;border-radius:18px;padding:26px 28px;box-shadow:0 26px 60px rgba(0,0,0,.5);width:440px}
+.row{font:16px ui-monospace,SFMono-Regular,Menlo,monospace;color:#71767b;padding:7px 0}
+.row.out{color:#fff}
+.arrow{color:#1d9bf0;font-size:22px;padding:4px 0}
+</style></head><body>
+<div class="left">
+  <div class="mark"><div class="ic"><svg viewBox="0 0 24 24"><path d="M14.5 4.5 21 11l-6.5 6.5V13H10a4.5 4.5 0 0 0-4.5 4.5V20H3v-2.5A7 7 0 0 1 10 10.5h4.5V4.5Z"/></svg></div><h1>Xit</h1></div>
+  <p>Copy X links through the front-end you actually want — and never think about it again.</p>
+  <div class="chips"><span class="chip">fxtwitter</span><span class="chip">xcancel</span><span class="chip">vxtwitter</span><span class="chip">nitter</span><span class="chip">your own instance</span></div>
+</div>
+<div class="right"><div class="card">
+  <div class="row">x.com/jack/status/20?s=20&amp;t=abc</div>
+  <div class="arrow">↓</div>
+  <div class="row out">fxtwitter.com/jack/status/20</div>
+</div></div>
+</body></html>
