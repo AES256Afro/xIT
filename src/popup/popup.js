@@ -1,4 +1,4 @@
-/* Xit - popup. */
+/* xIT - popup. */
 (function () {
   'use strict';
 

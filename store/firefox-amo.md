@@ -10,7 +10,7 @@ Upload: `dist/xit-firefox-1.0.0.zip`
 - [ ] Create a Firefox Account and sign in to AMO. **No fee.**
 - [ ] Decide listed vs unlisted (see below).
 - [ ] Host the privacy policy publicly if you tick any data-collection box
-      (you should not need to — Xit collects nothing).
+      (you should not need to — xIT collects nothing).
 
 **Listed** puts it in the public directory and gives you a permanent install
 link. **Unlisted** just signs the file and hands you a signed `.xpi` you can
@@ -26,7 +26,7 @@ Firefox restart. The temporary-add-on route in `about:debugging` does not.
 
 **Name**
 ```
-Xit
+xIT
 ```
 
 **Summary** (250 max — this is 233)
@@ -42,9 +42,9 @@ Copy X/Twitter links through the front-end you actually want. One click on the t
 
 **Description** — AMO accepts limited HTML; plain text with blank lines is fine.
 ```
-Xit rewrites X/Twitter links as you copy them, so the link you paste is the one you actually wanted.
+xIT rewrites X/Twitter links as you copy them, so the link you paste is the one you actually wanted.
 
-Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. Xit fixes that at the point of copying — you pick the front-end once and stop thinking about it.
+Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. xIT fixes that at the point of copying — you pick the front-end once and stop thinking about it.
 
 TWO WAYS TO COPY, SAME RESULT
 
@@ -60,7 +60,7 @@ Privacy front-ends: xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privac
 Thread tools: Thread Reader App, Unroll Now.
 Custom: any self-hosted instance, via a live-validated URL template.
 
-Xit also strips the ?s=20&t=… share telemetry X appends to copied links.
+xIT also strips the ?s=20&t=… share telemetry X appends to copied links.
 
 OPTIONAL: SKIP X ENTIRELY
 

@@ -1,4 +1,4 @@
-# Xit
+# xIT
 
 A Chrome and Firefox extension that copies X/Twitter links through a redirector
 of your choice — `fxtwitter` by default, or any of the bundled privacy
@@ -179,7 +179,7 @@ live in [`store/`](store/):
 
 ## Privacy
 
-No analytics, no telemetry, no accounts, no remote code. Xit makes no network
+No analytics, no telemetry, no accounts, no remote code. xIT makes no network
 requests of its own except the optional reachability check you trigger by hand.
 Full text: [PRIVACY.md](PRIVACY.md).
 

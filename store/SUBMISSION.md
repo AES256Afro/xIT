@@ -1,4 +1,4 @@
-# Submitting Xit
+# Submitting xIT
 
 Everything needed for both stores lives in this folder. The listing copy is
 paste-ready; the images are generated from the real UI.

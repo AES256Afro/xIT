@@ -1,4 +1,4 @@
-/* Xit - options page. */
+/* xIT - options page. */
 (function () {
   'use strict';
 

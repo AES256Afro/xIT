@@ -1,5 +1,5 @@
 /*
- * Xit - core URL logic.
+ * xIT - core URL logic.
  *
  * Loaded as a classic script in every context (background, content script,
  * popup, options, page main-world) so it must not use import/export.

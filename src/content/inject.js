@@ -1,5 +1,5 @@
 /*
- * Xit - isolated world content script.
+ * xIT - isolated world content script.
  * Owns the in-page button, the dropdown, the toast, and the fallback
  * interception of X's native "Copy link".
  */

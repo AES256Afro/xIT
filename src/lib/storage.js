@@ -1,5 +1,5 @@
 /*
- * Xit - settings.
+ * xIT - settings.
  * Classic script. Depends on lib/redirectors.js. Exposes globalThis.XITStore.
  */
 (function (root) {

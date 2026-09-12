@@ -1,5 +1,5 @@
 /*
- * Xit - main world.
+ * xIT - main world.
  *
  * Runs in the page's own JS context (content_scripts world: MAIN) purely so it
  * can wrap navigator.clipboard. That is what makes X's *own* "Copy link"

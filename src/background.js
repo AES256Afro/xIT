@@ -1,5 +1,5 @@
 /*
- * Xit - background.
+ * xIT - background.
  *
  * Chrome loads this as an MV3 service worker (importScripts below).
  * Firefox loads lib/*.js ahead of it as event-page scripts, so the guard
@@ -55,7 +55,7 @@ async function buildMenus(settings) {
   };
 
   // On a tweet link anywhere on the web.
-  create({ id: MENU_ROOT_LINK, title: 'Xit', contexts: ['link'], targetUrlPatterns: LINK_PATTERNS });
+  create({ id: MENU_ROOT_LINK, title: 'xIT', contexts: ['link'], targetUrlPatterns: LINK_PATTERNS });
   create({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS,
     title: 'Copy as ' + XITStore.defaultRedirector(settings).name });
   create({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
@@ -74,7 +74,7 @@ async function buildMenus(settings) {
   create({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy clean x.com link' });
 
   // On the page itself while browsing X.
-  create({ id: MENU_ROOT_PAGE, title: 'Xit', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
+  create({ id: MENU_ROOT_PAGE, title: 'xIT', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
   create({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
     title: 'Copy this page as ' + XITStore.defaultRedirector(settings).name });
   for (const r of list) {

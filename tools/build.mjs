@@ -36,7 +36,7 @@ const HOSTS = [
 function baseManifest() {
   return {
     manifest_version: 3,
-    name: 'Xit',
+    name: 'xIT',
     version: pkg.version,
     description: 'Copy X/Twitter links through fxtwitter, xcancel and friends. Pick a default, or choose per copy.',
     permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
@@ -45,7 +45,7 @@ function baseManifest() {
     // destination is whatever the user picks. Asked for on demand.
     optional_host_permissions: ['*://*/*'],
     action: {
-      default_title: 'Xit',
+      default_title: 'xIT',
       default_popup: 'popup/popup.html',
       default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png', 48: 'icons/icon-48.png', 128: 'icons/icon-128.png' },
     },

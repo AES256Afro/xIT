@@ -18,7 +18,7 @@ Upload: `dist/xit-chrome-1.0.0.zip`
 
 **Name** (45 max)
 ```
-Xit
+xIT
 ```
 
 **Short description** (132 max — this is 111)
@@ -31,14 +31,14 @@ Copy X/Twitter links through fxtwitter, xcancel, nitter or your own instance. On
 
 **Detailed description**
 ```
-Xit rewrites X/Twitter links as you copy them, so the link you paste is the one you actually wanted.
+xIT rewrites X/Twitter links as you copy them, so the link you paste is the one you actually wanted.
 
-Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. Xit fixes that at the point of copying — you pick the front-end once and stop thinking about it.
+Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. xIT fixes that at the point of copying — you pick the front-end once and stop thinking about it.
 
 TWO WAYS TO COPY, SAME RESULT
 
 • A button on every tweet. Click it to copy with your default. Click the chevron — or right-click, or long-press — to pick a different one just for that copy.
-• X's own "Copy link". Xit patches it so the native share menu hands you the rewritten URL too. The menu looks and behaves exactly as before, so your muscle memory still works.
+• X's own "Copy link". xIT patches it so the native share menu hands you the rewritten URL too. The menu looks and behaves exactly as before, so your muscle memory still works.
 
 Also: a right-click menu on any tweet link anywhere on the web, and Alt+Shift+C for the tweet under your pointer.
 
@@ -54,7 +54,7 @@ Your own — add any self-hosted instance with a simple template. Tokens are {pa
 
 TIDIER LINKS
 
-Xit strips the ?s=20&t=… share telemetry X appends to copied links, while leaving real parameters alone. You can turn that off.
+xIT strips the ?s=20&t=… share telemetry X appends to copied links, while leaving real parameters alone. You can turn that off.
 
 OPTIONALLY, SKIP X ENTIRELY
 
@@ -62,13 +62,13 @@ Off by default. Turn on "Redirect page loads" and visiting x.com sends you strai
 
 PRIVACY
 
-No analytics. No telemetry. No accounts. No remote code. Xit makes no network requests of its own except the optional "check which are reachable" button, and only when you press it. Settings stay in your browser. Rewriting a link is local text manipulation.
+No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own except the optional "check which are reachable" button, and only when you press it. Settings stay in your browser. Rewriting a link is local text manipulation.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
 A NOTE ON PUBLIC INSTANCES
 
-Nitter instances go dark without warning — that is the nature of them, not a fault in Xit. Settings has a reachability check, and you can switch your default or add your own instance at any time.
+Nitter instances go dark without warning — that is the nature of them, not a fault in xIT. Settings has a reachability check, and you can switch your default or add your own instance at any time.
 ```
 
 ---
@@ -77,7 +77,7 @@ Nitter instances go dark without warning — that is the nature of them, not a f
 
 **Single purpose**
 ```
-Xit rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an alternative front-end chosen by the user, when the user copies a link, opens a context menu, or — optionally — navigates to x.com.
+xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an alternative front-end chosen by the user, when the user copies a link, opens a context menu, or — optionally — navigates to x.com.
 ```
 
 **Permission justifications** — one per permission, all required fields:
