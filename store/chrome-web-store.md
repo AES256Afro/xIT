@@ -93,7 +93,12 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 | Host permissions for `x.com` / `twitter.com` | Needed to place the copy button in the tweet action bar, read the tweet's permalink, and rewrite the link X's own "Copy link" produces. These are the only sites the extension's content scripts run on. |
 | Optional host permissions (`*://*/*`, not granted by default) | A cross-origin redirect requires permission for its destination, and the destination is whichever redirector the user chooses — including self-hosted instances the extension cannot know in advance. Nothing is granted at install time. The extension asks for a single specific origin (for example `*://xcancel.com/*`) at the moment the user turns on page redirecting, and never asks for more than the one host they picked. |
 
-**Are you using remote code?** No. All code is contained in the package.
+**Are you using remote code?** Select **No**. The dashboard still requires a
+written justification — it blocks submission without one. Paste:
+
+```
+xIT does not use remote code. Everything that executes ships inside the package: there are no externally hosted scripts, no CDN or remote module imports, no eval() or new Function(), and no string-based code execution anywhere in the extension. The service worker's importScripts() call loads only two files contained in this package (lib/redirectors.js and lib/storage.js). The single main-world content script (content/main-world.js) is likewise a static file in the package, declared in the manifest. The extension's only possible outbound request is an optional reachability check that the user starts by pressing a button on the Settings page; it is a no-cors HEAD request whose response is never read and never executed.
+```
 
 **Data usage** — tick nothing. Then certify:
 - [x] I do not sell or transfer user data to third parties, outside of the approved use cases
@@ -133,6 +138,17 @@ tile is what appears if the item is ever featured.
 - **Visibility:** Public (or Unlisted if you only want to share the link)
 
 ---
+
+## If the dashboard refuses to submit
+
+**Why can't I submit?** lists the blockers. The two that catch people out:
+
+- *"A justification for remote code use is required."* Answering **No** is not
+  enough on its own — the justification textarea above is still mandatory.
+- *"At least one screenshot or video is required."* Screenshots are uploaded on
+  the **Store listing** tab, not Privacy. All five are in `store/assets/`.
+
+Press **Save draft** after fixing them, then try **Submit for review** again.
 
 ## Expect review friction
 
