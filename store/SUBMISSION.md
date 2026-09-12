@@ -22,16 +22,14 @@ npm run store-assets    # screenshots and promo tiles into store/assets/
 
 ## Do these first
 
-**1. Push the repo.** Both listings reference GitHub URLs, and Chrome *requires*
-a publicly reachable privacy policy URL. Once pushed, this works:
+**1. Push the repo.** Done — both listings reference GitHub URLs, and Chrome
+*requires* a publicly reachable privacy policy URL. This one resolves:
 `https://github.com/AES256Afro/xIT/blob/main/PRIVACY.md`
 
-**2. Decide the Firefox add-on id.** It is `xit@aes256afro.github.io`, set in
+**2. Confirm the Firefox add-on id.** It is `xit@aes256afro.github.io`, set in
 `tools/build.mjs`. It becomes the add-on's permanent identity on AMO the moment
-you submit — you cannot change it later without breaking update continuity. If
-you want it to read as a domain you control, change it now and rebuild.
-
-**3. Put your name on the licence.** `LICENSE` says `Copyright (c) 2026 AES256Afro`.
+you submit — you cannot change it afterwards without breaking update
+continuity. Change it now if you want something else, and rebuild.
 
 ---
 
