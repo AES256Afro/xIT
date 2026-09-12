@@ -13,9 +13,9 @@
  * Needs Google Chrome and macOS `sips` (or ImageMagick `magick`/`convert`).
  * Pass a filter to re-render a subset:  node tools/make-store-assets.mjs hero
  */
-import { cp, mkdir, rm, writeFile, readFile, readdir, mkdtemp } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile, readFile, readdir, mkdtemp, stat } from 'node:fs/promises';
 import { existsSync, createReadStream } from 'node:fs';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -123,17 +123,16 @@ async function downscale(file, w, h) {
   console.warn(`  ! could not downscale ${path.basename(file)} - it is ${SCALE}x oversized`);
 }
 
-/* ---- render ---- */
 
-await mkdir(OUT, { recursive: true });
-const profile = path.join(stage, 'chrome-profile');
-let made = 0;
-
-for (const [tpl, w, h, outName] of ASSETS) {
-  if (filter && !tpl.includes(filter) && !outName.includes(filter)) continue;
-  const out = path.join(OUT, `${outName}.png`);
-  await rm(out, { force: true });
-  await run(chrome, [
+/**
+ * Take one screenshot.
+ *
+ * Headless Chrome reliably *writes* the PNG but does not always exit when the
+ * page contains subframes, so waiting on the process is not dependable. Wait
+ * for the file to appear and stop growing instead, then stop the browser.
+ */
+async function shoot(url, out, w, h) {
+  const child = spawn(chrome, [
     '--headless=new',
     '--disable-gpu',
     '--hide-scrollbars',
@@ -144,8 +143,47 @@ for (const [tpl, w, h, outName] of ASSETS) {
     `--window-size=${w},${h}`,
     '--virtual-time-budget=5000',
     `--screenshot=${out}`,
-    `http://127.0.0.1:${PORT}/${tpl}.html`,
-  ], { timeout: 90000 });
+    url,
+  ], { stdio: 'ignore', detached: false });
+
+  const deadline = Date.now() + 60000;
+  let lastSize = -1;
+  let stableFor = 0;
+  let exited = false;
+  child.on('exit', () => { exited = true; });
+
+  try {
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 250));
+      let size = -1;
+      try { size = (await stat(out)).size; } catch (_) { /* not written yet */ }
+      if (size > 0 && size === lastSize) {
+        stableFor += 250;
+        if (stableFor >= 750) return;   // written and settled
+      } else {
+        stableFor = 0;
+      }
+      lastSize = size;
+      if (exited && size > 0) return;
+      if (exited && Date.now() > deadline - 55000 && size <= 0) break;
+    }
+    throw new Error(`timed out waiting for ${path.basename(out)}`);
+  } finally {
+    if (!exited) { try { child.kill('SIGKILL'); } catch (_) { /* gone */ } }
+  }
+}
+
+/* ---- render ---- */
+
+await mkdir(OUT, { recursive: true });
+const profile = path.join(stage, 'chrome-profile');
+let made = 0;
+
+for (const [tpl, w, h, outName] of ASSETS) {
+  if (filter && !tpl.includes(filter) && !outName.includes(filter)) continue;
+  const out = path.join(OUT, `${outName}.png`);
+  await rm(out, { force: true });
+  await shoot(`http://127.0.0.1:${PORT}/${tpl}.html`, out, w, h);
   await downscale(out, w, h);
   console.log(`rendered store/assets/${outName}.png  ${w}x${h}`);
   made++;

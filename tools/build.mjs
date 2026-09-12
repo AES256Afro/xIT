@@ -9,7 +9,7 @@
  *   - Firefox needs browser_specific_settings.gecko.
  *   - Chrome wants minimum_chrome_version.
  */
-import { cp, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -119,6 +119,13 @@ async function zipTarget(name, dir) {
 }
 
 const wantZip = !process.argv.includes('--no-zip');
+
+// Drop zips from previous builds so a renamed or old artefact cannot linger
+// in dist/ and get uploaded to a store by mistake.
+await mkdir(DIST, { recursive: true });
+for (const f of await readdir(DIST)) {
+  if (f.endsWith('.zip')) await rm(path.join(DIST, f), { force: true });
+}
 
 for (const [name, manifest] of [['chrome', chromeManifest()], ['firefox', firefoxManifest()]]) {
   const dir = await buildTarget(name, manifest);

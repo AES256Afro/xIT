@@ -36,6 +36,18 @@
 
   // Enlarge the real UI inside the screenshot frame. zoom re-runs layout, so
   // text stays crisp - unlike transform: scale(), which would resample it.
+  // Prefill the custom-template form so the live preview is visible.
+  if (params.get('fill') === '1') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(() => {
+      const name = document.getElementById('c-name');
+      const tpl = document.getElementById('c-template');
+      if (!name || !tpl) return;
+      name.value = 'My Nitter';
+      tpl.value = 'https://nitter.example.net/{path}{query}';
+      tpl.dispatchEvent(new Event('input', { bubbles: true }));
+    }, 260));
+  }
+
   const z = parseFloat(params.get('zoom'));
   if (z > 0) {
     document.addEventListener('DOMContentLoaded', () => {

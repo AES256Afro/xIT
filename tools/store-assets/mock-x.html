@@ -3,8 +3,11 @@
 <link rel="stylesheet" href="content/inject.css">
 <style>
   *{box-sizing:border-box} html,body{margin:0}
-  body{background:#15202b;color:#e7e9ea;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;width:598px}
-  .tw{border-bottom:1px solid #2f3336;padding:12px 16px;display:flex;gap:12px}
+  body{background:#15202b;color:#e7e9ea;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;width:100%}
+  /* Screenshot only: the keyboard focus ring is correct in the product but
+     reads as a rendering artefact in a still image. */
+  :focus,:focus-visible{outline:none !important}
+  .tw{border-bottom:1px solid #2f3336;padding:12px 16px;display:flex;gap:12px;max-width:520px}
   .av{width:40px;height:40px;border-radius:50%;flex:0 0 auto;background:linear-gradient(135deg,#1d9bf0,#0f6ba8)}
   .av.b{background:linear-gradient(135deg,#8b5cf6,#5b21b6)}
   .bd{flex:1;min-width:0}
@@ -51,11 +54,17 @@
 <script src="content/inject.js"></script>
 <script>
   // Open the dropdown on the first tweet for the hero shot.
+  // The menu closes itself on scroll/resize - correct in the product, but
+  // headless startup fires both - so keep re-asserting it until capture.
   if (new URLSearchParams(location.search).get('open') === '1') {
-    setTimeout(() => {
+    const ensureOpen = () => {
+      const menu = document.querySelector('.xit-menu');
+      if (menu && !menu.hidden) return;
       const caret = document.querySelector('.xit-btn-caret');
       if (caret) caret.click();
-    }, 250);
+    };
+    setTimeout(ensureOpen, 300);
+    setInterval(ensureOpen, 150);
   }
 </script>
 </body></html>
