@@ -109,13 +109,23 @@ async function buildTarget(name, manifest) {
 async function zipTarget(name, dir) {
   const zipPath = path.join(DIST, `xit-${name}-${pkg.version}.zip`);
   await rm(zipPath, { force: true });
+
+  // macOS and Linux.
   try {
     await run('zip', ['-qr', zipPath, '.'], { cwd: dir });
     return zipPath;
-  } catch (e) {
-    console.warn(`  (skipped zip for ${name}: ${e.message.split('\n')[0]})`);
-    return null;
-  }
+  } catch (_) { /* no `zip` on PATH - try Windows */ }
+
+  // Windows. Single-quote the paths so spaces survive; double any quote.
+  const ps = (v) => `'${v.replace(/'/g, "''")}'`;
+  try {
+    await run('powershell', ['-NoProfile', '-NonInteractive', '-Command',
+      `Compress-Archive -Path ${ps(path.join(dir, '*'))} -DestinationPath ${ps(zipPath)} -Force`]);
+    return zipPath;
+  } catch (_) { /* fall through */ }
+
+  console.warn(`  (no zip for ${name}: install \`zip\`, or use the dist/${name} folder directly)`);
+  return null;
 }
 
 const wantZip = !process.argv.includes('--no-zip');

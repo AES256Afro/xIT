@@ -35,6 +35,27 @@ dropped on restart; for a permanent install you need a signed build via
 On Firefox, MV3 host permissions are opt-in: open the extension's popup and use
 **Grant access to x.com** the first time, then reload your X tab.
 
+### Testing it
+
+Load `dist/chrome` — the folder, not the zip, and not `src/` (the manifest is
+generated into `dist/` at build time, so `src/` on its own will not load).
+
+After changing any code: rebuild, press the **reload** arrow on the extension's
+card, then reload your X tab. Content scripts only re-inject on a fresh page
+load, so skipping that second step is the usual reason a change appears to do
+nothing.
+
+Where the logs are:
+
+| What | Where to look |
+|---|---|
+| Content script (button, dropdown, toast) | DevTools console on the x.com tab |
+| Background (context menus, redirect rules, shortcut) | `chrome://extensions` → the card → **service worker** |
+| Popup / options page | Right-click the popup → Inspect |
+| Load or manifest failures | The red **Errors** button on the card |
+
+The service worker going idle is normal, not a fault; it wakes on demand.
+
 ## What's included
 
 | Group | Redirectors | For |
