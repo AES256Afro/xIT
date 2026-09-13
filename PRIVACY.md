@@ -1,4 +1,4 @@
-# Privacy Policy — xIT
+# xIT Privacy Policy
 
 **Last updated: 11 September 2026**
 
@@ -11,7 +11,7 @@ no licence check and no "anonymous usage statistics".
 
 ## What xIT stores, and where
 
-Your settings — the redirector you chose as default, which ones you enabled,
+Your settings: the redirector you chose as default, which ones you enabled,
 any custom templates you added, and your copy and redirect preferences.
 
 These live in your browser's own extension storage (`chrome.storage.local`) on
@@ -39,7 +39,7 @@ Rewriting a link is pure text manipulation performed locally in your browser.
 xIT reads the tweet URL, swaps the hostname and path according to your chosen
 template, and puts the result on your clipboard. Nothing is sent anywhere.
 
-If you enable **Redirect page loads**, your browser — not xIT — performs the
+If you enable **Redirect page loads**, your browser, not xIT, performs the
 redirect using its built-in `declarativeNetRequest` rules. The extension
 supplies the rules once; it does not observe, log or receive your browsing.
 

@@ -22,13 +22,13 @@ npm run store-assets    # screenshots and promo tiles into store/assets/
 
 ## Do these first
 
-**1. Push the repo.** Done — both listings reference GitHub URLs, and Chrome
+**1. Push the repo.** Done. Both listings reference GitHub URLs, and Chrome
 *requires* a publicly reachable privacy policy URL. This one resolves:
 `https://github.com/AES256Afro/xIT/blob/main/PRIVACY.md`
 
 **2. Confirm the Firefox add-on id.** It is `xit@aes256afro.github.io`, set in
 `tools/build.mjs`. It becomes the add-on's permanent identity on AMO the moment
-you submit — you cannot change it afterwards without breaking update
+you submit. You cannot change it afterwards without breaking update
 continuity. Change it now if you want something else, and rebuild.
 
 ---
@@ -43,7 +43,7 @@ continuity. Change it now if you want something else, and rebuild.
    name, short description, detailed description, category, graphics.
 4. Fill **Privacy practices**: single purpose, a justification for every
    permission, and the data-use certifications. All the text is in the same
-   file. This is the section that gets submissions rejected — do not rush it.
+   file. This is the section that gets submissions rejected, so do not rush it.
 5. **Submit for review.** First reviews take days, sometimes weeks. Updates are
    usually much faster.
 
@@ -54,7 +54,7 @@ continuity. Change it now if you want something else, and rebuild.
    **unlisted** (signed file only, no review queue, no public page).
 3. Upload `dist/xit-firefox-1.0.0.zip`.
 4. Fill the fields from [`firefox-amo.md`](firefox-amo.md), including the
-   **notes for the reviewer** — they pre-empt the two questions this add-on
+   **notes for the reviewer**, which pre-empt the two questions this add-on
    will otherwise get asked about (the main-world clipboard patch, and the
    broad optional host permission).
 5. Submit. Unlisted is usually signed within minutes; listed goes into a queue.
@@ -67,7 +67,7 @@ signed `.xpi` does not.
 
 ## Releasing a new version
 
-1. Bump `version` in `package.json` — both manifests read it.
+1. Bump `version` in `package.json`. Both manifests read it.
 2. `npm test && npm run prepare-dist`
 3. Re-run `npm run store-assets` only if the UI changed.
 4. Upload the new zips. Chrome reuses the listing; AMO wants version notes.

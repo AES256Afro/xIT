@@ -1,7 +1,7 @@
 # xIT
 
 A Chrome and Firefox extension that copies X/Twitter links through a redirector
-of your choice — `fxtwitter` by default, or any of the bundled privacy
+of your choice: `fxtwitter` by default, or any of the bundled privacy
 frontends, thread unrollers, or your own self-hosted instance.
 
 Both copy routes give you the same rewritten link:
@@ -14,6 +14,49 @@ Both copy routes give you the same rewritten link:
 Plus a right-click menu on any tweet link anywhere on the web, an optional
 browse redirect, and a keyboard shortcut.
 
+![Copying a tweet through a chosen front-end, with the redirector list open](store/assets/screenshot-1-copy-any-tweet.png)
+
+## What it does
+
+**Pick a redirector once, or per copy.** The split button sits in the tweet
+action bar. A click copies with your default. The chevron opens the full list,
+grouped by what each one is for.
+
+**Both copy routes agree.** X's own "Copy link" is patched to hand back the
+same rewritten URL, so whichever route your muscle memory takes, you get the
+same thing. The native menu looks and behaves exactly as it did.
+
+**Tidier links.** The `?s=20&t=...` share telemetry X appends is stripped by
+default, while real parameters are left alone.
+
+<table>
+  <tr>
+    <td width="50%"><img alt="The toolbar popup, previewing the URL about to be copied" src="store/assets/screenshot-2-popup.png"></td>
+    <td width="50%"><img alt="Copy behaviour settings" src="store/assets/screenshot-3-both-routes.png"></td>
+  </tr>
+  <tr>
+    <td>The popup previews the exact URL you are about to copy, for the current tab or any link you paste in.</td>
+    <td>Every part of the copy behaviour is switchable, including the patch on X's native menu.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img alt="Page redirect settings, scoped by page type" src="store/assets/screenshot-4-browse-redirect.png"></td>
+    <td width="50%"><img alt="Adding a custom redirector with a live validated template" src="store/assets/screenshot-5-custom-instance.png"></td>
+  </tr>
+  <tr>
+    <td>Optional page redirecting, scoped to tweets, profiles, or everything. Off by default.</td>
+    <td>Custom templates for a self-hosted instance, validated live as you type.</td>
+  </tr>
+</table>
+
+### What's built in
+
+| Group | Redirectors | For |
+|---|---|---|
+| Embed fixers | fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter | Tweets that unfurl properly in Discord, Slack and Signal |
+| Privacy front-ends | xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net | Reading without tracking or a login wall |
+| Thread tools | Thread Reader App, Unroll Now | Unrolling a long thread into one page |
+| Custom | yours | Self-hosted instances, anything not listed |
+
 ## Install
 
 Nothing is published to either store, so both sides load unpacked.
@@ -24,10 +67,10 @@ npm run prepare-dist
 
 That writes `dist/chrome/` and `dist/firefox/` (and a `.zip` of each).
 
-**Chrome / Edge / Brave** — go to `chrome://extensions`, turn on *Developer
+**Chrome / Edge / Brave**: go to `chrome://extensions`, turn on *Developer
 mode*, click *Load unpacked*, pick `dist/chrome`.
 
-**Firefox** — go to `about:debugging#/runtime/this-firefox`, click *Load
+**Firefox**: go to `about:debugging#/runtime/this-firefox`, click *Load
 Temporary Add-on*, pick `dist/firefox/manifest.json`. Temporary add-ons are
 dropped on restart; for a permanent install you need a signed build via
 [addons.mozilla.org](https://addons.mozilla.org/developers/).
@@ -37,7 +80,7 @@ On Firefox, MV3 host permissions are opt-in: open the extension's popup and use
 
 ### Testing it
 
-Load `dist/chrome` — the folder, not the zip, and not `src/` (the manifest is
+Load `dist/chrome`: the folder, not the zip, and not `src/` (the manifest is
 generated into `dist/` at build time, so `src/` on its own will not load).
 
 After changing any code: rebuild, press the **reload** arrow on the extension's
@@ -56,18 +99,9 @@ Where the logs are:
 
 The service worker going idle is normal, not a fault; it wakes on demand.
 
-## What's included
-
-| Group | Redirectors | For |
-|---|---|---|
-| Embed fixers | fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter | Tweets that unfurl properly in Discord, Slack, Signal |
-| Privacy frontends | xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net | Reading without tracking or the login wall |
-| Thread tools | Thread Reader App, Unroll Now | Unrolling a long thread |
-| Custom | yours | Self-hosted instances, anything not listed |
-
 **Public instances come and go.** Nitter instances in particular go dark without
 warning. Settings has a *Check which are reachable* button, but it only proves
-the host answered — not that it still renders tweets. If your default stops
+the host answered, not that it still renders tweets. If your default stops
 working, switch it, or add your own instance under **Custom redirector**.
 
 ## Custom templates
@@ -77,14 +111,14 @@ A template is a URL with tokens filled in from the original link:
 | Token | From `https://x.com/jack/status/20?s=20` |
 |---|---|
 | `{path}` | `jack/status/20` |
-| `{query}` | `` (empty — `s=20` is stripped as tracking) |
+| `{query}` | `` (empty, `s=20` is stripped as tracking) |
 | `{user}` | `jack` |
 | `{id}` | `20` |
 | `{hash}` | `` |
 | `{host}` | `x.com` |
 
 A plain mirror is `https://your.host/{path}{query}`. Something that only handles
-single tweets is more like `https://your.host/tweet/{id}` — templates built from
+single tweets is more like `https://your.host/tweet/{id}`. Templates built from
 `{id}` are automatically refused for profile links rather than producing a
 broken URL.
 
@@ -94,7 +128,7 @@ Off by default. When on, loading `x.com` sends you to your chosen frontend
 before the page is fetched (via `declarativeNetRequest`, so x.com never loads
 and never sees the request).
 
-Scope is per page type — tweets, profiles, everything else — and your own home
+Scope is per page type (tweets, profiles, everything else), and your own home
 timeline, messages, notifications, bookmarks and settings are **never**
 redirected, since a frontend cannot show them and you would just be locked out.
 Your logged-in X session is untouched; you simply stop landing on it.
@@ -140,7 +174,7 @@ two manifests, which differ only in the background-script style and the
 Firefox add-on id.
 
 Store screenshots are rendered by headless Chrome from the *real* popup, options
-page and content script, with only the extension APIs stubbed — so they cannot
+page and content script, with only the extension APIs stubbed, so they cannot
 drift from the shipped UI. See [`store/SUBMISSION.md`](store/SUBMISSION.md).
 
 ```
@@ -173,9 +207,9 @@ through untouched), and talks to the rest over `postMessage`.
 Listing copy, permission justifications and generated artwork for both stores
 live in [`store/`](store/):
 
-- [`store/SUBMISSION.md`](store/SUBMISSION.md) — what to do, in order
-- [`store/chrome-web-store.md`](store/chrome-web-store.md) — Chrome fields
-- [`store/firefox-amo.md`](store/firefox-amo.md) — AMO fields
+- [`store/SUBMISSION.md`](store/SUBMISSION.md): what to do, in order
+- [`store/chrome-web-store.md`](store/chrome-web-store.md): Chrome fields
+- [`store/firefox-amo.md`](store/firefox-amo.md): AMO fields
 
 ## Privacy
 

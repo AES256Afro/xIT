@@ -1,4 +1,4 @@
-# Firefox Add-ons (AMO) — submission copy
+# Firefox Add-ons (AMO) submission copy
 
 Paste-ready values for <https://addons.mozilla.org/developers/addon/submit/distribution>.
 Upload: `dist/xit-firefox-1.0.0.zip`
@@ -10,11 +10,11 @@ Upload: `dist/xit-firefox-1.0.0.zip`
 - [ ] Create a Firefox Account and sign in to AMO. **No fee.**
 - [ ] Decide listed vs unlisted (see below).
 - [ ] Host the privacy policy publicly if you tick any data-collection box
-      (you should not need to — xIT collects nothing).
+      (you should not need to, since xIT collects nothing).
 
 **Listed** puts it in the public directory and gives you a permanent install
 link. **Unlisted** just signs the file and hands you a signed `.xpi` you can
-install yourself and share directly — no review queue, no public listing. For a
+install yourself and share directly, with no review queue and no public listing. For a
 personal tool, unlisted is often the better trade.
 
 Either way you get a signed build, which is what makes the add-on survive a
@@ -29,9 +29,9 @@ Firefox restart. The temporary-add-on route in `about:debugging` does not.
 xIT
 ```
 
-**Summary** (250 max — this is 233)
+**Summary** (250 max, this is 230)
 ```
-Copy X/Twitter links through the front-end you actually want. One click on the tweet, or X's own "Copy link" — both give you fxtwitter, xcancel, nitter, a thread unroller, or your own self-hosted instance. Optional page redirecting.
+Copy X/Twitter links through the front-end you actually want. One click on the tweet, or X's own "Copy link". Both give you fxtwitter, xcancel, nitter, a thread unroller, or your own self-hosted instance. Optional page redirecting.
 ```
 
 **Categories:** Privacy & Security, Social & Communication
@@ -40,11 +40,11 @@ Copy X/Twitter links through the front-end you actually want. One click on the t
 **Support site:** `https://github.com/AES256Afro/xIT`
 **Support email:** *(your address, or leave blank and rely on the issue tracker)*
 
-**Description** — AMO accepts limited HTML; plain text with blank lines is fine.
+**Description**: AMO accepts limited HTML; plain text with blank lines is fine.
 ```
 xIT rewrites X/Twitter links as you copy them, so the link you paste is the one you actually wanted.
 
-Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. xIT fixes that at the point of copying — you pick the front-end once and stop thinking about it.
+Share a tweet in Discord or Slack and you get a dead grey box. Send someone a link and they hit a login wall. xIT fixes that at the point of copying. You pick the front-end once and stop thinking about it.
 
 TWO WAYS TO COPY, SAME RESULT
 
@@ -81,7 +81,7 @@ Note: public Nitter instances go dark without warning. Settings includes a reach
 
 **Does your add-on collect or transmit user data?** No.
 
-**Notes for the reviewer** — paste this; it answers the questions AMO reviewers
+**Notes for the reviewer**: paste this, since it answers the questions AMO reviewers
 actually ask about this kind of add-on:
 ```
 Source is unminified and unbundled; what you see in the package is what runs. No build step is needed to review it, and no remote code is loaded or executed.
@@ -90,9 +90,9 @@ Repository: https://github.com/AES256Afro/xIT
 
 Two points worth flagging up front:
 
-1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL — prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
+1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL. Prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
 
-2. optional_host_permissions is "*://*/*" but nothing is granted at install. A cross-origin redirect needs permission for its destination, and the destination is a redirector the user chooses — including self-hosted instances that cannot be enumerated in advance. The extension requests one specific origin (e.g. *://xcancel.com/*) at the moment the user enables page redirecting, and never more than the host they selected.
+2. optional_host_permissions is "*://*/*" but nothing is granted at install. A cross-origin redirect needs permission for its destination, and the destination is a redirector the user chooses, including self-hosted instances that cannot be enumerated in advance. The extension requests one specific origin (e.g. *://xcancel.com/*) at the moment the user enables page redirecting, and never more than the host they selected.
 
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
 ```
@@ -126,6 +126,6 @@ AMO has no fixed screenshot dimensions; the 1280×800 files work as-is.
   `world: "MAIN"` content script. Below that the add-on still works through its
   DOM fallback, but the manifest floor keeps the experience predictable.
 - **MV3 host permissions are opt-in on Firefox.** After installing, the user
-  must grant access to x.com — the popup has a button for it. This is normal
+  must grant access to x.com, and the popup has a button for it. This is normal
   Firefox behaviour, not a bug; it is worth a line in your listing if you
   publish it listed.

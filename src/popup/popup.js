@@ -73,7 +73,7 @@
     $('current-kind').textContent = describe(parts);
 
     const d = XITStore.defaultRedirector(settings);
-    $('default-pill').textContent = d ? d.name : '—';
+    $('default-pill').textContent = d ? d.name : '…';
 
     const out = parts ? XIT.convert(sourceUrl, d, opts()) : { ok: false, reason: 'Open a tweet, or paste a link below.' };
     $('preview').textContent = out.ok ? out.url : out.reason;

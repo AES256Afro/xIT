@@ -92,7 +92,7 @@
     const msgs = [];
     if (settings.browseRedirect) {
       if (!r || !XIT.supportsBrowse(r)) {
-        msgs.push('“' + ((r && r.name) || '—') + '” cannot be expressed as a redirect rule. Pick another, or turn this off.');
+        msgs.push('“' + ((r && r.name) || 'none') + '” cannot be expressed as a redirect rule. Pick another, or turn this off.');
       } else if (!settings.browseScope.status && !settings.browseScope.profile && !settings.browseScope.other) {
         msgs.push('No page types selected, so nothing is being redirected.');
       }
@@ -141,7 +141,7 @@
         const b = document.createElement('b');
         b.textContent = r.name;
         const span = document.createElement('span');
-        span.textContent = r.note ? r.note + ' — ' + r.template : r.template;
+        span.textContent = r.note ? r.note + ' · ' + r.template : r.template;
         main.append(b, span);
 
         row.append(cb, main);
