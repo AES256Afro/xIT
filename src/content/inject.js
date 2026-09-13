@@ -488,6 +488,10 @@
     if (d.__xit === 'hello') {
       mainWorldReady = true;
       pushConfig();
+    } else if (d.__xit === 'ready') {
+      // The document_start hello may predate our listener. This confirms
+      // receipt of our config without starting another message exchange.
+      mainWorldReady = true;
     } else if (d.__xit === 'copied' && typeof d.url === 'string') {
       toast('Copied: ' + shortLabel(d.url), 'ok');
     }

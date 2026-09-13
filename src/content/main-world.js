@@ -26,9 +26,9 @@
       requires: d.payload.requires || [],
       stripTracking: d.payload.stripTracking !== false,
     };
-    // The isolated script attaches its listener at document_idle, long after
-    // our first hello. Answering each config is what it actually hears.
-    post('hello');
+    // Acknowledge configuration without requesting it again. Replying with
+    // hello here would create an endless config -> hello -> config loop.
+    post('ready');
   }, false);
 
   function post(type, extra) {
