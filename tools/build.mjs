@@ -92,6 +92,7 @@ function firefoxManifest() {
     gecko: {
       id: 'xit@aes256afro.github.io',
       strict_min_version: '128.0',
+      data_collection_permissions: { required: ['none'] },
     },
   };
   return m;
