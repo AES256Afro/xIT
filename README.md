@@ -59,13 +59,22 @@ default, while real parameters are left alone.
 
 ## Install
 
-Nothing is published to either store, so both sides load unpacked.
+[**Get it on the Chrome Web Store**](https://chromewebstore.google.com/detail/clilllbfkoeamfonhoeaaepglgceanlc)
+
+Works in Chrome, Edge, Brave and any other Chromium browser that accepts Web
+Store installs.
+
+Firefox is not published yet. Build it and load it yourself, per
+[building from source](#building-from-source) below.
+
+### Building from source
 
 ```bash
 npm run prepare-dist
 ```
 
-That writes `dist/chrome/` and `dist/firefox/` (and a `.zip` of each).
+That writes `dist/chrome/` and `dist/firefox/` (and a `.zip` of each). No npm
+dependencies are installed, since the project has none.
 
 **Chrome / Edge / Brave**: go to `chrome://extensions`, turn on *Developer
 mode*, click *Load unpacked*, pick `dist/chrome`.

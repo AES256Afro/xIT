@@ -35,6 +35,12 @@ continuity. Change it now if you want something else, and rebuild.
 
 ## Chrome Web Store
 
+**Published on 13 September 2026.**
+Item ID `clilllbfkoeamfonhoeaaepglgceanlc`, public, all regions.
+Listing: <https://chromewebstore.google.com/detail/clilllbfkoeamfonhoeaaepglgceanlc>
+
+The steps below are kept for future submissions and version updates.
+
 1. Pay the one-time **US$5** developer registration at
    <https://chrome.google.com/webstore/devconsole>. Nothing can be submitted
    before this clears.
