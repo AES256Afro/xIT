@@ -18,10 +18,10 @@
    * Icons
    * ---------------------------------------------------------------- */
 
-  const ICON_REDIRECT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4.5 21 11l-6.5 6.5V13H10a4.5 4.5 0 0 0-4.5 4.5V20H3v-2.5A7 7 0 0 1 10 10.5h4.5V4.5Z"/></svg>';
-  const ICON_CARET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16.5 5 9h14l-7 7.5Z"/></svg>';
-  const ICON_OPEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4h7v7h-2V7.4l-8.3 8.3-1.4-1.4L16.6 6H13V4ZM5 6h5v2H6v10h10v-4h2v6H4V6h1Z"/></svg>';
-  const ICON_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.6 2.5 5.3 5.8.8-4.2 4.1 1 5.8-5.1-2.8-5.1 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.6Zm0 4.6-1.1 2.4-2.6.4 1.9 1.8-.4 2.6L12 14.2l2.2 1.2-.4-2.6 1.9-1.8-2.6-.4L12 8.2Z"/></svg>';
+  const ICON_REDIRECT = 'M14.5 4.5 21 11l-6.5 6.5V13H10a4.5 4.5 0 0 0-4.5 4.5V20H3v-2.5A7 7 0 0 1 10 10.5h4.5V4.5Z';
+  const ICON_CARET = 'M12 16.5 5 9h14l-7 7.5Z';
+  const ICON_OPEN = 'M13 4h7v7h-2V7.4l-8.3 8.3-1.4-1.4L16.6 6H13V4ZM5 6h5v2H6v10h10v-4h2v6H4V6h1Z';
+  const ICON_STAR = 'm12 3.6 2.5 5.3 5.8.8-4.2 4.1 1 5.8-5.1-2.8-5.1 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.6Zm0 4.6-1.1 2.4-2.6.4 1.9 1.8-.4 2.6L12 14.2l2.2 1.2-.4-2.6 1.9-1.8-2.6-.4L12 8.2Z';
 
   /* ---------------------------------------------------------------- *
    * Theme
@@ -258,37 +258,65 @@
     return el;
   }
 
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function icon(pathData) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', pathData);
+    svg.appendChild(path);
+    return svg;
+  }
+
   function renderMenu() {
     const list = XITStore.enabledRedirectors(settings);
-    const parts = [];
+    const fragment = document.createDocumentFragment();
     for (const g of XIT.GROUPS) {
       const inGroup = list.filter((r) => r.group === g.id);
       if (!inGroup.length) continue;
-      parts.push('<div class="xit-group-label">' + esc(g.label) + '</div>');
+      fragment.appendChild(element('div', 'xit-group-label', g.label));
       for (const r of inGroup) {
-        parts.push(
-          '<div class="xit-row" role="menuitem" tabindex="-1" data-id="' + esc(r.id) + '"' +
-          (r.id === settings.defaultRedirector ? ' data-default="1"' : '') + '>' +
-            '<span class="xit-row-dot"></span>' +
-            '<span class="xit-row-label"><span class="xit-row-name">' + esc(r.name) + '</span>' +
-            (r.note ? '<span class="xit-row-note">' + esc(r.note) + '</span>' : '') +
-            '</span>' +
-            '<button class="xit-row-act" data-act="open" title="Open with ' + esc(r.name) + '" aria-label="Open with ' + esc(r.name) + '">' + ICON_OPEN + '</button>' +
-            '<button class="xit-row-act" data-act="default" title="Make ' + esc(r.name) + ' the default" aria-label="Make ' + esc(r.name) + ' the default">' + ICON_STAR + '</button>' +
-          '</div>'
-        );
+        const row = element('div', 'xit-row');
+        row.setAttribute('role', 'menuitem');
+        row.setAttribute('tabindex', '-1');
+        row.setAttribute('data-id', r.id);
+        if (r.id === settings.defaultRedirector) row.setAttribute('data-default', '1');
+        row.appendChild(element('span', 'xit-row-dot'));
+        const label = element('span', 'xit-row-label');
+        label.appendChild(element('span', 'xit-row-name', r.name));
+        if (r.note) label.appendChild(element('span', 'xit-row-note', r.note));
+        row.appendChild(label);
+        for (const [action, title, pathData] of [
+          ['open', 'Open with ' + r.name, ICON_OPEN],
+          ['default', 'Make ' + r.name + ' the default', ICON_STAR],
+        ]) {
+          const button = element('button', 'xit-row-act');
+          button.setAttribute('data-act', action);
+          button.setAttribute('title', title);
+          button.setAttribute('aria-label', title);
+          button.appendChild(icon(pathData));
+          row.appendChild(button);
+        }
+        fragment.appendChild(row);
       }
     }
-    parts.push('<div class="xit-sep"></div>');
-    parts.push('<div class="xit-foot">' +
-      '<button data-foot="original">Copy clean x.com link</button>' +
-      '<button data-foot="options">Settings</button>' +
-    '</div>');
-    menuEl.innerHTML = parts.join('');
-  }
-
-  function esc(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    fragment.appendChild(element('div', 'xit-sep'));
+    const foot = element('div', 'xit-foot');
+    for (const [action, text] of [['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
+      const button = element('button', '', text);
+      button.setAttribute('data-foot', action);
+      foot.appendChild(button);
+    }
+    fragment.appendChild(foot);
+    menuEl.replaceChildren(fragment);
   }
 
   function openMenu(wrap, sourceUrl) {
@@ -334,12 +362,12 @@
     const main = document.createElement('button');
     main.type = 'button';
     main.className = 'xit-btn xit-btn-main';
-    main.innerHTML = ICON_REDIRECT;
+    main.appendChild(icon(ICON_REDIRECT));
 
     const caret = document.createElement('button');
     caret.type = 'button';
     caret.className = 'xit-btn xit-btn-caret';
-    caret.innerHTML = ICON_CARET;
+    caret.appendChild(icon(ICON_CARET));
     caret.setAttribute('aria-haspopup', 'menu');
     caret.setAttribute('aria-label', 'Choose a redirector');
 
