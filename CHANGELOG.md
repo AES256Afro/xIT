@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- Serialize all startup and settings refreshes to prevent duplicate context-menu IDs during installation and updates.
+- Wait for menu removal and creation to finish, report asynchronous errors, and recover on later refreshes.
+- Cover overlapping events and failure recovery with Chrome and Firefox API regression tests.
+
 ## 1.0.2
 
 - Add the Firefox data-collection declaration required for new AMO submissions.
