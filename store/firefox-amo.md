@@ -1,7 +1,7 @@
 # Firefox Add-ons (AMO) submission copy
 
 Paste-ready values for <https://addons.mozilla.org/developers/addon/submit/distribution>.
-Upload: `dist/xit-firefox-1.0.0.zip`
+Upload: `dist/xit-firefox-1.0.1.zip`
 
 ---
 
@@ -97,9 +97,9 @@ Two points worth flagging up front:
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
 ```
 
-**Version notes (1.0.0)**
+**Version notes (1.0.1)**
 ```
-First release.
+Fix an endless content-script message exchange that could make X tabs unresponsive while xIT was enabled. Native copy-link conversion and settings updates continue to work normally.
 ```
 
 ---
