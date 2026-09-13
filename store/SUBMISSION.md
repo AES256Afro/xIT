@@ -10,8 +10,8 @@ npm run store-assets    # screenshots and promo tiles into store/assets/
 
 | What | Where |
 |---|---|
-| Chrome package | `dist/xit-chrome-1.0.2.zip` |
-| Firefox package | `dist/xit-firefox-1.0.2.zip` |
+| Chrome package | `dist/xit-chrome-1.0.3.zip` |
+| Firefox package | `dist/xit-firefox-1.0.3.zip` |
 | Chrome listing copy | [`chrome-web-store.md`](chrome-web-store.md) |
 | Firefox listing copy | [`firefox-amo.md`](firefox-amo.md) |
 | Screenshots + tiles | `assets/` |
@@ -44,7 +44,7 @@ The steps below are kept for future submissions and version updates.
 1. Pay the one-time **US$5** developer registration at
    <https://chrome.google.com/webstore/devconsole>. Nothing can be submitted
    before this clears.
-2. **New item** → upload `dist/xit-chrome-1.0.2.zip`.
+2. **New item** → upload `dist/xit-chrome-1.0.3.zip`.
 3. Fill **Store listing** from [`chrome-web-store.md`](chrome-web-store.md):
    name, short description, detailed description, category, graphics.
 4. Fill **Privacy practices**: single purpose, a justification for every
@@ -58,7 +58,7 @@ The steps below are kept for future submissions and version updates.
 1. Sign in at <https://addons.mozilla.org/developers/>. No fee.
 2. **Submit a New Add-on** → choose **listed** (public directory) or
    **unlisted** (signed file only, no review queue, no public page).
-3. Upload `dist/xit-firefox-1.0.2.zip`.
+3. Upload `dist/xit-firefox-1.0.3.zip`.
 4. Fill the fields from [`firefox-amo.md`](firefox-amo.md), including the
    **notes for the reviewer**, which pre-empt the two questions this add-on
    will otherwise get asked about (the main-world clipboard patch, and the

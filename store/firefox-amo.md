@@ -1,7 +1,7 @@
 # Firefox Add-ons (AMO) submission copy
 
 Paste-ready values for <https://addons.mozilla.org/developers/addon/submit/distribution>.
-Upload: `dist/xit-firefox-1.0.2.zip`
+Upload: `dist/xit-firefox-1.0.3.zip`
 
 ---
 
@@ -97,9 +97,9 @@ Two points worth flagging up front:
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
 ```
 
-**Version notes (1.0.2)**
+**Version notes (1.0.3)**
 ```
-Add Firefox's required data-collection declaration and replace in-page HTML string assignments with DOM construction. Includes the fix for the endless content-script message exchange that could make X tabs unresponsive.
+Fix overlapping context-menu rebuilds during installation and settings updates. Includes the Firefox data-collection declaration, DOM construction improvements, and the fix for unresponsive X tabs from earlier releases.
 ```
 
 ---

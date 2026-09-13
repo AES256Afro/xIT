@@ -30,12 +30,24 @@ const LINK_PATTERNS = [
  * -------------------------------------------------------------------- */
 
 function removeAllMenus() {
-  return new Promise((resolve) => {
-    try {
-      api.contextMenus.removeAll(() => resolve());
-    } catch (_) {
-      resolve();
-    }
+  // Firefox's browser namespace returns a promise; Chrome 111 needs callbacks.
+  if (typeof browser !== 'undefined' && api === browser) return api.contextMenus.removeAll();
+  return new Promise((resolve, reject) => {
+    api.contextMenus.removeAll(() => {
+      const error = api.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+}
+
+function createMenu(opts) {
+  return new Promise((resolve, reject) => {
+    api.contextMenus.create(opts, () => {
+      const error = api.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
   });
 }
 
@@ -46,39 +58,31 @@ async function buildMenus(settings) {
   const list = XITStore.enabledRedirectors(settings);
   if (!list.length) return;
 
-  const create = (opts) => {
-    try {
-      api.contextMenus.create(opts);
-    } catch (e) {
-      console.warn('[xit] menu create failed', opts.id, e);
-    }
-  };
-
   // On a tweet link anywhere on the web.
-  create({ id: MENU_ROOT_LINK, title: 'xIT', contexts: ['link'], targetUrlPatterns: LINK_PATTERNS });
-  create({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS,
+  await createMenu({ id: MENU_ROOT_LINK, title: 'xIT', contexts: ['link'], targetUrlPatterns: LINK_PATTERNS });
+  await createMenu({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS,
     title: 'Copy as ' + XITStore.defaultRedirector(settings).name });
-  create({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
+  await createMenu({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
 
   for (const g of XIT.GROUPS) {
     const inGroup = list.filter((r) => r.group === g.id);
     if (!inGroup.length) continue;
     const groupId = 'xit-link-g-' + g.id;
-    create({ id: groupId, parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: g.label });
+    await createMenu({ id: groupId, parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: g.label });
     for (const r of inGroup) {
-      create({ id: 'xit-link-copy:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy as ' + r.name });
-      create({ id: 'xit-link-open:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Open with ' + r.name });
+      await createMenu({ id: 'xit-link-copy:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy as ' + r.name });
+      await createMenu({ id: 'xit-link-open:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Open with ' + r.name });
     }
   }
-  create({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
-  create({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy clean x.com link' });
+  await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
+  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy clean x.com link' });
 
   // On the page itself while browsing X.
-  create({ id: MENU_ROOT_PAGE, title: 'xIT', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
-  create({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
+  await createMenu({ id: MENU_ROOT_PAGE, title: 'xIT', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
+  await createMenu({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
     title: 'Copy this page as ' + XITStore.defaultRedirector(settings).name });
   for (const r of list) {
-    create({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
+    await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
       title: 'Open this page with ' + r.name });
   }
 }
@@ -304,9 +308,12 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'xit:settings-changed') {
     (async () => {
-      const settings = await XITStore.load();
-      await Promise.all([buildMenus(settings), syncDnrRules(settings)]);
-      sendResponse({ ok: true });
+      try {
+        await init('settings');
+        sendResponse({ ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e && e.message || e) });
+      }
     })();
     return true;
   }
@@ -343,19 +350,22 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 let initChain = Promise.resolve();
 
-/** Serialised so a cold service-worker wake cannot race onInstalled. */
+/** All startup and settings events share one queue, including storage notifications. */
 function init(reason) {
-  initChain = initChain.then(() => doInit(reason)).catch((e) => console.warn('[xit] init failed', e));
-  return initChain;
+  const pending = initChain.then(() => doInit(reason));
+  // Recover the queue without hiding failures from callers.
+  initChain = pending.catch((e) => console.warn('[xit] init failed', e));
+  return pending;
 }
 
 async function doInit(reason) {
-  const settings = await XITStore.load();
   if (reason === 'install') {
     // Persist defaults so the options page has something concrete to show.
     await XITStore.save({});
   }
-  await Promise.all([buildMenus(settings), syncDnrRules(settings)]);
+  const settings = await XITStore.load();
+  await buildMenus(settings);
+  await syncDnrRules(settings);
 }
 
 api.runtime.onInstalled.addListener((details) => {
@@ -372,8 +382,8 @@ if (api.commands && api.commands.onCommand) {
     handleCommand(command, tab).catch((e) => console.warn('[xit] command failed', e));
   });
 }
-XITStore.onChanged((settings) => {
-  Promise.all([buildMenus(settings), syncDnrRules(settings)]).catch(() => {});
+XITStore.onChanged(() => {
+  init('settings').catch(() => {});
 });
 installFallbackRedirect();
 

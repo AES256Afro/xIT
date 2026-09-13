@@ -1,7 +1,7 @@
 # Chrome Web Store submission copy
 
 Paste-ready values for every field in the Developer Dashboard.
-Upload: `dist/xit-chrome-1.0.2.zip`
+Upload: `dist/xit-chrome-1.0.3.zip`
 
 ---
 
