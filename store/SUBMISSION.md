@@ -37,7 +37,7 @@ continuity. Change it now if you want something else, and rebuild.
 
 **Published on 13 September 2026.**
 Item ID `clilllbfkoeamfonhoeaaepglgceanlc`, public, all regions.
-Listing: <https://chromewebstore.google.com/detail/clilllbfkoeamfonhoeaaepglgceanlc>
+Listing: <https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc>
 
 The steps below are kept for future submissions and version updates.
 

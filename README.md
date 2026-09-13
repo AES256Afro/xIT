@@ -1,5 +1,10 @@
 # xIT
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/clilllbfkoeamfonhoeaaepglgceanlc?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white&color=1d9bf0)](https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc)
+[![License](https://img.shields.io/badge/license-MIT-1d9bf0)](LICENSE)
+
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc)**
+
 A Chrome and Firefox extension that copies X/Twitter links through a redirector
 of your choice: `fxtwitter` by default, or any of the bundled privacy
 frontends, thread unrollers, or your own self-hosted instance.
@@ -59,7 +64,7 @@ default, while real parameters are left alone.
 
 ## Install
 
-[**Get it on the Chrome Web Store**](https://chromewebstore.google.com/detail/clilllbfkoeamfonhoeaaepglgceanlc)
+[**Get it on the Chrome Web Store**](https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc)
 
 Works in Chrome, Edge, Brave and any other Chromium browser that accepts Web
 Store installs.
