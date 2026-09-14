@@ -101,8 +101,8 @@ test('custom templates convert', () => {
 
 test('browse rules compile for host-swap templates', () => {
   const rules = XIT.compileBrowseRules('https://xcancel.com/{path}{query}', { status: true, profile: true, other: true });
-  assert.equal(rules.length, 4);
-  assert.ok(rules.every((r) => r.regexSubstitution.startsWith('https://xcancel.com/')));
+  assert.ok(rules.some(r => r.priority === 2));
+  assert.ok(rules.every((r) => r.transform ? r.transform.host === 'xcancel.com' : r.regexSubstitution.startsWith('https://xcancel.com/')));
   // RE2 has no lookahead; make sure we never emit one.
   assert.ok(rules.every((r) => !/\(\?[=!<]/.test(r.regexFilter)));
 });
@@ -129,12 +129,49 @@ test('guard rules keep reserved paths and bypassed URLs out of redirects', () =>
 });
 
 test('generated browse regexes match what they should', () => {
-  const [status, iStatus, profile, other] = XIT.compileBrowseRules(
+  const rules = XIT.compileBrowseRules(
     'https://xcancel.com/{path}{query}', { status: true, profile: true, other: true });
+  const [status, iStatus] = rules;
+  const profile = rules.find(r => r.priority === 2);
+  const other = rules.find(r => r.priority === 1);
   assert.ok(new RegExp(status.regexFilter).test('https://x.com/jack/status/20'));
   assert.ok(!new RegExp(status.regexFilter).test('https://x.com/jack'));
   assert.ok(new RegExp(iStatus.regexFilter).test('https://x.com/i/web/status/20'));
   assert.ok(new RegExp(profile.regexFilter).test('https://x.com/jack'));
   assert.ok(!new RegExp(profile.regexFilter).test('https://x.com/jack/status/20'));
   assert.ok(new RegExp(other.regexFilter).test('https://x.com/search?q=hi'));
+});
+
+test('reserved routes and bypass values match complete segments', () => {
+  const guards=XIT.guardRules();
+  const allowed=url=>guards.some(r=>new RegExp(r.regexFilter).test(url));
+  for(const p of ['home','home?lang=en','settings/account','i/lists/20']) assert.equal(allowed('https://x.com/'+p),true,p);
+  for(const p of ['homegrown','topicsmith','jobsmith','jack?xit_bypass=10','jack?xit_bypass=1no','jack#?xit_bypass=1']) assert.equal(allowed('https://x.com/'+p),false,p);
+  assert.equal(allowed('https://x.com/jack?xit_bypass=1&lang=en'),true);
+});
+
+test('destination hostname and origin survive www, ports, and IPv6', () => {
+  for(const [authority,hostname] of [['www.example.com','www.example.com'],['www.example.com:8443','www.example.com'],['[::1]:8443','[::1]']]) {
+    const t='https://'+authority+'/{path}{query}';
+    assert.equal(XIT.validateTemplate(t).ok,true);
+    assert.equal(XIT.templateHost(t),hostname);
+    assert.equal(XIT.templateOrigin(t),'https://'+authority);
+    assert.equal(XIT.permissionOrigin(t),'https://'+hostname+'/*');
+    assert.equal(XIT.convert('https://x.com/jack/status/20',{template:t}).url,'https://'+authority+'/jack/status/20');
+    assert.ok(XIT.compileBrowseRules(t,{status:true}).every(r=>r.regexSubstitution==='https://'+authority+'/\\1'));
+  }
+});
+
+test('credentials and substitution escape characters are refused', () => {
+  assert.equal(XIT.validateTemplate('https://user:pass@example.com/{path}').ok,false);
+  assert.equal(XIT.validateTemplate('https://example.com/\\1/{id}').ok,false);
+  assert.equal(XIT.templateHost('https://{user}.example.com/{id}'),null);
+});
+
+test('thread tool URLs retarget through the recovered tweet ID', () => {
+  for(const url of ['https://threadreaderapp.com/thread/20.html','https://unrollnow.com/status/20']) {
+    assert.equal(conv(url,'fxtwitter').url,'https://fxtwitter.com/i/web/status/20');
+    assert.equal(XIT.canonical(url),'https://x.com/i/web/status/20');
+  }
+  assert.equal(XIT.parse('https://threadreaderapp.com/about'),null);
 });

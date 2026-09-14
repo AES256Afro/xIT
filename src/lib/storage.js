@@ -49,17 +49,21 @@
   }
 
   function normalize(raw) {
-    const s = Object.assign(clone(DEFAULTS), raw || {});
+    const s = clone(DEFAULTS);
+    for (const key of Object.keys(DEFAULTS)) {
+      if (raw && Object.prototype.hasOwnProperty.call(raw, key)) s[key] = raw[key];
+    }
     s.schemaVersion = SCHEMA_VERSION;
     s.browseScope = Object.assign(clone(DEFAULTS.browseScope), (raw && raw.browseScope) || {});
+    s.browseScope = Object.fromEntries(Object.keys(DEFAULTS.browseScope).map((key) => [key, !!s.browseScope[key]]));
 
     // Drop custom entries that no longer validate, and de-duplicate ids.
-    const seen = new Set();
+    const seen = new Set(XIT.PRESETS.map((p) => p.id));
     s.custom = (Array.isArray(s.custom) ? s.custom : []).filter((c) => {
       if (!c || typeof c.template !== 'string') return false;
       if (!XIT.validateTemplate(c.template).ok) return false;
       const id = String(c.id || '');
-      if (!id || seen.has(id)) return false;
+      if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || seen.has(id)) return false;
       seen.add(id);
       return true;
     }).map((c) => ({
@@ -73,13 +77,10 @@
     }));
 
     const known = new Set(XIT.PRESETS.map((p) => p.id).concat(s.custom.map((c) => c.id)));
-    s.enabledIds = (Array.isArray(s.enabledIds) ? s.enabledIds : []).filter((id) => known.has(id));
-    // A freshly added custom entry is enabled unless explicitly turned off.
-    for (const c of s.custom) if (!s.enabledIds.includes(c.id)) s.enabledIds.push(c.id);
-    if (!s.enabledIds.length) s.enabledIds = XIT.PRESETS.map((p) => p.id);
+    s.enabledIds = [...new Set((Array.isArray(s.enabledIds) ? s.enabledIds : []).filter((id) => known.has(id)))];
 
     if (!known.has(s.defaultRedirector) || !s.enabledIds.includes(s.defaultRedirector)) {
-      s.defaultRedirector = s.enabledIds.includes('fxtwitter') ? 'fxtwitter' : s.enabledIds[0];
+      s.defaultRedirector = s.enabledIds.includes('fxtwitter') ? 'fxtwitter' : (s.enabledIds[0] || DEFAULTS.defaultRedirector);
     }
     if (!known.has(s.browseRedirectorId)) s.browseRedirectorId = DEFAULTS.browseRedirectorId;
 
@@ -94,11 +95,95 @@
     return normalize(got && got.settings);
   }
 
-  async function save(patch) {
+  let writer = false;
+  let writeChain = Promise.resolve();
+
+  // Only the background enables the writer. Every other context sends a
+  // mutation there, so each operation reads after the previous write finishes.
+  function startWriter() { writer = true; }
+
+  async function applyMutation(operation) {
     const current = await load();
-    const next = normalize(Object.assign({}, current, patch || {}));
-    await promisify((cb) => api.storage.local.set({ settings: next }, cb));
+    let raw = current;
+    if (!operation || typeof operation !== 'object') throw new Error('Invalid settings operation.');
+    if (operation.type === 'patch') {
+      const patch = operation.patch || {};
+      raw = { ...current, ...patch, browseScope: { ...current.browseScope, ...patch.browseScope } };
+    } else if (operation.type === 'replace') {
+      if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error('Settings must be a JSON object.');
+      raw = operation.settings;
+    } else if (operation.type === 'reset') {
+      raw = DEFAULTS;
+      await promisify((cb) => api.storage.local.remove('lastCopyFailure', cb));
+    } else if (operation.type === 'enabled') {
+      const ids = new Set(current.enabledIds);
+      if (operation.enabled) ids.add(operation.id); else ids.delete(operation.id);
+      raw = { ...current, enabledIds: [...ids] };
+    } else if (operation.type === 'remove-custom') {
+      raw = { ...current, custom: current.custom.filter((c) => c.id !== operation.id) };
+    } else if (operation.type === 'add-custom') {
+      const entry = operation.entry || {};
+      const name = String(entry.name || '').trim();
+      const validation = XIT.validateTemplate(entry.template);
+      if (!name || !validation.ok) throw new Error(validation.error || 'Give the redirector a name.');
+      const base = 'c-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
+      const taken = new Set(allRedirectors(current).map((r) => r.id));
+      let id = base;
+      for (let n = 2; taken.has(id); n++) id = base + '-' + n;
+      raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
+    } else {
+      throw new Error('Unknown settings operation.');
+    }
+    const next = normalize(raw);
+    if (JSON.stringify(next) !== JSON.stringify(current) || operation.type === 'reset') {
+      await promisify((cb) => api.storage.local.set({ settings: next }, cb));
+    }
     return next;
+  }
+
+  function mutate(operation) {
+    if (!writer) {
+      return promisify((cb) => api.runtime.sendMessage({ type: 'xit:mutate-settings', operation }, cb)).then((result) => {
+        if (!result || !result.ok) throw new Error((result && result.error) || 'Could not save settings.');
+        return normalize(result.settings);
+      });
+    }
+    const pending = writeChain.then(() => applyMutation(operation));
+    writeChain = pending.catch(() => {});
+    return pending;
+  }
+
+  const save = (patch) => mutate({ type: 'patch', patch });
+  const replace = (settings) => mutate({ type: 'replace', settings });
+  const reset = () => mutate({ type: 'reset' });
+  const setEnabled = (id, enabled) => mutate({ type: 'enabled', id, enabled });
+  const addCustom = (entry) => mutate({ type: 'add-custom', entry });
+  const removeCustom = (id) => mutate({ type: 'remove-custom', id });
+
+  function browseStatusKey(settings) {
+    const r = findRedirector(settings, settings.browseRedirectorId);
+    return JSON.stringify([settings.browseRedirect, r && r.template, settings.browseScope]);
+  }
+
+  function browseStatusMessage(settings, status) {
+    if (!status || status.key !== browseStatusKey(settings)) return 'Applying page redirect settings…';
+    if (status.state === 'error') return status.message;
+    if (status.state === 'updating') return 'Applying page redirect settings…';
+    if (status.state === 'active') return 'Page redirect is active.';
+    return settings.browseRedirect ? 'No page types are selected.' : '';
+  }
+
+  function watchStatus(cb) {
+    let changed = false;
+    api.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.dnrStatus) {
+        changed = true;
+        cb(changes.dnrStatus.newValue);
+      }
+    });
+    promisify((done) => api.storage.local.get('dnrStatus', done))
+      .then((value) => { if (!changed) cb(value && value.dnrStatus); })
+      .catch(() => { if (!changed) cb(null); });
   }
 
   /** Every redirector definition, presets first, regardless of enabled state. */
@@ -140,7 +225,8 @@
 
   root.XITStore = {
     api, DEFAULTS, SCHEMA_VERSION,
-    load, save, normalize, onChanged,
+    load, save, replace, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
+    startWriter, mutate, browseStatusKey, browseStatusMessage, watchStatus,
     allRedirectors, enabledRedirectors, findRedirector, defaultRedirector, extraHosts,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -1,7 +1,7 @@
 # Firefox Add-ons (AMO) submission copy
 
 Paste-ready values for <https://addons.mozilla.org/developers/addon/submit/distribution>.
-Upload: `dist/xit-firefox-1.0.3.zip`
+Upload: `dist/xit-firefox-1.0.5.zip`
 
 ---
 
@@ -88,18 +88,18 @@ Source is unminified and unbundled; what you see in the package is what runs. No
 
 Repository: https://github.com/AES256Afro/xIT
 
-Two points worth flagging up front:
+Two points for reviewers:
 
 1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL. Prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
 
-2. optional_host_permissions is "*://*/*" but nothing is granted at install. A cross-origin redirect needs permission for its destination, and the destination is a redirector the user chooses, including self-hosted instances that cannot be enumerated in advance. The extension requests one specific origin (e.g. *://xcancel.com/*) at the moment the user enables page redirecting, and never more than the host they selected.
+2. optional_host_permissions is "*://*/*" but nothing is granted at install. Enabling page redirecting requests the selected destination host (e.g. https://xcancel.com/*), including custom instances. Starting the optional reachability check requests access to the enabled redirector hosts together. Disabled hosts are excluded. Check requests omit credentials and referrers and do not follow redirects.
 
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
 ```
 
-**Version notes (1.0.3)**
+**Version notes (1.0.5)**
 ```
-Fix overlapping context-menu rebuilds during installation and settings updates. Includes the Firefox data-collection declaration, DOM construction improvements, and the fix for unresponsive X tabs from earlier releases.
+Fix browse-rule installation, concurrent settings writes, dropdown keyboard actions, clipboard success reporting, and custom destination handling. Check only enabled redirectors, delete legacy failed-copy data, and scan only affected tweet elements. Include earlier scrolling and unresponsive-tab fixes.
 ```
 
 ---

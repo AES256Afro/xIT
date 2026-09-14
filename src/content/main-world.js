@@ -21,9 +21,9 @@
     if (!d || d.__xit !== 'config' || !d.payload) return;
     cfg = {
       enabled: !!d.payload.enabled,
-      template: d.payload.template || null,
-      name: d.payload.name || '',
-      requires: d.payload.requires || [],
+      template: typeof d.payload.template === 'string' && XIT.validateTemplate(d.payload.template).ok ? d.payload.template : null,
+      name: typeof d.payload.name === 'string' ? d.payload.name : '',
+      requires: Array.isArray(d.payload.requires) ? d.payload.requires.filter((v) => v === 'id' || v === 'user') : [],
       stripTracking: d.payload.stripTracking !== false,
     };
     // Acknowledge configuration without requesting it again. Replying with
@@ -45,7 +45,6 @@
     const out = XIT.convert(t, { template: cfg.template, name: cfg.name, requires: cfg.requires },
       { stripTracking: cfg.stripTracking });
     if (!out.ok) return text;
-    post('copied', { url: out.url });
     return out.url;
   }
 
@@ -57,7 +56,13 @@
       Object.defineProperty(clip, 'writeText', {
         configurable: true,
         writable: true,
-        value: function writeText(text) { return orig(transform(text)); },
+        value: function writeText(text) {
+          const next = transform(text);
+          return orig(next).then((result) => {
+            if (next !== text) post('copied', { url: next });
+            return result;
+          });
+        },
       });
     } catch (_) { /* non-configurable: nothing to do */ }
   }
@@ -74,20 +79,28 @@
           const list = Array.from(items || []);
           const plain = list.find((i) => i && i.types && i.types.indexOf('text/plain') !== -1);
           if (!plain) return origWrite(items);
-          return plain.getType('text/plain')
-            .then((b) => b.text())
-            .then((text) => {
+          const prepare = async () => {
+            try {
+              const text = await (await plain.getType('text/plain')).text();
               const next = transform(text);
-              if (next === text) return origWrite(items);
+              if (next === text) return { items };
               const rec = {};
-              return Promise.all(plain.types.map((ty) => (
+              await Promise.all(plain.types.map((ty) => (
                 ty === 'text/plain'
                   ? Promise.resolve(new Blob([next], { type: 'text/plain' }))
                   : plain.getType(ty)
-              ).then((blob) => { rec[ty] = blob; })))
-                .then(() => origWrite(list.map((i) => (i === plain ? new ClipboardItem(rec) : i))));
-            })
-            .catch(() => origWrite(items));
+              ).then((blob) => { rec[ty] = blob; })));
+              return { items: list.map((i) => i === plain ? new ClipboardItem(rec) : i), next };
+            } catch (_) {
+              return { items };
+            }
+          };
+          // A failed preparation can use the original data. A failed write
+          // must propagate unchanged, without retrying or claiming success.
+          return prepare().then(({ items: prepared, next }) => origWrite(prepared).then((result) => {
+            if (next !== undefined) post('copied', { url: next });
+            return result;
+          }));
         },
       });
     } catch (_) { /* ignore */ }

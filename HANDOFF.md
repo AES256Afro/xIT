@@ -15,18 +15,20 @@ traps. For how the extension works and how to build it, read the
 | Chrome item ID | `clilllbfkoeamfonhoeaaepglgceanlc` |
 | Firefox add-on ID | `xit@aes256afro.github.io` (permanent once submitted) |
 | Published | Chrome **1.0.3** |
-| In the repo | **1.0.4**, built, tested, not uploaded |
+| In the repo | **1.0.5**, audit fixes; see validation below. Not uploaded. |
 
 ## Do this next
 
-1. **Upload `dist/xit-chrome-1.0.4.zip`.** It contains two fixes that are not
-   live: the redirector menu could not be scrolled at all, and every settings
-   change rebuilt the context menus twice.
+1. **Upload `dist/xit-chrome-1.0.5.zip` after reviewing the release checks.**
+   This replaces the unuploaded 1.0.4 package. It fixes the audit findings in
+   [AUDIT-2026-09-14.md](AUDIT-2026-09-14.md), including Chrome rejecting browse
+   rules, lost settings writes, keyboard actions, request scope, and failed-copy
+   data retention. It also includes the 1.0.4 scrolling and menu-refresh fixes.
 2. **Re-upload the five screenshots** from `store/assets/` on the Store listing
    tab. The live listing still has the pre-14 September images with em dashes
    burned into the captions. A listing edit gets a light review and needs no
    version bump.
-3. **Firefox has never been submitted.** `dist/xit-firefox-1.0.4.zip` is ready
+3. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.0.5.zip`
    and the copy is in [store/firefox-amo.md](store/firefox-amo.md). No fee.
    Unlisted skips the review queue if a signed build for personal use is all
    that is wanted.
@@ -94,10 +96,10 @@ what ships.
 
 ## Open, deliberately not done
 
-- `buildMenus` aborts partway if one `createMenu` rejects, leaving a truncated
-  menu until the next refresh. This is a deliberate change from the earlier
-  swallow-and-continue behaviour. It fails loudly, which is arguably right, but
-  the user-visible result is a partial menu.
+- `buildMenus` still aborts if a menu creation call rejects. The error is
+  recorded as `menuError`, and a later refresh can recover. Redirect updates
+  and removal now run independently, so this cannot leave redirects active
+  just because menu creation failed.
 - The user-count badge is missing from the README because the store does not
   report a count for a listing this new. Worth adding once there are installs.
 - The listing language is English (United States) while the copy is British
@@ -106,12 +108,31 @@ what ships.
 ## Verifying a change
 
 ```bash
-npm test              # 29 tests: URL rewriting, background menus, content bridge
+npm test              # 47 tests: URL logic, settings writes, menus and clipboard
 npm run prepare-dist  # icons, both manifests, both zips
+npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
+npm run test:firefox  # native Firefox installation, settings, menus and rules
 npm run store-assets  # re-render screenshots and promo tiles (needs Chrome)
 ```
 
-Unit tests do not cover the in-page menu, which is where the last two user-
-reported bugs were. For UI changes, mount `src/content/inject.js` against a mock
-X DOM with stubbed `chrome.*` APIs and drive it in a browser. Both the scroll
-bug and the message-loop bug were found and confirmed that way, not by reading.
+`tools/test-browser.mjs` loads the built extension in a disposable Chrome profile.
+Set `PLAYWRIGHT_PATH` to an external Playwright `index.mjs` when it is not locally
+installed, and optionally `CHROME_PATH` to a Chromium/Chrome for Testing binary.
+The checks use native extension APIs and mock X documents. They include regex
+compilation, installed rules, settings from separate pages, permission denial,
+error display, keyboard controls, scrolling, and article lifecycle changes.
+
+The 1.0.5 build passed native checks in Chrome for Testing 151.0.7922.34 and
+Firefox 154.0.1. Both installed all 40 rules for the default tweet/profile
+configuration. Firefox's check uses WebDriver BiDi and Node 22 or later; set
+`FIREFOX_PATH` if needed. It validates native settings messages, menu creation,
+rule installation and removal, and status display. See the audit for the full
+validation record and remaining coverage limits.
+
+At the end of the fix pass, the Chrome regression workload recorded zero full-
+document scans for 60 unrelated mutations at 50, 200, and 1,000 mounted tweets.
+The earlier audit recorded 31 scans for each workload. This is a synthetic DOM
+measurement, not an authenticated live X performance claim.
+
+The public version badge still reported 1.0.3 before the 1.0.5 bump. Store upload
+and publication are separate from the checked-in version and package build.

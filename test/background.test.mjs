@@ -11,6 +11,9 @@ function harness(firefox = false) {
   const events = {};
   let settings = { contextMenu: true, browseRedirect: false, name: 'first' };
   let changed;
+  let rules = [];
+  const local = {};
+  let rejectRules = false;
   const event = (name) => ({ addListener(fn) { events[name] = fn; } });
   const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup') };
   let failRemoval = false;
@@ -41,8 +44,17 @@ function harness(firefox = false) {
         return opts.id;
       },
     },
-    storage: { local: { remove: async () => {} } },
-    declarativeNetRequest: { getDynamicRules: async () => [], updateDynamicRules: async () => {} },
+    storage: { local: {
+      remove: async (key) => { delete local[key]; },
+      set: async (value) => { Object.assign(local, value); },
+    } },
+    declarativeNetRequest: {
+      getDynamicRules: async () => rules,
+      isRegexSupported: async () => ({isSupported:!rejectRules,reason:'memoryLimitExceeded'}),
+      updateDynamicRules: async ({removeRuleIds = [], addRules = []}) => {
+        rules = rules.filter(r => !removeRuleIds.includes(r.id)).concat(addRules);
+      },
+    },
   };
   if (firefox) {
     api.contextMenus.removeAll = () => new Promise((resolve, reject) => {
@@ -53,20 +65,48 @@ function harness(firefox = false) {
     });
   }
   const store = {
+    startWriter() {},
+    browseStatusKey: s => JSON.stringify(s),
     load: async () => ({ ...settings }),
     save: async () => { changed({ ...settings }); },
     onChanged(fn) { changed = fn; },
     enabledRedirectors: (s) => [{id:'example',group:'test',name:s.name}],
     defaultRedirector: (s) => ({name:s.name}),
+    findRedirector: () => ({template:'https://example.com/{path}'}),
   };
-  const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: { GROUPS: [{id:'test',label:'Test'}] }, XITStore: store });
+  const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: {
+    GROUPS: [{id:'test',label:'Test'}], supportsBrowse:()=>true, guardRules:()=>[],
+    compileBrowseRules:()=>[{priority:1,regexFilter:'^https://x.com/(.*)$',regexSubstitution:'https://example.com/\\1'}],
+  }, XITStore: store });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
-  return { menus, errors, events, settle, createCount: () => created,
+  return { menus, errors, events, settle, local, rules:()=>rules, rejectRules:()=>{rejectRules=true;}, createCount: () => created,
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
   };
 }
+
+test('menu failures cannot prevent removing redirects or clearing old copy data', async () => {
+  const h=harness(); await h.settle();
+  h.change({browseRedirect:true}); await h.settle();
+  assert.equal(h.rules().length,1);
+  h.local.lastCopyFailure={text:'synthetic',at:0};
+  h.failCreate();h.change({browseRedirect:false});await h.settle();
+  assert.equal(h.rules().length,0);
+  assert.equal(h.local.dnrStatus.state,'off');
+  assert.match(h.local.menuError,/create failed/);
+  assert.equal(h.local.lastCopyFailure,undefined);
+});
+
+test('native regex rejection clears previous redirects and publishes an error', async () => {
+  const h=harness(); await h.settle();
+  h.change({browseRedirect:true});await h.settle();
+  assert.equal(h.rules().length,1);
+  h.rejectRules();h.change({name:'new-target'});await h.settle();
+  assert.equal(h.rules().length,0);
+  assert.equal(h.local.dnrStatus.state,'error');
+  assert.match(h.local.dnrStatus.message,/memoryLimitExceeded/);
+});
 
 for (const firefox of [false, true]) {
 test(`Firefox=${firefox}: install, startup, storage events and popup messages cannot overlap menu rebuilds`, async () => {

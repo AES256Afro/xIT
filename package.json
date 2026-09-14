@@ -1,6 +1,6 @@
 {
   "name": "xit",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "Chrome and Firefox extension that copies X/Twitter links through a redirector of your choice.",
   "type": "module",
@@ -8,6 +8,8 @@
     "build": "node tools/build.mjs",
     "icons": "node tools/make-icons.mjs",
     "test": "node --test test/*.test.mjs",
+    "test:browser": "node tools/test-browser.mjs",
+    "test:firefox": "node tools/test-firefox.mjs",
     "prepare-dist": "npm run icons && npm run build",
     "store-assets": "node tools/make-store-assets.mjs"
   },

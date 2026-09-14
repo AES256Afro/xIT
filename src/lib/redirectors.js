@@ -13,6 +13,8 @@
    * ------------------------------------------------------------------ */
 
   const SOURCE_HOST_RE = /^(?:www\.|mobile\.|m\.)?(?:twitter|x)\.com$/i;
+  const SOURCE_HOSTS = ['x.com', 'www.x.com', 'mobile.x.com', 'm.x.com',
+    'twitter.com', 'www.twitter.com', 'mobile.twitter.com', 'm.twitter.com'];
 
   // First path segment that is a site feature, never a username.
   const RESERVED = new Set([
@@ -101,7 +103,7 @@
   function isMirrorHost(hostname, extraHosts) {
     const bare = bareHost(hostname);
     if (PRESET_HOSTS.has(bare)) return true;
-    if (extraHosts && extraHosts.has(bare)) return true;
+    if (extraHosts && extraHosts.has(String(hostname).toLowerCase())) return true;
     return /(^|\.)nitter\b/.test(bare) || bare.startsWith('nitter.');
   }
 
@@ -121,7 +123,16 @@
     const source = isSourceHost(u.hostname);
     if (!source && !isMirrorHost(u.hostname, extraHosts)) return null;
 
-    const segs = u.pathname.split('/').filter(Boolean);
+    let segs = u.pathname.split('/').filter(Boolean);
+    // Thread tools publish their own path shapes. Recover the status ID
+    // before retargeting; those paths are not valid on a plain mirror.
+    const mirror = bareHost(u.hostname);
+    if (mirror === 'threadreaderapp.com' || mirror === 'unrollnow.com') {
+      const match = (mirror === 'threadreaderapp.com'
+        ? /^\/thread\/(\d+)\.html\/?$/ : /^\/status\/(\d+)\/?$/).exec(u.pathname);
+      if (!match) return null;
+      segs = ['i', 'web', 'status', match[1]];
+    }
     let kind = 'other';
     let user = null;
     let id = null;
@@ -187,6 +198,7 @@
     const t = String(template || '').trim();
     if (!t) return { ok: false, error: 'Template is empty.' };
     if (!/^https:\/\//i.test(t)) return { ok: false, error: 'Must start with https://' };
+    if (/[\\\u0000-\u0020]/.test(t)) return { ok: false, error: 'Use URL encoding for spaces; backslashes and control characters are not allowed.' };
     const used = [];
     const bad = [];
     t.replace(/\{(\w+)\}/g, (m, k) => {
@@ -197,7 +209,8 @@
     if (!used.length) return { ok: false, error: 'Needs at least one token, e.g. {path} or {id}.' };
     try {
       // Token-free version must still be a parseable URL.
-      new URL(t.replace(/\{\w+\}/g, 'x'));
+      const u = new URL(t.replace(/\{\w+\}/g, 'x'));
+      if (u.username || u.password) return { ok: false, error: 'Do not include credentials in a template.' };
     } catch (_) {
       return { ok: false, error: 'Not a valid URL once tokens are filled in.' };
     }
@@ -205,8 +218,29 @@
   }
 
   function templateHost(template) {
-    const m = /^https?:\/\/([^/{}\s]+)/i.exec(String(template || ''));
-    return m ? bareHost(m[1]) : null;
+    const u = templateURL(template);
+    return u ? u.hostname : null;
+  }
+
+  function templateURL(template) {
+    const t = String(template || '').trim();
+    const authority = /^https:\/\/([^/?#]+)/i.exec(t);
+    if (!authority || /[{}\\\s]/.test(authority[1])) return null;
+    try {
+      const u = new URL(t.replace(/\{\w+\}/g, 'x'));
+      return u.protocol === 'https:' && !u.username && !u.password ? u : null;
+    } catch (_) { return null; }
+  }
+
+  function templateOrigin(template) {
+    const u = templateURL(template);
+    return u ? u.origin : null;
+  }
+
+  function permissionOrigin(template) {
+    const host = templateHost(template);
+    // Match patterns address hosts, not individual ports.
+    return host ? 'https://' + host + '/*' : null;
   }
 
   /**
@@ -255,38 +289,48 @@
    * ------------------------------------------------------------------ */
 
   const SRC = '^https?://(?:www\\.|mobile\\.|m\\.)?(?:twitter|x)\\.com/';
-  const RESERVED_ALT = [
-    'i/', 'home', 'explore', 'notifications', 'messages', 'settings', 'search',
-    'compose', 'login', 'logout', 'signup', 'intent/', 'account', 'tos',
+  const RESERVED_PATHS = [
+    'i', 'home', 'explore', 'notifications', 'messages', 'settings', 'search',
+    'compose', 'login', 'logout', 'signup', 'intent', 'account', 'tos',
     'privacy', 'about', 'bookmarks', 'topics', 'jobs', 'oauth', 'widgets',
-  ].join('|');
+  ];
 
   const BYPASS_PARAM = 'xit_bypass';
 
   function compileBrowseRules(template, scopes) {
     const t = String(template || '');
-    const host = templateHost(t);
-    if (!host) return [];
+    const origin = templateOrigin(t);
+    if (!origin || !validateTemplate(t).ok) return [];
     const sc = scopes || {};
     const rules = [];
 
     // Shape A: plain host swap, path preserved.
     if (/^https:\/\/[^/{}\s]+\/\{path\}(?:\{query\})?(?:\{hash\})?$/i.test(t)) {
       if (sc.status) {
-        rules.push({ priority: 4, regexFilter: SRC + '([^/?#]+/status(?:es)?/\\d+.*)$', regexSubstitution: 'https://' + host + '/\\1' });
-        rules.push({ priority: 4, regexFilter: SRC + '(i/(?:web/)?status/\\d+.*)$', regexSubstitution: 'https://' + host + '/\\1' });
+        rules.push({ priority: 4, regexFilter: SRC + '([^/?#]+/status(?:es)?/\\d+.*)$', regexSubstitution: origin + '/\\1' });
+        rules.push({ priority: 4, regexFilter: SRC + '(i/(?:web/)?status/\\d+.*)$', regexSubstitution: origin + '/\\1' });
       }
       if (sc.profile) {
-        rules.push({ priority: 2, regexFilter: SRC + '([A-Za-z0-9_]{1,15})/?(\\?.*)?$', regexSubstitution: 'https://' + host + '/\\1\\2' });
+        // Splitting scheme and source host, and using a URL transform instead
+        // of captures, keeps the 15-character bound within Chrome's budget.
+        for (const host of SOURCE_HOSTS) {
+          for (const scheme of ['https', 'http']) {
+            const destination = new URL(origin);
+            rules.push({ priority: 2,
+              regexFilter: '^' + scheme + '://' + host.replace(/\./g, '\\.') + '/[A-Za-z0-9_]{1,15}/?(?:[?#]|$)',
+              transform: { scheme: 'https', host: destination.hostname, port: destination.port },
+            });
+          }
+        }
       }
       if (sc.other) {
-        rules.push({ priority: 1, regexFilter: SRC + '(.*)$', regexSubstitution: 'https://' + host + '/\\1' });
+        rules.push({ priority: 1, regexFilter: SRC + '(.*)$', regexSubstitution: origin + '/\\1' });
       }
       return rules;
     }
 
     // Shape B: status-only template built from {user} and/or {id}.
-    if (/\{id\}/.test(t) && !/\{path\}|\{query\}|\{hash\}/.test(t)) {
+    if (/\{id\}/.test(t) && !/\{path\}|\{query\}|\{hash\}|\{host\}/.test(t)) {
       if (!sc.status) return [];
       const subUserId = t.replace(/\{user\}/g, '\\1').replace(/\{id\}/g, '\\2');
       rules.push({ priority: 4, regexFilter: SRC + '([^/?#]+)/status(?:es)?/(\\d+)', regexSubstitution: subUserId });
@@ -300,15 +344,17 @@
 
   function guardRules() {
     return [
-      { priority: 5, regexFilter: '^https?://[^/]*(?:twitter|x)\\.com/.*[?&]' + BYPASS_PARAM + '=1', action: 'allow' },
-      { priority: 3, regexFilter: SRC + '(?:' + RESERVED_ALT + ')', action: 'allow' },
+      { priority: 5, regexFilter: SRC + '[^#]*[?&]' + BYPASS_PARAM + '=1(?:[&#]|$)', action: 'allow' },
+      ...RESERVED_PATHS.map((path) => ({
+        priority: 3, regexFilter: SRC + path + '(?:[/?#]|$)', action: 'allow',
+      })),
     ];
   }
 
   root.XIT = {
     GROUPS, PRESETS, TOKENS, TRACKING_PARAMS, BYPASS_PARAM, RESERVED,
     parse, expand, convert, canonical, stripTracking,
-    validateTemplate, templateHost, supportsBrowse,
+    validateTemplate, templateHost, templateOrigin, permissionOrigin, supportsBrowse,
     compileBrowseRules, guardRules,
     isSourceHost, isMirrorHost, bareHost,
   };
