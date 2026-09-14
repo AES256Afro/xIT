@@ -216,6 +216,11 @@ through untouched), and talks to the rest over `postMessage`.
   directly, which is more fragile but functional.
 - Firefox temporary add-ons disappear on restart.
 
+## Handoff
+
+[HANDOFF.md](HANDOFF.md) has the current release state, the decisions already
+made and why, and the traps worth knowing before changing anything.
+
 ## Publishing
 
 Listing copy, permission justifications and generated artwork for both stores
