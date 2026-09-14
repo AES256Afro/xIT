@@ -83,18 +83,21 @@
     $('copy-default').disabled = !usable;
     $('open-default').disabled = !usable;
     $('copy-clean').disabled = !parts;
+    $('open-original').disabled = !parts;
 
     renderList(parts);
   }
 
   function renderList(parts) {
     const list = $('list');
+    const scrollTop = list.scrollTop;
+    const focused = document.activeElement;
+    const focusId = focused && focused.closest('[data-id]')?.dataset.id;
+    const focusAction = focused && focused.dataset.action;
     list.textContent = '';
-    const enabled = XITStore.enabledRedirectors(settings);
 
-    for (const g of XIT.GROUPS) {
-      const inGroup = enabled.filter((r) => r.group === g.id);
-      if (!inGroup.length) continue;
+    for (const g of XITStore.redirectorGroups(settings)) {
+      const inGroup = g.entries;
 
       const head = document.createElement('div');
       head.className = 'item-group';
@@ -104,6 +107,7 @@
       for (const r of inGroup) {
         const row = document.createElement('div');
         row.className = 'item';
+        row.dataset.id = r.id;
         if (r.id === settings.defaultRedirector) row.setAttribute('data-default', '1');
 
         const name = document.createElement('div');
@@ -117,36 +121,54 @@
 
         const copyBtn = document.createElement('button');
         copyBtn.className = 'mini';
+        copyBtn.dataset.action = 'copy';
         copyBtn.textContent = 'Copy';
         copyBtn.disabled = !out.ok;
         copyBtn.addEventListener('click', () => doCopy(r));
 
         const openBtn = document.createElement('button');
         openBtn.className = 'mini';
+        openBtn.dataset.action = 'open';
         openBtn.textContent = 'Open';
         openBtn.disabled = !out.ok;
         openBtn.addEventListener('click', () => doOpen(r));
 
         const defBtn = document.createElement('button');
         defBtn.className = 'mini';
+        defBtn.dataset.action = 'default';
         defBtn.textContent = '★';
         defBtn.title = 'Make ' + r.name + ' the default';
         defBtn.setAttribute('aria-label', defBtn.title);
+        defBtn.setAttribute('aria-pressed', String(r.id === settings.defaultRedirector));
         defBtn.addEventListener('click', async () => {
           settings = await XITStore.save({ defaultRedirector: r.id });
           status(r.name + ' is now the default');
           refreshPreview();
         });
 
-        row.append(name, copyBtn, openBtn, defBtn);
+        const pinned = settings.pinnedIds.includes(r.id);
+        const pin = document.createElement('button');
+        pin.className = 'mini';
+        pin.dataset.action = 'pin';
+        pin.textContent = pinned ? 'Unpin' : 'Pin';
+        pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+        pin.setAttribute('aria-pressed', String(pinned));
+        pin.addEventListener('click', () => commit(XITStore.setPinned(r.id, !pinned)));
+        row.append(name, copyBtn, openBtn, pin, defBtn);
         list.appendChild(row);
       }
     }
+    if (focusId && focusAction) list.querySelector('[data-id="' + CSS.escape(focusId) + '"] [data-action="' + focusAction + '"]')?.focus({ preventScroll: true });
+    list.scrollTop = scrollTop;
   }
 
   /* ---- browse redirect ---- */
 
   function renderBrowse() {
+    const paused = XITStore.isPaused(settings);
+    $('pause-browse').hidden = paused;
+    $('pause-browse').disabled = !settings.browseRedirect;
+    $('resume-browse').hidden = !paused;
     const sel = $('browse-target');
     sel.textContent = '';
     for (const r of XITStore.enabledRedirectors(settings)) {
@@ -168,6 +190,14 @@
     $('browse-note').textContent = state + (settings.browseRedirect && redirectStatus &&
       redirectStatus.state === 'active' && redirectStatus.key === XITStore.browseStatusKey(settings)
       ? ' Redirecting ' + which + ' with ' + r.name + '.' : '');
+  }
+
+  async function commit(operation) {
+    try {
+      settings = await operation;
+      refreshPreview();
+      renderBrowse();
+    } catch (error) { status('Could not save: ' + error.message, 'error'); }
   }
 
   async function ensureOriginPermission(redirector) {
@@ -241,6 +271,33 @@
       const v = ev.target.value.trim();
       sourceUrl = v || (tab && tab.url) || '';
       refreshPreview();
+    });
+    $('manual').addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.isComposing) {
+        ev.preventDefault();
+        doCopy(XITStore.defaultRedirector(settings));
+      }
+    });
+    if (!XIT.parse(sourceUrl, opts().extraHosts)) $('manual').focus();
+    $('open-original').addEventListener('click', async () => {
+      try {
+        const result = await api.runtime.sendMessage({ type: 'xit:open-original', url: sourceUrl });
+        if (!result || !result.ok) throw new Error('Could not open that X link.');
+        window.close();
+      } catch (error) { status(error.message, 'error'); }
+    });
+    $('pause-browse').addEventListener('click', () => commit(XITStore.pause()));
+    $('resume-browse').addEventListener('click', () => commit(XITStore.resume()));
+    $('copy-diagnostics').addEventListener('click', async () => {
+      const button = $('copy-diagnostics');
+      button.disabled = true;
+      try {
+        const result = await api.runtime.sendMessage({ type: 'xit:diagnostics' });
+        if (!result || !result.ok) throw new Error('Could not collect diagnostics. Try again.');
+        const ok = await writeClipboard(JSON.stringify(result.report, null, 2));
+        status(ok ? 'Diagnostics copied. No links or clipboard data included.' : 'Clipboard write failed', ok ? 'ok' : 'error');
+      } catch (error) { status(error.message, 'error'); }
+      finally { button.disabled = false; }
     });
 
     $('open-options').addEventListener('click', () => {

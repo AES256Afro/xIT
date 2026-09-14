@@ -55,24 +55,28 @@
       </fieldset>
       <p class="hint">Your own home timeline, messages, notifications and settings are never redirected, since you would just be locked out of them.</p>
       <p id="browse-warn" class="browse-status" role="status"></p>
+      <div class="actions"><button id="pause-browse" class="ghost">Pause for 15 minutes</button><button id="resume-browse" class="ghost" hidden>Resume now</button></div>
     </div>
   </section>
 
   <section class="panel">
     <h2>Redirectors</h2>
     <p class="hint">Untick any you do not want cluttering the dropdown. <button id="test-all" class="link-btn">Check which are reachable</button></p>
+    <p class="hint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
+    <div id="undo-custom" class="undo-bar" hidden role="status"><span id="undo-text"></span><button id="undo-remove" class="row-btn">Undo removal</button></div>
     <div id="redirector-list"></div>
   </section>
 
   <section class="panel">
-    <h2>Custom redirector</h2>
+    <h2 id="custom-heading">Custom redirector</h2>
     <p class="hint">For a self-hosted instance or anything not listed. Tokens:
       <code>{path}</code> <code>{query}</code> <code>{user}</code> <code>{id}</code> <code>{hash}</code> <code>{host}</code>.
       A plain mirror is usually <code>https://your.host/{path}{query}</code>.</p>
     <form id="custom-form" class="custom-form">
-      <input id="c-name" type="text" placeholder="Name, e.g. My Nitter" required maxlength="48">
-      <input id="c-template" type="text" placeholder="https://nitter.example.com/{path}{query}" required spellcheck="false">
-      <button type="submit" class="primary">Add</button>
+      <input id="c-name" type="text" aria-label="Redirector name" placeholder="Name, e.g. My Nitter" required maxlength="48">
+      <input id="c-template" type="text" aria-label="Redirector URL template" placeholder="https://nitter.example.com/{path}{query}" required spellcheck="false">
+      <button id="custom-submit" type="submit" class="primary">Add</button>
+      <button id="custom-cancel" type="button" class="ghost" hidden>Cancel edit</button>
     </form>
     <p id="custom-error" class="warn-text"></p>
     <div id="custom-preview" class="sample"></div>
@@ -94,6 +98,13 @@
       <button id="reset" class="ghost danger">Reset to defaults</button>
     </div>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
+  </section>
+
+  <section class="panel">
+    <h2>Troubleshooting</h2>
+    <p class="hint">Copy the extension and browser versions, access status, redirect status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.</p>
+    <button id="copy-diagnostics" class="ghost">Copy diagnostics</button>
+    <pre id="diagnostics-preview" class="sample" hidden></pre>
   </section>
 
   <p id="saved" class="saved" role="status" aria-live="polite"></p>

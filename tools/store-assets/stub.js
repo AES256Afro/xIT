@@ -8,6 +8,7 @@
   }
   let store = { settings: Object.keys(seed).length ? seed : undefined };
   const ls = [];
+  const session = {};
   window.chrome = {
     runtime: {
       onMessage: { addListener: () => {} },
@@ -25,6 +26,11 @@
       lastError: null,
     },
     storage: {
+      session: {
+        get: (key, cb) => { const value = { [key]: session[key] }; if (cb) cb(value); return Promise.resolve(value); },
+        set: (value, cb) => { Object.assign(session, value); if (cb) cb(); return Promise.resolve(); },
+        remove: (key, cb) => { delete session[key]; if (cb) cb(); return Promise.resolve(); },
+      },
       local: {
         get: (k, cb) => {
           if (store.settings && store.settings.custom && !store.settings.enabledIds) {

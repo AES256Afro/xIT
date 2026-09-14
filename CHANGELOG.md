@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.6
+
+- Add Open on X once to the popup, tweet dropdown, and right-click menus.
+- Pin redirectors in any copy list and reorder pins in Settings, separately from the default star.
+- Edit and duplicate custom redirectors. Undo the most recent removal, restoring its enabled state, pin, and unchanged default selections.
+- Focus the popup's paste field on unrelated tabs and copy the previewed link with Enter.
+- Pause page redirects for 15 minutes, show the resume time and toolbar badge, and resume early or automatically. Add the alarms permission for timed resume.
+- Check individual enabled hosts and show when each result was obtained. Preserve the existing request limit and privacy controls.
+- Copy diagnostics with browser/extension versions and operational status, excluding URLs, custom templates, clipboard contents, and raw errors.
+- Extend native Chrome and Firefox checks and correct asynchronous polling in the browser test harness.
+
 ## 1.0.5
 
 - Install browse redirects within Chrome's compiled regex budget. Match reserved paths and bypass values at their boundaries, and preserve custom destination hosts and ports.

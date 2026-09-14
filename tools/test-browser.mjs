@@ -6,6 +6,16 @@ import { pathToFileURL } from 'node:url';
 // Playwright is a development tool only; the extension/build has no packages.
 const modulePath = process.env.PLAYWRIGHT_PATH;
 const { chromium } = await import(modulePath ? pathToFileURL(path.resolve(modulePath)).href : 'playwright');
+// Await the predicate before testing it; some Playwright builds treat a
+// returned Promise as a truthy polling result without waiting for its value.
+async function waitFor(page, predicate, argument, options = {}) {
+  const deadline = Date.now() + (options.timeout || 10000);
+  while (Date.now() < deadline) {
+    if (await page.evaluate(predicate, argument)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for ' + String(predicate));
+}
 const root = path.resolve(import.meta.dirname, '..');
 const extension = path.join(root, 'dist/chrome');
 const results = { checks: [] };
@@ -75,7 +85,7 @@ try {
   check('Concurrent saves from separate extension pages preserve all changes');
   await options.evaluate(()=>XITStore.addCustom({name:'Audit custom',template:'https://www.example.com:8443/{path}'}));
   await options.locator('#en-c-audit-custom').uncheck();
-  await options.waitForFunction(async()=>!(await XITStore.load()).enabledIds.includes('c-audit-custom'));
+  await waitFor(options, async()=>!(await XITStore.load()).enabledIds.includes('c-audit-custom'));
   await options.reload();await options.waitForSelector('#en-c-audit-custom');
   assert.equal(await options.locator('#en-c-audit-custom').isChecked(),false);
   await options.evaluate(async()=>XITStore.replace(JSON.parse(JSON.stringify(await XITStore.load()))));
@@ -88,14 +98,14 @@ try {
   await second.evaluate(()=>XITStore.save({toast:true}));
   await options.waitForFunction(()=>document.getElementById('t-toast').checked);
   await options.evaluate(()=>resolvePermission(true));
-  await options.waitForFunction(async()=>(await XITStore.load()).browseRedirect);
+  await waitFor(options, async()=>(await XITStore.load()).browseRedirect);
   await options.evaluate(()=>{window.resolvePermission=null;});
   await options.locator('#browse-select').selectOption('fxtwitter');
   await options.waitForFunction(()=>!!window.resolvePermission);
   await second.evaluate(()=>XITStore.save({toast:false}));
   await options.waitForFunction(()=>!document.getElementById('t-toast').checked);
   await options.evaluate(()=>resolvePermission(true));
-  await options.waitForFunction(async()=>(await XITStore.load()).browseRedirectorId==='fxtwitter');
+  await waitFor(options, async()=>(await XITStore.load()).browseRedirectorId==='fxtwitter');
   check('Permission prompts preserve the selected control value during other settings updates');
   await save({custom:[],enabledIds:['fxtwitter'],browseRedirect:false});
   await options.evaluate(()=>{
@@ -191,7 +201,7 @@ try {
   await openMenu();await page.locator('[data-id="vxtwitter"] [data-act="open"]').focus();await page.keyboard.press('Enter');
   assert.equal((await evaluate('testMessages')).at(-1).url,'https://vxtwitter.com/jack/status/20');
   await openMenu();await page.locator('[data-id="vxtwitter"] [data-act="default"]').focus();await page.keyboard.press('Space');
-  await options.waitForFunction(async()=>(await XITStore.load()).defaultRedirector==='vxtwitter');
+  await waitFor(options, async()=>(await XITStore.load()).defaultRedirector==='vxtwitter');
   assert.equal((await evaluate('testCopies')).length,1);
   check('Dropdown scroll, Settings, clean copy, Open, default selection, and Escape use the focused control');
   await evaluate(`globalThis.testScans=0;const originalQuery=Document.prototype.querySelectorAll;

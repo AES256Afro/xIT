@@ -11,6 +11,9 @@
   let settings = null;
   let redirectStatus = null;
   let savedTimer = 0;
+  let editingId = null;
+  const probeResults = new Map();
+  let probing = false;
 
   function saved(text) {
     $('saved').textContent = text || 'Saved';
@@ -23,7 +26,8 @@
       settings = await (patch && typeof patch.then === 'function' ? patch : XITStore.save(patch));
       saved();
       render();
-    } catch (e) { $('saved').textContent = 'Could not save: ' + e.message; }
+      return true;
+    } catch (e) { $('saved').textContent = 'Could not save: ' + e.message; return false; }
   }
 
   function sampleFor(redirector) {
@@ -36,9 +40,8 @@
   function renderDefault() {
     const sel = $('default-select');
     sel.textContent = '';
-    for (const g of XIT.GROUPS) {
-      const inGroup = XITStore.enabledRedirectors(settings).filter((r) => r.group === g.id);
-      if (!inGroup.length) continue;
+    for (const g of XITStore.redirectorGroups(settings)) {
+      const inGroup = g.entries;
       const og = document.createElement('optgroup');
       og.label = g.label;
       for (const r of inGroup) {
@@ -62,6 +65,10 @@
   /* ---- browse redirect ---- */
 
   function renderBrowse() {
+    const paused = XITStore.isPaused(settings);
+    $('pause-browse').hidden = paused;
+    $('pause-browse').disabled = !settings.browseRedirect;
+    $('resume-browse').hidden = !paused;
     $('t-browse').checked = settings.browseRedirect;
     const sel = $('browse-select');
     sel.textContent = '';
@@ -108,138 +115,194 @@
 
   /* ---- redirector list ---- */
 
+  function rowButton(row, id, action, text, handler) {
+    const button = document.createElement('button');
+    button.className = 'row-btn';
+    button.dataset.action = action;
+    button.textContent = text;
+    button.setAttribute('aria-label', text + ' ' + XITStore.findRedirector(settings, id).name);
+    button.addEventListener('click', handler);
+    row.appendChild(button);
+    return button;
+  }
+
   function renderList() {
     const host = $('redirector-list');
+    const focused = document.activeElement;
+    const focusRow = focused && focused.closest('[data-id]')?.dataset.id;
+    const focusAction = focused && focused.dataset.action;
     host.textContent = '';
-    const all = XITStore.allRedirectors(settings);
-
-    for (const g of XIT.GROUPS) {
-      const inGroup = all.filter((r) => r.group === g.id);
-      if (!inGroup.length) continue;
-
+    for (const g of XITStore.redirectorGroups(settings, false)) {
       const wrap = document.createElement('div');
       wrap.className = 'rgroup';
       const head = document.createElement('div');
       head.className = 'rgroup-head';
       head.textContent = g.label;
-      const blurb = document.createElement('p');
-      blurb.className = 'rgroup-blurb';
-      blurb.textContent = g.blurb;
-      wrap.append(head, blurb);
-
-      for (const r of inGroup) {
+      wrap.appendChild(head);
+      if (g.blurb) {
+        const blurb = document.createElement('p');
+        blurb.className = 'rgroup-blurb';
+        blurb.textContent = g.blurb;
+        wrap.appendChild(blurb);
+      }
+      for (const r of g.entries) {
         const row = document.createElement('div');
         row.className = 'ritem';
-
+        row.dataset.id = r.id;
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = settings.enabledIds.includes(r.id);
         cb.id = 'en-' + r.id;
-        cb.addEventListener('change', () => {
-          commit(XITStore.setEnabled(r.id, cb.checked));
-        });
-
+        cb.addEventListener('change', () => commit(XITStore.setEnabled(r.id, cb.checked)));
         const main = document.createElement('label');
         main.className = 'ritem-main';
         main.setAttribute('for', cb.id);
-        const b = document.createElement('b');
-        b.textContent = r.name;
-        const span = document.createElement('span');
-        span.textContent = r.note ? r.note + ' · ' + r.template : r.template;
-        main.append(b, span);
-
+        const name = document.createElement('b');
+        name.textContent = r.name;
+        const detail = document.createElement('span');
+        detail.textContent = r.note ? r.note + ' · ' + r.template : r.template;
+        main.append(name, detail);
         row.append(cb, main);
-
         if (r.id === settings.defaultRedirector) {
           const badge = document.createElement('span');
           badge.className = 'ritem-badge badge-default';
           badge.textContent = 'default';
           row.appendChild(badge);
         }
-
+        const actions = document.createElement('div');
+        actions.className = 'ritem-tools';
+        const pinned = settings.pinnedIds.includes(r.id);
+        const pin = rowButton(actions, r.id, 'pin', pinned ? 'Unpin' : 'Pin', () => commit(XITStore.setPinned(r.id, !pinned)));
+        pin.setAttribute('aria-pressed', String(pinned));
+        if (pinned) {
+          const index = settings.pinnedIds.indexOf(r.id);
+          rowButton(actions, r.id, 'up', 'Move up', () => commit(XITStore.movePinned(r.id, -1))).disabled = index === 0;
+          rowButton(actions, r.id, 'down', 'Move down', () => commit(XITStore.movePinned(r.id, 1))).disabled = index === settings.pinnedIds.length - 1;
+        }
+        const check = rowButton(actions, r.id, 'check', 'Check this host', () => probeList([r]));
+        check.disabled = probing || !cb.checked || !XIT.templateOrigin(r.template);
+        if (!cb.checked) check.title = 'Enable this redirector to check it.';
         const probe = document.createElement('span');
         probe.className = 'ritem-badge';
         probe.dataset.probe = r.id;
-        row.appendChild(probe);
-
+        actions.appendChild(probe);
         if (r.custom) {
-          const del = document.createElement('button');
-          del.className = 'row-btn';
-          del.textContent = 'Remove';
-          del.addEventListener('click', () => {
-            commit(XITStore.removeCustom(r.id));
-          });
-          row.appendChild(del);
+          rowButton(actions, r.id, 'edit', 'Edit', () => editCustom(r));
+          rowButton(actions, r.id, 'duplicate', 'Duplicate', () => commit(XITStore.duplicateCustom(r.id)));
+          rowButton(actions, r.id, 'remove', 'Remove', async () => {
+            if (await commit(XITStore.removeCustom(r.id))) {
+              if (editingId === r.id) cancelEdit();
+              await renderUndo();
+              $('undo-remove').focus({ preventScroll: true });
+            }
+          }).classList.add('danger');
         }
-
+        row.appendChild(actions);
         wrap.appendChild(row);
       }
       host.appendChild(wrap);
     }
+    renderProbes();
+    if (focusRow && focusAction) {
+      const row = host.querySelector('[data-id="' + CSS.escape(focusRow) + '"]');
+      let target = row && row.querySelector('[data-action="' + focusAction + '"]');
+      if (target && target.disabled) target = row.querySelector('[data-action="pin"]');
+      target?.focus({ preventScroll: true });
+    }
   }
 
-  /* ---- reachability probe ---- */
+  function renderProbes() {
+    for (const badge of document.querySelectorAll('[data-probe]')) {
+      const r = XITStore.findRedirector(settings, badge.dataset.probe);
+      const result = probeResults.get(badge.dataset.probe);
+      if (!result || !r || result.origin !== XIT.templateOrigin(r.template)) { badge.textContent = ''; continue; }
+      const minutes = Math.floor((Date.now() - result.at) / 60000);
+      const age = minutes < 1 ? 'just now' : minutes === 1 ? '1 minute ago' : minutes + ' minutes ago';
+      badge.textContent = result.state === 'checking' ? 'Checking…' : result.state === 'denied' ? 'Access not granted' :
+        (result.state === 'ok' ? 'Responded ' : 'Did not respond ') + age;
+      badge.className = 'ritem-badge ' + (result.state === 'ok' ? 'badge-ok' : result.state === 'failed' ? 'badge-bad' : 'badge-wait');
+      badge.title = result.state === 'checking' ? '' : 'Checked ' + new Date(result.at).toLocaleString();
+    }
+  }
 
-  async function probeOne(redirector, badge) {
+  async function probeOne(redirector) {
     const origin = XIT.templateOrigin(redirector.template);
     const permission = XIT.permissionOrigin(redirector.template);
-    badge.className = 'ritem-badge badge-wait';
-    badge.textContent = 'checking';
-
+    const record = (state) => { probeResults.set(redirector.id, { origin, state, at: Date.now() }); renderProbes(); };
+    record('checking');
     try {
       if (!origin || !permission || !(await api.permissions.contains({ origins: [permission] }))) throw new Error('No access');
-    } catch (_) {
-      badge.textContent = 'no access';
-      return;
+    } catch (_) { record('denied'); return; }
+    const current = XITStore.findRedirector(settings, redirector.id);
+    if (!settings.enabledIds.includes(redirector.id) || !current || XIT.templateOrigin(current.template) !== origin) {
+      probeResults.delete(redirector.id); renderProbes(); return;
     }
-    if (!settings.enabledIds.includes(redirector.id)) { badge.textContent = ''; return; }
-
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 6000);
     try {
       await fetch(origin + '/', { method: 'HEAD', mode: 'no-cors', signal: ctrl.signal,
         cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'manual' });
-      badge.className = 'ritem-badge badge-ok';
-      badge.textContent = 'responds';
-    } catch (_) {
-      badge.className = 'ritem-badge badge-bad';
-      badge.textContent = 'no response';
-    } finally {
-      clearTimeout(timer);
-    }
+      record('ok');
+    } catch (_) { record('failed'); }
+    finally { clearTimeout(timer); }
   }
 
-  let probing = false;
-  async function probeAll() {
+  async function probeList(list) {
     if (probing) return;
     probing = true;
-    const button = $('test-all');
-    button.disabled = true;
-    const label = button.textContent;
-    button.textContent = 'Checking…';
-    const list = XITStore.enabledRedirectors(settings);
     const origins = [...new Set(list.map((r) => XIT.permissionOrigin(r.template)).filter(Boolean))];
+    // Request immediately in the click handler, before awaiting anything else.
+    let permission;
+    try { permission = origins.length ? Promise.resolve(api.permissions.request({ origins })).catch(() => false) : Promise.resolve(false); }
+    catch (_) { permission = Promise.resolve(false); }
+    $('test-all').disabled = true;
+    $('test-all').textContent = 'Checking…';
+    document.querySelectorAll('[data-action="check"]').forEach((button) => { button.disabled = true; });
     try {
-      // Request once while handling the click. Awaiting a network operation
-      // before requesting access loses the user gesture in some browsers.
-      if (origins.length) {
-        try { await api.permissions.request({ origins }); } catch (_) { /* each job checks its own access */ }
-      }
+      await permission;
       let index = 0;
       const worker = async () => {
         while (index < list.length) {
           const r = list[index++];
-          const badge = [...document.querySelectorAll('[data-probe]')].find((b) => b.dataset.probe === r.id);
-          if (badge && settings.enabledIds.includes(r.id)) await probeOne(r, badge);
+          if (settings.enabledIds.includes(r.id)) await probeOne(r);
         }
       };
       await Promise.all(Array.from({ length: Math.min(3, list.length) }, worker));
-      saved('Reachability checked. This only says the host answered, not that it works.');
+      saved('Check complete. A response does not prove the host can display tweets.');
     } finally {
       probing = false;
-      button.disabled = false;
-      button.textContent = label;
+      $('test-all').disabled = false;
+      $('test-all').textContent = 'Check which are reachable';
+      renderList();
     }
+  }
+
+  function editCustom(entry) {
+    editingId = entry.id;
+    $('custom-heading').textContent = 'Edit custom redirector';
+    $('c-name').value = entry.name;
+    $('c-template').value = entry.template;
+    $('custom-submit').textContent = 'Save changes';
+    $('custom-cancel').hidden = false;
+    renderCustomPreview();
+    $('custom-form').scrollIntoView({ block: 'center' });
+    $('c-name').focus({ preventScroll: true });
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    $('custom-heading').textContent = 'Custom redirector';
+    $('custom-submit').textContent = 'Add';
+    $('custom-cancel').hidden = true;
+    $('c-name').value = '';
+    $('c-template').value = '';
+    renderCustomPreview();
+  }
+
+  async function renderUndo() {
+    const removed = await XITStore.getUndo();
+    $('undo-custom').hidden = !removed;
+    $('undo-text').textContent = removed ? 'Removed ' + removed.entry.name + '.' : '';
   }
 
   /* ---- custom redirectors ---- */
@@ -312,6 +375,13 @@
     render();
     XITStore.onChanged((next) => { settings = next; render(); });
     XITStore.watchStatus((next) => { redirectStatus = next; renderBrowse(); });
+    await renderUndo();
+    api.storage.onChanged.addListener((changes, area) => { if (area === 'session' && changes.removedCustom) renderUndo(); });
+    setInterval(renderProbes, 30000);
+    $('pause-browse').addEventListener('click', () => commit(XITStore.pause()));
+    $('resume-browse').addEventListener('click', () => commit(XITStore.resume()));
+    $('undo-remove').addEventListener('click', async () => { await commit(XITStore.restoreCustom()); await renderUndo(); });
+    $('custom-cancel').addEventListener('click', cancelEdit);
 
     $('default-select').addEventListener('change', (ev) => commit({ defaultRedirector: ev.target.value }));
 
@@ -354,20 +424,38 @@
 
     $('c-template').addEventListener('input', renderCustomPreview);
 
-    $('custom-form').addEventListener('submit', (ev) => {
+    $('custom-form').addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      const id = editingId;
       const name = $('c-name').value.trim();
       const template = $('c-template').value.trim();
       const v = XIT.validateTemplate(template);
       if (!name) { $('custom-error').textContent = 'Give it a name.'; return; }
       if (!v.ok) { $('custom-error').textContent = v.error; return; }
-      commit(XITStore.addCustom({ name, template }));
-      $('c-name').value = '';
-      $('c-template').value = '';
-      $('custom-preview').textContent = '';
+      const entry = { name, template };
+      if (settings.browseRedirect && id === settings.browseRedirectorId && !(await ensureOriginPermission(entry))) {
+        $('custom-error').textContent = 'Allow access to the new destination before saving an active page redirect.';
+        return;
+      }
+      if (id !== editingId) return;
+      if (await commit(id ? XITStore.editCustom(id, entry) : XITStore.addCustom(entry))) cancelEdit();
     });
 
-    $('test-all').addEventListener('click', () => probeAll());
+    $('test-all').addEventListener('click', () => probeList(XITStore.enabledRedirectors(settings)));
+    $('copy-diagnostics').addEventListener('click', async () => {
+      const button = $('copy-diagnostics');
+      button.disabled = true;
+      try {
+        const result = await api.runtime.sendMessage({ type: 'xit:diagnostics' });
+        if (!result || !result.ok) throw new Error('Could not collect diagnostics. Try again.');
+        const text = JSON.stringify(result.report, null, 2);
+        $('diagnostics-preview').textContent = text;
+        $('diagnostics-preview').hidden = false;
+        try { await navigator.clipboard.writeText(text); saved('Diagnostics copied.'); }
+        catch (_) { saved('Select and copy the diagnostics shown below.'); }
+      } catch (error) { $('saved').textContent = error.message; }
+      finally { button.disabled = false; }
+    });
     $('export').addEventListener('click', exportSettings);
     $('import').addEventListener('click', () => $('import-file').click());
     $('import-file').addEventListener('change', (ev) => {

@@ -19,6 +19,7 @@ XITStore.startWriter();
 const MENU_ROOT_LINK = 'xit-link-root';
 const MENU_ROOT_PAGE = 'xit-page-root';
 const DNR_RULE_BASE = 1000; // Our dynamic rule id range.
+const PAUSE_ALARM = 'xit-resume-redirects';
 
 const LINK_PATTERNS = [
   '*://x.com/*', '*://www.x.com/*',
@@ -77,11 +78,13 @@ async function buildMenus(settings) {
   }
   await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
   await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy clean x.com link' });
+  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Open on X once' });
 
   // On the page itself while browsing X.
   await createMenu({ id: MENU_ROOT_PAGE, title: 'xIT', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
   await createMenu({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
     title: 'Copy this page as ' + XITStore.defaultRedirector(settings).name });
+  await createMenu({ id: 'xit-page-open-original', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS, title: 'Open on X once' });
   for (const r of list) {
     await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
       title: 'Open this page with ' + r.name });
@@ -159,6 +162,11 @@ async function handleMenuClick(info, tab) {
   const target = info.linkUrl || (tab && tab.url) || '';
   const id = String(info.menuItemId || '');
 
+  if (id === 'xit-link-open-original' || id === 'xit-page-open-original') {
+    await openOriginal(target, tab);
+    return;
+  }
+
   if (id === 'xit-link-copy-original') {
     const clean = XIT.canonical(target, opts);
     if (clean && tab) await copyInTab(tab.id, clean, settings.toast);
@@ -200,6 +208,46 @@ function hasDnr() {
   return !!(api.declarativeNetRequest && api.declarativeNetRequest.updateDynamicRules);
 }
 
+async function openOriginal(input, tab) {
+  const settings = await XITStore.load();
+  const url = XIT.originalUrl(input, { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) });
+  if (!url) throw new Error('Open a tweet or paste an X link first.');
+  await api.tabs.create({ url, index: tab ? tab.index + 1 : undefined, active: true });
+}
+
+// Only fixed status fields enter the report. Do not include raw errors,
+// user-agent strings, tab URLs, custom templates, or copied text.
+async function diagnostics() {
+  await init('diagnostics').catch(() => {});
+  const settings = await XITStore.load();
+  const report = { extension: 'xIT', version: api.runtime.getManifest().version };
+  if (api.runtime.getBrowserInfo) {
+    const info = await api.runtime.getBrowserInfo();
+    report.browser = info.name + ' ' + info.version;
+  } else {
+    const match = /(?:Chrome|Chromium)\/([\d.]+)/.exec(globalThis.navigator && navigator.userAgent || '');
+    report.browser = match ? 'Chromium ' + match[1] : 'Chromium';
+  }
+  report.xAccess = await api.permissions.contains({ origins: LINK_PATTERNS }) ? 'granted' : 'incomplete';
+  const stored = await api.storage.local.get(['dnrStatus', 'menuError']);
+  const state = stored.dnrStatus && stored.dnrStatus.state;
+  report.redirectStatus = ['active', 'off', 'updating', 'paused', 'error'].includes(state) ? state : 'unknown';
+  report.redirectRuleCount = hasDnr() ? (await api.declarativeNetRequest.getDynamicRules()).filter((r) => r.id >= DNR_RULE_BASE).length : 0;
+  report.contextMenus = stored.menuError ? 'error' : settings.contextMenu ? 'enabled' : 'disabled';
+  report.copyButton = settings.copyButton;
+  report.nativeCopy = settings.hijackNativeCopy;
+  report.contentScript = 'no accessible X tab';
+  const tabs = await api.tabs.query({ url: LINK_PATTERNS });
+  if (tabs.length) {
+    const tab = tabs.find((t) => t.active) || tabs[0];
+    try {
+      const response = await api.tabs.sendMessage(tab.id, { type: 'xit:ping' });
+      report.contentScript = response && response.ok ? 'responding' : 'not responding';
+    } catch (_) { report.contentScript = 'not responding'; }
+  }
+  return report;
+}
+
 async function syncDnrRules(settings) {
   const key = XITStore.browseStatusKey(settings);
   const status = (state, extra = {}) => api.storage.local.set({ dnrStatus: { key, state, ...extra } });
@@ -208,12 +256,15 @@ async function syncDnrRules(settings) {
     return;
   }
   const dnr = api.declarativeNetRequest;
+  const paused = XITStore.isPaused(settings);
   await status('updating');
   try {
+    if (paused) await api.alarms.create(PAUSE_ALARM, { when: settings.browsePausedUntil });
+    else if (api.alarms) await api.alarms.clear(PAUSE_ALARM);
     const existing = await dnr.getDynamicRules();
     const removeRuleIds = existing.filter((r) => r.id >= DNR_RULE_BASE).map((r) => r.id);
     const addRules = [];
-    if (settings.browseRedirect) {
+    if (settings.browseRedirect && !paused) {
       const redirector = XITStore.findRedirector(settings, settings.browseRedirectorId);
       if (!XIT.supportsBrowse(redirector)) throw new Error('Choose a redirector that supports page loads.');
       const compiled = redirector ? XIT.compileBrowseRules(redirector.template, settings.browseScope) : [];
@@ -247,7 +298,11 @@ async function syncDnrRules(settings) {
     await dnr.updateDynamicRules({ removeRuleIds, addRules });
     const installed = (await dnr.getDynamicRules()).filter((r) => r.id >= DNR_RULE_BASE);
     if (installed.length !== addRules.length) throw new Error('The browser did not install all page redirect rules.');
-    await status(addRules.length ? 'active' : 'off', { ruleCount: installed.length });
+    await status(paused ? 'paused' : addRules.length ? 'active' : 'off', { ruleCount: installed.length });
+    if (api.action) {
+      await api.action.setBadgeText({ text: paused ? 'PAUSE' : '' });
+      if (paused) await api.action.setBadgeBackgroundColor({ color: '#536471' });
+    }
     await api.storage.local.remove('dnrError');
   } catch (e) {
     console.warn('[xit] could not install redirect rules', e);
@@ -275,7 +330,7 @@ function installFallbackRedirect() {
     const url = changeInfo.url;
     if (!url) return;
     const settings = await XITStore.load();
-    if (!settings.browseRedirect) return;
+    if (!settings.browseRedirect || XITStore.isPaused(settings)) return;
     if (url.includes(XIT.BYPASS_PARAM + '=1')) return;
     const parts = XIT.parse(url);
     if (!parts || !parts.isSource) return;
@@ -316,6 +371,14 @@ async function handleCommand(command, tab) {
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+
+  if (msg.type === 'xit:open-original' || msg.type === 'xit:diagnostics') {
+    if (sender.id !== api.runtime.id) return;
+    const action = msg.type === 'xit:diagnostics' ? diagnostics() : openOriginal(msg.url, sender.tab);
+    action.then((report) => sendResponse({ ok: true, report }),
+      () => sendResponse({ ok: false, error: msg.type === 'xit:diagnostics' ? 'Could not collect diagnostics. Try again.' : 'Could not open that X link.' }));
+    return true;
+  }
 
   if (msg.type === 'xit:mutate-settings') {
     if (sender.id !== api.runtime.id) return;
@@ -387,7 +450,10 @@ async function doInit(reason) {
     // Persist defaults so the options page has something concrete to show.
     await XITStore.save({});
   }
-  const settings = await XITStore.load();
+  let settings = await XITStore.load();
+  if (settings.browsePausedUntil && settings.browsePausedUntil <= Date.now()) {
+    settings = await XITStore.mutate({ type: 'expire-pause' });
+  }
   // Menu failures must never prevent redirect removal or migration cleanup.
   const results = await Promise.allSettled([
     (async () => {
@@ -424,6 +490,9 @@ XITStore.onChanged(() => {
   init('settings').catch(() => {});
 });
 installFallbackRedirect();
+if (api.alarms) api.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === PAUSE_ALARM) init('pause-expired').catch(() => {});
+});
 
 // Service workers restart; make sure menus exist after a cold spin-up.
 init('wake').catch(() => {});

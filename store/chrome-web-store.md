@@ -1,7 +1,7 @@
 # Chrome Web Store submission copy
 
 Paste-ready values for every field in the Developer Dashboard.
-Upload: `dist/xit-chrome-1.0.5.zip`
+Upload: `dist/xit-chrome-1.0.6.zip`
 
 ---
 
@@ -58,11 +58,15 @@ xIT strips the ?s=20&t=… share telemetry X appends to copied links, while leav
 
 OPTIONALLY, SKIP X ENTIRELY
 
-Off by default. Turn on "Redirect page loads" and visiting x.com sends you straight to your chosen front-end, before the request leaves your browser. Scope it to tweets, profiles, or everything. Your own timeline, DMs, notifications, bookmarks and settings are never redirected, because a front-end cannot show them and you would just be locked out. Your logged-in session is untouched; you simply stop landing on it. Append ?xit_bypass=1 to any URL to reach x.com anyway.
+Off by default. Turn on "Redirect page loads" and visiting x.com sends you straight to your chosen front-end, before the request leaves your browser. Scope it to tweets, profiles, or everything. Your own timeline, DMs, notifications, bookmarks and settings are never redirected, because a front-end cannot show them and you would just be locked out. Your logged-in session is untouched; you simply stop landing on it. Choose Open on X once to reach the original page, or pause redirects for 15 minutes and resume automatically.
+
+EVERYDAY CONTROLS
+
+Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Check one enabled host or all of them, with the time of each check shown. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
 
 PRIVACY
 
-No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own except the optional "check which are reachable" button, and only when you press it. Settings stay in your browser. Rewriting a link is local text manipulation.
+No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own except optional host checks that you start in Settings. Settings stay in your browser. Rewriting a link is local text manipulation.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
@@ -84,14 +88,15 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 
 | Permission | Justification |
 |---|---|
-| `storage` | Stores the user's own settings: which redirector is the default, which are enabled, custom URL templates, and copy/redirect preferences. Local only; never transmitted. |
+| `storage` | Stores default and enabled redirectors, pins, custom templates, copy preferences and pause expiry locally. Session storage supports undoing the last custom-entry removal. Nothing is transmitted. |
 | `contextMenus` | Adds the right-click menu that lets the user copy or open a tweet link through a chosen redirector. |
 | `activeTab` | When the user picks an item from the right-click menu, the rewritten URL must be written to the clipboard in the page they clicked in. activeTab grants that access for that click only, rather than standing access to every site. |
 | `scripting` | Used solely with activeTab to run a short clipboard-write function in the tab the user just invoked the context menu in. No code is injected at any other time, and no remote code is ever executed. |
 | `declarativeNetRequest` | Implements the optional "redirect page loads" feature. Rules are declared to the browser, which evaluates them itself; the extension never observes or receives the user's browsing. |
+| `alarms` | Resumes page redirects when a user-requested 15-minute pause expires. It does not schedule network checks or telemetry. |
 | `clipboardWrite` | The extension's entire purpose is putting a rewritten link on the clipboard. |
 | Host permissions for `x.com` / `twitter.com` | Needed to place the copy button in the tweet action bar, read the tweet's permalink, and rewrite the link X's own "Copy link" produces. These are the only sites the extension's content scripts run on. |
-| Optional host permissions (`*://*/*`, not granted by default) | Nothing is granted at install time. Enabling page redirecting requests the selected destination host (for example `https://xcancel.com/*`), including custom instances. Starting the optional reachability check requests access to the enabled redirector hosts together. Disabled hosts are excluded. Requests use HTTPS, omit credentials and referrers, and do not follow redirects. |
+| Optional host permissions (`*://*/*`, not granted by default) | Nothing is granted at install time. Enabling page redirecting requests the selected destination host (for example `https://xcancel.com/*`), including custom instances. A single-host check requests that enabled host; the all-host check requests the enabled redirector hosts together. Disabled hosts are excluded. Requests use HTTPS, omit credentials and referrers, and do not follow redirects. |
 
 **Are you using remote code?** Select **No**. The dashboard still requires a
 written justification, and blocks submission without one. Paste:
