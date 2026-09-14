@@ -149,5 +149,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .warn-text { margin: 6px 0 0; color: var(--danger); font-size: 12.5px; min-height: 1px; }
 .warn-text:empty { display: none; }
+.browse-status { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
+.browse-status:empty { display: none; }
+.browse-status[data-state="error"] { color: var(--danger); }
 
 .saved { position: sticky; bottom: 0; margin: 0; padding: 8px 2px; color: var(--ok); font-size: 12.5px; font-weight: 600; }

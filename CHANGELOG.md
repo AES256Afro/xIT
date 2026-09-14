@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.5
+
+- Install browse redirects within Chrome's compiled regex budget. Match reserved paths and bypass values at their boundaries, and preserve custom destination hosts and ports.
+- Show redirect installation status and errors in Settings and the popup. Remove stale rules after a failed update, and keep menu failures independent of redirect removal.
+- Serialize settings writes across extension contexts. Preserve disabled custom entries, merge individual changes against current settings, and reject imported preset ID collisions.
+- Keep native keyboard activation for dropdown buttons and return focus to the trigger on Escape.
+- Confirm native copies only after the clipboard write succeeds. Preserve other clipboard formats and propagate write failures without retrying.
+- Check only enabled redirectors, with one access request and at most three checks in flight. Omit credentials and referrers, and do not follow redirects during checks.
+- Stop retaining failed-copy URLs and delete legacy retained data during startup and reset.
+- Scan affected articles after DOM updates instead of scanning every tweet after unrelated changes.
+- Recover tweet IDs when retargeting Thread Reader App and Unroll Now links.
+- Preserve control selections while access requests are pending, and keep delayed status reads from replacing newer results.
+- Add settings, clipboard, failure-recovery, and native Chrome and Firefox regression coverage.
+
 ## 1.0.4
 
 - Fix the redirector menu closing as soon as you scrolled it, which made the thread tools and the footer buttons unreachable.

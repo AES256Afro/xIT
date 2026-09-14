@@ -9,6 +9,7 @@
 
   const SAMPLE = 'https://x.com/jack/status/20?s=20&t=xyz';
   let settings = null;
+  let redirectStatus = null;
   let savedTimer = 0;
 
   function saved(text) {
@@ -18,9 +19,11 @@
   }
 
   async function commit(patch) {
-    settings = await XITStore.save(patch);
-    saved();
-    render();
+    try {
+      settings = await (patch && typeof patch.then === 'function' ? patch : XITStore.save(patch));
+      saved();
+      render();
+    } catch (e) { $('saved').textContent = 'Could not save: ' + e.message; }
   }
 
   function sampleFor(redirector) {
@@ -96,6 +99,10 @@
         msgs.push('No page types selected, so nothing is being redirected.');
       }
     }
+    const state = XITStore.browseStatusMessage(settings, redirectStatus);
+    $('browse-warn').dataset.state = msgs.length || (redirectStatus &&
+      redirectStatus.key === XITStore.browseStatusKey(settings) && redirectStatus.state === 'error') ? 'error' : 'normal';
+    if (state) msgs.push(state);
     $('browse-warn').textContent = msgs.join(' ');
   }
 
@@ -129,9 +136,7 @@
         cb.checked = settings.enabledIds.includes(r.id);
         cb.id = 'en-' + r.id;
         cb.addEventListener('change', () => {
-          const set = new Set(settings.enabledIds);
-          if (cb.checked) set.add(r.id); else set.delete(r.id);
-          commit({ enabledIds: Array.from(set) });
+          commit(XITStore.setEnabled(r.id, cb.checked));
         });
 
         const main = document.createElement('label');
@@ -162,7 +167,7 @@
           del.className = 'row-btn';
           del.textContent = 'Remove';
           del.addEventListener('click', () => {
-            commit({ custom: settings.custom.filter((c) => c.id !== r.id) });
+            commit(XITStore.removeCustom(r.id));
           });
           row.appendChild(del);
         }
@@ -176,25 +181,24 @@
   /* ---- reachability probe ---- */
 
   async function probeOne(redirector, badge) {
-    const host = XIT.templateHost(redirector.template);
-    if (!host) return;
+    const origin = XIT.templateOrigin(redirector.template);
+    const permission = XIT.permissionOrigin(redirector.template);
     badge.className = 'ritem-badge badge-wait';
     badge.textContent = 'checking';
 
-    const origins = ['*://' + host + '/*'];
     try {
-      const has = await api.permissions.contains({ origins });
-      if (!has && !(await api.permissions.request({ origins }))) {
-        badge.className = 'ritem-badge badge-wait';
-        badge.textContent = 'no access';
-        return;
-      }
-    } catch (_) { /* try the fetch anyway */ }
+      if (!origin || !permission || !(await api.permissions.contains({ origins: [permission] }))) throw new Error('No access');
+    } catch (_) {
+      badge.textContent = 'no access';
+      return;
+    }
+    if (!settings.enabledIds.includes(redirector.id)) { badge.textContent = ''; return; }
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 6000);
     try {
-      await fetch('https://' + host + '/', { method: 'HEAD', mode: 'no-cors', signal: ctrl.signal, cache: 'no-store' });
+      await fetch(origin + '/', { method: 'HEAD', mode: 'no-cors', signal: ctrl.signal,
+        cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'manual' });
       badge.className = 'ritem-badge badge-ok';
       badge.textContent = 'responds';
     } catch (_) {
@@ -205,25 +209,40 @@
     }
   }
 
+  let probing = false;
   async function probeAll() {
-    const badges = Array.from(document.querySelectorAll('[data-probe]'));
-    for (const badge of badges) {
-      const r = XITStore.findRedirector(settings, badge.dataset.probe);
-      if (r) await probeOne(r, badge);
+    if (probing) return;
+    probing = true;
+    const button = $('test-all');
+    button.disabled = true;
+    const label = button.textContent;
+    button.textContent = 'Checking…';
+    const list = XITStore.enabledRedirectors(settings);
+    const origins = [...new Set(list.map((r) => XIT.permissionOrigin(r.template)).filter(Boolean))];
+    try {
+      // Request once while handling the click. Awaiting a network operation
+      // before requesting access loses the user gesture in some browsers.
+      if (origins.length) {
+        try { await api.permissions.request({ origins }); } catch (_) { /* each job checks its own access */ }
+      }
+      let index = 0;
+      const worker = async () => {
+        while (index < list.length) {
+          const r = list[index++];
+          const badge = [...document.querySelectorAll('[data-probe]')].find((b) => b.dataset.probe === r.id);
+          if (badge && settings.enabledIds.includes(r.id)) await probeOne(r, badge);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(3, list.length) }, worker));
+      saved('Reachability checked. This only says the host answered, not that it works.');
+    } finally {
+      probing = false;
+      button.disabled = false;
+      button.textContent = label;
     }
-    saved('Reachability checked. This only says the host answered, not that it works.');
   }
 
   /* ---- custom redirectors ---- */
-
-  function slugify(name) {
-    const base = 'c-' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
-    let id = base;
-    let n = 2;
-    const taken = new Set(XITStore.allRedirectors(settings).map((r) => r.id));
-    while (taken.has(id)) id = base + '-' + n++;
-    return id;
-  }
 
   function renderCustomPreview() {
     const tpl = $('c-template').value.trim();
@@ -254,7 +273,7 @@
   async function importSettings(file) {
     try {
       const raw = JSON.parse(await file.text());
-      settings = await XITStore.save(raw);
+      settings = await XITStore.replace(raw);
       render();
       saved('Imported');
     } catch (e) {
@@ -278,20 +297,21 @@
   }
 
   async function ensureOriginPermission(redirector) {
-    const host = XIT.templateHost(redirector && redirector.template);
-    if (!host) return true;
-    const origins = ['*://' + host + '/*'];
+    const origin = XIT.permissionOrigin(redirector && redirector.template);
+    if (!origin) return false;
+    const origins = [origin];
     try {
-      if (await api.permissions.contains({ origins })) return true;
       return await api.permissions.request({ origins });
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
   async function init() {
     settings = await XITStore.load();
     render();
+    XITStore.onChanged((next) => { settings = next; render(); });
+    XITStore.watchStatus((next) => { redirectStatus = next; renderBrowse(); });
 
     $('default-select').addEventListener('change', (ev) => commit({ defaultRedirector: ev.target.value }));
 
@@ -301,30 +321,34 @@
     }
 
     $('t-browse').addEventListener('change', async (ev) => {
-      if (ev.target.checked) {
+      const enabled = ev.target.checked;
+      if (enabled) {
         const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
         if (!(await ensureOriginPermission(r))) {
           ev.target.checked = false;
           $('browse-warn').textContent = 'Redirecting page loads needs access to ' + XIT.templateHost(r.template) + '.';
+          $('browse-warn').dataset.state = 'error';
           return;
         }
       }
-      commit({ browseRedirect: ev.target.checked });
+      commit({ browseRedirect: enabled });
     });
 
     $('browse-select').addEventListener('change', async (ev) => {
-      const r = XITStore.findRedirector(settings, ev.target.value);
+      const id = ev.target.value;
+      const r = XITStore.findRedirector(settings, id);
       if (settings.browseRedirect && !(await ensureOriginPermission(r))) {
         ev.target.value = settings.browseRedirectorId;
         $('browse-warn').textContent = 'Needs access to ' + XIT.templateHost(r.template) + '.';
+        $('browse-warn').dataset.state = 'error';
         return;
       }
-      commit({ browseRedirectorId: ev.target.value });
+      commit({ browseRedirectorId: id });
     });
 
     for (const [id, key] of [['s-status', 'status'], ['s-profile', 'profile'], ['s-other', 'other']]) {
       $(id).addEventListener('change', (ev) => {
-        commit({ browseScope: Object.assign({}, settings.browseScope, { [key]: ev.target.checked }) });
+        commit({ browseScope: { [key]: ev.target.checked } });
       });
     }
 
@@ -337,8 +361,7 @@
       const v = XIT.validateTemplate(template);
       if (!name) { $('custom-error').textContent = 'Give it a name.'; return; }
       if (!v.ok) { $('custom-error').textContent = v.error; return; }
-      const entry = { id: slugify(name), name, template, group: 'custom' };
-      commit({ custom: settings.custom.concat([entry]) });
+      commit(XITStore.addCustom({ name, template }));
       $('c-name').value = '';
       $('c-template').value = '';
       $('custom-preview').textContent = '';
@@ -354,9 +377,7 @@
     });
     $('reset').addEventListener('click', async () => {
       if (!confirm('Reset every setting back to defaults?')) return;
-      await api.storage.local.remove('settings');
-      settings = await XITStore.load();
-      await XITStore.save({});
+      settings = await XITStore.reset();
       render();
       saved('Reset');
     });

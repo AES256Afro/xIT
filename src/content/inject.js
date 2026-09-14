@@ -183,12 +183,20 @@
   let menuEl = null;
   let menuOwner = null;
   let menuSourceUrl = null;
+  let menuTrigger = null;
 
-  function closeMenu() {
+  function closeMenu(restoreFocus = false) {
+    const trigger = menuTrigger;
     if (menuEl) menuEl.hidden = true;
-    if (menuOwner) menuOwner.removeAttribute('data-open');
+    if (menuOwner) {
+      menuOwner.removeAttribute('data-open');
+      const caret = menuOwner.querySelector('.xit-btn-caret');
+      if (caret) caret.setAttribute('aria-expanded', 'false');
+    }
     menuOwner = null;
     menuSourceUrl = null;
+    menuTrigger = null;
+    if (restoreFocus && trigger && trigger.isConnected) trigger.focus({ preventScroll: true });
   }
 
   function buildMenu() {
@@ -233,6 +241,8 @@
     });
 
     el.addEventListener('keydown', (ev) => {
+      // Buttons inside rows and the footer keep their native activation.
+      if (ev.target.closest('button')) return;
       const rows = Array.from(el.querySelectorAll('.xit-row'));
       const idx = rows.findIndex((r) => r.classList.contains('xit-active'));
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
@@ -249,11 +259,6 @@
       } else if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
         if (rows[idx]) rows[idx].click();
-      } else if (ev.key === 'Escape') {
-        ev.preventDefault();
-        const owner = menuOwner;
-        closeMenu();
-        if (owner) owner.querySelector('.xit-btn-main').focus();
       }
     });
 
@@ -280,6 +285,12 @@
   }
 
   function renderMenu() {
+    const focused = menuEl.contains(document.activeElement) ? document.activeElement : null;
+    const focusRow = focused && focused.closest('.xit-row');
+    const focusId = focusRow && focusRow.getAttribute('data-id');
+    const focusAction = focused && focused.getAttribute('data-act');
+    const focusFoot = focused && focused.getAttribute('data-foot');
+    const scrollTop = menuEl.scrollTop;
     const list = XITStore.enabledRedirectors(settings);
     const fragment = document.createDocumentFragment();
     for (const g of XIT.GROUPS) {
@@ -320,6 +331,14 @@
     }
     fragment.appendChild(foot);
     menuEl.replaceChildren(fragment);
+    if (focused) {
+      const row = [...menuEl.querySelectorAll('.xit-row')].find((r) => r.getAttribute('data-id') === focusId);
+      const target = focusFoot ? menuEl.querySelector('[data-foot="' + focusFoot + '"]')
+        : focusAction && row ? row.querySelector('[data-act="' + focusAction + '"]') : row;
+      if (row) row.classList.add('xit-active');
+      if (target) target.focus({ preventScroll: true });
+    }
+    menuEl.scrollTop = scrollTop;
   }
 
   function openMenu(wrap, sourceUrl) {
@@ -327,10 +346,12 @@
     if (menuOwner === wrap && !menuEl.hidden) { closeMenu(); return; }
     closeMenu();
     menuOwner = wrap;
+    menuTrigger = wrap.contains(document.activeElement) ? document.activeElement : wrap.querySelector('.xit-btn-main');
     menuSourceUrl = sourceUrl;
     renderMenu();
     menuEl.hidden = false;
     wrap.setAttribute('data-open', '1');
+    wrap.querySelector('.xit-btn-caret').setAttribute('aria-expanded', 'true');
 
     // Place it under the button, flipping up or inward as needed.
     const r = wrap.getBoundingClientRect();
@@ -372,6 +393,7 @@
     caret.className = 'xit-btn xit-btn-caret';
     caret.appendChild(icon(ICON_CARET));
     caret.setAttribute('aria-haspopup', 'menu');
+    caret.setAttribute('aria-expanded', 'false');
     caret.setAttribute('aria-label', 'Choose a redirector');
 
     function labelMain() {
@@ -419,9 +441,9 @@
     return wrap;
   }
 
-  function scan() {
+  function scan(root = document) {
     if (!settings || !settings.copyButton) return;
-    const groups = document.querySelectorAll('article [role="group"]');
+    const groups = root.querySelectorAll(root === document ? 'article [role="group"]' : '[role="group"]');
     for (const group of groups) {
       // X recycles nodes: a marked bar that lost its button needs a new one.
       if (group.hasAttribute('data-xit') && group.querySelector('.xit-wrap')) continue;
@@ -448,13 +470,40 @@
   }
 
   let scanQueued = false;
-  function queueScan() {
+  let fullScan = false;
+  const pendingArticles = new Set();
+  function queueScan(article) {
+    if (!settings || !settings.copyButton) return;
+    if (article) pendingArticles.add(article); else fullScan = true;
     if (scanQueued) return;
     scanQueued = true;
     requestAnimationFrame(() => {
       scanQueued = false;
-      try { scan(); } catch (e) { console.warn('[xit] scan failed', e); }
+      try {
+        if (fullScan) scan();
+        else for (const article of pendingArticles) if (article.isConnected) scan(article);
+      } catch (e) { console.warn('[xit] scan failed', e); }
+      fullScan = false;
+      pendingArticles.clear();
     });
+  }
+
+  function scanMutations(records) {
+    if (!settings || !settings.copyButton) return;
+    const owned = '.xit-wrap, .xit-menu, .xit-toast';
+    for (const record of records) {
+      const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+      if (target && target.closest(owned)) continue;
+      const added = [...record.addedNodes].filter((node) => node.nodeType !== 1 || !node.matches(owned));
+      if (!added.length && !record.removedNodes.length) continue;
+      const article = target && target.closest('article');
+      if (article) queueScan(article);
+      for (const node of added) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches('article')) queueScan(node);
+        else for (const child of node.querySelectorAll('article')) queueScan(child);
+      }
+    }
   }
 
   /* ---------------------------------------------------------------- *
@@ -582,7 +631,7 @@
     pushConfig();
     queueScan();
 
-    new MutationObserver(queueScan).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(scanMutations).observe(document.body, { childList: true, subtree: true });
 
     // X swaps themes without a reload; body style is the tell.
     new MutationObserver(syncTheme).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
@@ -597,7 +646,11 @@
       if (!t.closest('.xit-menu') && !t.closest('.xit-wrap')) closeMenu();
     }, true);
     window.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape' && menuEl && !menuEl.hidden) closeMenu();
+      if (ev.key === 'Escape' && menuEl && !menuEl.hidden) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeMenu(true);
+      }
     }, true);
     // The menu is position:fixed and anchored to its button, so it closes when
     // the page scrolls out from under it. This is a capture listener, so it

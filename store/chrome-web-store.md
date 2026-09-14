@@ -1,7 +1,7 @@
 # Chrome Web Store submission copy
 
 Paste-ready values for every field in the Developer Dashboard.
-Upload: `dist/xit-chrome-1.0.3.zip`
+Upload: `dist/xit-chrome-1.0.5.zip`
 
 ---
 
@@ -91,7 +91,7 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 | `declarativeNetRequest` | Implements the optional "redirect page loads" feature. Rules are declared to the browser, which evaluates them itself; the extension never observes or receives the user's browsing. |
 | `clipboardWrite` | The extension's entire purpose is putting a rewritten link on the clipboard. |
 | Host permissions for `x.com` / `twitter.com` | Needed to place the copy button in the tweet action bar, read the tweet's permalink, and rewrite the link X's own "Copy link" produces. These are the only sites the extension's content scripts run on. |
-| Optional host permissions (`*://*/*`, not granted by default) | A cross-origin redirect requires permission for its destination, and the destination is whichever redirector the user chooses, including self-hosted instances the extension cannot know in advance. Nothing is granted at install time. The extension asks for a single specific origin (for example `*://xcancel.com/*`) at the moment the user turns on page redirecting, and never asks for more than the one host they picked. |
+| Optional host permissions (`*://*/*`, not granted by default) | Nothing is granted at install time. Enabling page redirecting requests the selected destination host (for example `https://xcancel.com/*`), including custom instances. Starting the optional reachability check requests access to the enabled redirector hosts together. Disabled hosts are excluded. Requests use HTTPS, omit credentials and referrers, and do not follow redirects. |
 
 **Are you using remote code?** Select **No**. The dashboard still requires a
 written justification, and blocks submission without one. Paste:

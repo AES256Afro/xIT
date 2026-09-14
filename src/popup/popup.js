@@ -10,6 +10,7 @@
   const HOST_PATTERNS = ['*://x.com/*', '*://twitter.com/*', '*://mobile.twitter.com/*'];
 
   let settings = null;
+  let redirectStatus = null;
   let tab = null;
   let sourceUrl = '';        // what we convert: the tab URL, or whatever is pasted
   let statusTimer = 0;
@@ -163,20 +164,20 @@
     const scope = settings.browseScope;
     const which = [scope.status && 'tweets', scope.profile && 'profiles', scope.other && 'everything else']
       .filter(Boolean).join(', ');
-    $('browse-note').textContent = !settings.browseRedirect
-      ? ''
-      : (r && XIT.supportsBrowse(r) ? 'Redirecting ' + (which || 'nothing - pick a scope in Settings') : 'That redirector cannot be used for page loads.');
+    const state = XITStore.browseStatusMessage(settings, redirectStatus);
+    $('browse-note').textContent = state + (settings.browseRedirect && redirectStatus &&
+      redirectStatus.state === 'active' && redirectStatus.key === XITStore.browseStatusKey(settings)
+      ? ' Redirecting ' + which + ' with ' + r.name + '.' : '');
   }
 
   async function ensureOriginPermission(redirector) {
-    const host = XIT.templateHost(redirector && redirector.template);
-    if (!host) return true;
-    const origins = ['*://' + host + '/*'];
+    const origin = XIT.permissionOrigin(redirector && redirector.template);
+    if (!origin) return false;
+    const origins = [origin];
     try {
-      if (await api.permissions.contains({ origins })) return true;
       return await api.permissions.request({ origins });
     } catch (_) {
-      return true; // Older builds: let the DNR call decide.
+      return false;
     }
   }
 
@@ -212,6 +213,15 @@
 
     refreshPreview();
     renderBrowse();
+    XITStore.watchStatus((next) => { redirectStatus = next; renderBrowse(); });
+    XITStore.onChanged((next) => {
+      settings = next;
+      refreshPreview();
+      renderBrowse();
+      $('t-button').checked = settings.copyButton;
+      $('t-hijack').checked = settings.hijackNativeCopy;
+      $('t-strip').checked = settings.stripTracking;
+    });
     await checkHostPermission();
 
     $('t-button').checked = settings.copyButton;
@@ -251,7 +261,8 @@
     await toggle('t-strip', 'stripTracking');
 
     $('t-browse').addEventListener('change', async (ev) => {
-      if (ev.target.checked) {
+      const enabled = ev.target.checked;
+      if (enabled) {
         const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
         if (!(await ensureOriginPermission(r))) {
           ev.target.checked = false;
@@ -259,18 +270,19 @@
           return;
         }
       }
-      settings = await XITStore.save({ browseRedirect: ev.target.checked });
+      settings = await XITStore.save({ browseRedirect: enabled });
       renderBrowse();
     });
 
     $('browse-target').addEventListener('change', async (ev) => {
-      const r = XITStore.findRedirector(settings, ev.target.value);
+      const id = ev.target.value;
+      const r = XITStore.findRedirector(settings, id);
       if (settings.browseRedirect && !(await ensureOriginPermission(r))) {
         ev.target.value = settings.browseRedirectorId;
         status('Needs access to ' + XIT.templateHost(r.template), 'error');
         return;
       }
-      settings = await XITStore.save({ browseRedirectorId: ev.target.value });
+      settings = await XITStore.save({ browseRedirectorId: id });
       renderBrowse();
     });
   }

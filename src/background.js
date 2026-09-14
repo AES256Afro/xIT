@@ -14,6 +14,7 @@ if (typeof importScripts === 'function' && !globalThis.XIT) {
 const api = (typeof browser !== 'undefined' && browser.runtime) ? browser : chrome;
 const XIT = globalThis.XIT;
 const XITStore = globalThis.XITStore;
+XITStore.startWriter();
 
 const MENU_ROOT_LINK = 'xit-link-root';
 const MENU_ROOT_PAGE = 'xit-page-root';
@@ -144,16 +145,8 @@ async function copyInTab(tabId, text, showToast) {
     return !!(results && results[0] && results[0].result);
   } catch (e) {
     console.warn('[xit] clipboard write failed', e);
-    await notifyFailure(text);
     return false;
   }
-}
-
-async function notifyFailure(text) {
-  // Last resort: park it where the user can still get at it.
-  try {
-    await api.storage.local.set({ lastCopyFailure: { text, at: Date.now() } });
-  } catch (_) { /* ignore */ }
 }
 
 /* -------------------------------------------------------------------- *
@@ -208,50 +201,68 @@ function hasDnr() {
 }
 
 async function syncDnrRules(settings) {
-  if (!hasDnr()) return;
-  const dnr = api.declarativeNetRequest;
-
-  let existing = [];
-  try {
-    existing = await dnr.getDynamicRules();
-  } catch (_) { /* treat as none */ }
-  const removeRuleIds = existing.filter((r) => r.id >= DNR_RULE_BASE).map((r) => r.id);
-
-  const addRules = [];
-  if (settings.browseRedirect) {
-    const redirector = XITStore.findRedirector(settings, settings.browseRedirectorId);
-    const compiled = redirector ? XIT.compileBrowseRules(redirector.template, settings.browseScope) : [];
-    if (compiled.length) {
-      let nextId = DNR_RULE_BASE;
-      for (const g of XIT.guardRules()) {
-        addRules.push({
-          id: nextId++,
-          priority: g.priority,
-          action: { type: 'allow' },
-          condition: { regexFilter: g.regexFilter, resourceTypes: ['main_frame'] },
-        });
-      }
-      for (const c of compiled) {
-        addRules.push({
-          id: nextId++,
-          priority: c.priority,
-          action: { type: 'redirect', redirect: { regexSubstitution: c.regexSubstitution } },
-          condition: { regexFilter: c.regexFilter, resourceTypes: ['main_frame'] },
-        });
-      }
-    }
-  }
-
-  try {
-    await dnr.updateDynamicRules({ removeRuleIds, addRules });
-  } catch (e) {
-    console.warn('[xit] could not install redirect rules', e);
-    await api.storage.local.set({ dnrError: String(e && e.message || e) });
+  const key = XITStore.browseStatusKey(settings);
+  const status = (state, extra = {}) => api.storage.local.set({ dnrStatus: { key, state, ...extra } });
+  if (!hasDnr()) {
+    await status(settings.browseRedirect ? 'error' : 'off', { message: 'This browser cannot install page redirects.' });
     return;
   }
+  const dnr = api.declarativeNetRequest;
+  await status('updating');
   try {
+    const existing = await dnr.getDynamicRules();
+    const removeRuleIds = existing.filter((r) => r.id >= DNR_RULE_BASE).map((r) => r.id);
+    const addRules = [];
+    if (settings.browseRedirect) {
+      const redirector = XITStore.findRedirector(settings, settings.browseRedirectorId);
+      if (!XIT.supportsBrowse(redirector)) throw new Error('Choose a redirector that supports page loads.');
+      const compiled = redirector ? XIT.compileBrowseRules(redirector.template, settings.browseScope) : [];
+      if (compiled.length) {
+        let nextId = DNR_RULE_BASE;
+        for (const g of XIT.guardRules()) {
+          addRules.push({
+            id: nextId++,
+            priority: g.priority,
+            action: { type: 'allow' },
+            condition: { regexFilter: g.regexFilter, resourceTypes: ['main_frame'] },
+          });
+        }
+        for (const c of compiled) {
+          addRules.push({
+            id: nextId++,
+            priority: c.priority,
+            action: { type: 'redirect', redirect: c.transform ? { transform: c.transform } : { regexSubstitution: c.regexSubstitution } },
+            condition: { regexFilter: c.regexFilter, resourceTypes: ['main_frame'] },
+          });
+        }
+      }
+    }
+
+    if (dnr.isRegexSupported) {
+      for (const rule of addRules) {
+        const result = await dnr.isRegexSupported({ regex: rule.condition.regexFilter, requireCapturing: !!(rule.action.redirect && rule.action.redirect.regexSubstitution) });
+        if (!result.isSupported) throw new Error('The browser rejected a redirect pattern: ' + result.reason);
+      }
+    }
+    await dnr.updateDynamicRules({ removeRuleIds, addRules });
+    const installed = (await dnr.getDynamicRules()).filter((r) => r.id >= DNR_RULE_BASE);
+    if (installed.length !== addRules.length) throw new Error('The browser did not install all page redirect rules.');
+    await status(addRules.length ? 'active' : 'off', { ruleCount: installed.length });
     await api.storage.local.remove('dnrError');
-  } catch (_) { /* ignore */ }
+  } catch (e) {
+    console.warn('[xit] could not install redirect rules', e);
+    let cleared = false;
+    try {
+      const ids = (await dnr.getDynamicRules()).filter((r) => r.id >= DNR_RULE_BASE).map((r) => r.id);
+      await dnr.updateDynamicRules({ removeRuleIds: ids, addRules: [] });
+      cleared = !(await dnr.getDynamicRules()).some((r) => r.id >= DNR_RULE_BASE);
+    } catch (_) { /* retain an explicit warning if cleanup also fails */ }
+    const message = 'Page redirect could not be updated. ' + String(e && e.message || e) +
+      (cleared ? ' Redirecting is off.' : ' Previous redirects may still be active. Reload the extension and try again.');
+    await api.storage.local.set({ dnrError: message });
+    await status('error', { message });
+    throw e;
+  }
 }
 
 /**
@@ -305,6 +316,15 @@ async function handleCommand(command, tab) {
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+
+  if (msg.type === 'xit:mutate-settings') {
+    if (sender.id !== api.runtime.id) return;
+    XITStore.mutate(msg.operation).then(
+      (settings) => sendResponse({ ok: true, settings }),
+      (error) => sendResponse({ ok: false, error: error.message })
+    );
+    return true;
+  }
 
   // storage.onChanged is the normal trigger for a refresh and fires in the
   // background for writes from any extension context, so nothing needs to send
@@ -368,8 +388,22 @@ async function doInit(reason) {
     await XITStore.save({});
   }
   const settings = await XITStore.load();
-  await buildMenus(settings);
-  await syncDnrRules(settings);
+  // Menu failures must never prevent redirect removal or migration cleanup.
+  const results = await Promise.allSettled([
+    (async () => {
+      try {
+        await buildMenus(settings);
+        await api.storage.local.remove('menuError');
+      } catch (error) {
+        await api.storage.local.set({ menuError: String(error.message || error) });
+        throw error;
+      }
+    })(),
+    syncDnrRules(settings),
+    api.storage.local.remove('lastCopyFailure'),
+  ]);
+  const failure = results.find((r) => r.status === 'rejected');
+  if (failure) throw failure.reason;
 }
 
 api.runtime.onInstalled.addListener((details) => {

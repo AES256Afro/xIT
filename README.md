@@ -147,6 +147,10 @@ timeline, messages, notifications, bookmarks and settings are **never**
 redirected, since a frontend cannot show them and you would just be locked out.
 Your logged-in X session is untouched; you simply stop landing on it.
 
+Settings and the popup report whether the rules are active or an update failed.
+If a new configuration cannot be installed, xIT removes its old rules and reports
+the error. A separate context-menu error does not prevent redirect removal.
+
 To reach a page on x.com anyway, append `?xit_bypass=1`. The extension tidies the
 parameter out of the address bar once the page loads.
 
@@ -167,7 +171,7 @@ page link to those addresses, so paste them in yourself.
 | `declarativeNetRequest` | The browse redirect. Rules are evaluated by the browser; the extension never sees your browsing. |
 | `clipboardWrite` | Copying. |
 | Host access to x.com / twitter.com | The button, and reading the tweet permalink. |
-| Optional host access | Only requested for a redirect target when you actually turn on the browse redirect, because a cross-origin redirect needs permission for the destination. |
+| Optional host access | Requested for the selected redirect destination when enabling browse redirect, or for the enabled redirectors when starting a reachability check. No destination access is granted at installation. |
 
 No analytics, no network requests of its own, no remote code. The only outbound
 request it ever makes is the reachability check, and only when you press that
@@ -182,6 +186,39 @@ npm run build            # dist/chrome + dist/firefox + zips
 npm run prepare-dist     # icons + build, in one go
 npm run store-assets     # store screenshots and promo tiles (needs Chrome)
 ```
+
+Run the native Chrome regression checks after building:
+
+```bash
+npm run test:browser
+npm run test:firefox
+```
+
+The browser checks need Playwright and its full Chromium browser installed in
+your development environment. If Playwright is outside this project, set
+`PLAYWRIGHT_PATH` to its `index.mjs`; set `CHROME_PATH` to override the browser
+executable. Use Chromium or Chrome for Testing, which support loading an unpacked
+extension from the command line. The check uses a disposable profile, synthetic
+X pages, and captured clipboard writes. Results are written to the ignored
+`.harness/browser-results.json` file.
+
+These checks exercise the browser's regex compiler, installed redirect rules,
+settings writes from separate pages, keyboard actions, permission denial,
+redirect failures, legacy data cleanup, and DOM updates. JavaScript regex tests
+alone do not establish that Chrome can install a rule.
+
+The Firefox check uses a recent Firefox release with WebDriver BiDi extension
+installation support and Node 22 or later. Set `FIREFOX_PATH` if Firefox is not
+in its standard macOS or Linux location. It checks temporary installation,
+native settings messaging, menu creation, rule installation and removal, and
+the Settings status display in a disposable profile. Results are written to
+`.harness/firefox-results.json`. It does not exercise Firefox's content script
+against authenticated X pages or validate a signed Store package.
+
+Settings mutations run through one background writer. Individual list and scope
+changes are merged there against current settings, so concurrent pages cannot
+replace one another's unrelated changes. The content observer scans affected
+articles; unrelated page mutations do not trigger full-document scans.
 
 One source tree in `src/` builds both browsers; `tools/build.mjs` generates the
 two manifests, which differ only in the background-script style and the
