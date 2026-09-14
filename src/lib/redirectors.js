@@ -297,6 +297,14 @@
 
   const BYPASS_PARAM = 'xit_bypass';
 
+  function originalUrl(input, opts) {
+    const clean = canonical(input, opts);
+    if (!clean) return null;
+    const url = new URL(clean);
+    url.searchParams.set(BYPASS_PARAM, '1');
+    return url.href;
+  }
+
   function compileBrowseRules(template, scopes) {
     const t = String(template || '');
     const origin = templateOrigin(t);
@@ -353,7 +361,7 @@
 
   root.XIT = {
     GROUPS, PRESETS, TOKENS, TRACKING_PARAMS, BYPASS_PARAM, RESERVED,
-    parse, expand, convert, canonical, stripTracking,
+    parse, expand, convert, canonical, originalUrl, stripTracking,
     validateTemplate, templateHost, templateOrigin, permissionOrigin, supportsBrowse,
     compileBrowseRules, guardRules,
     isSourceHost, isMirrorHost, bareHost,

@@ -216,6 +216,11 @@
         const src = menuSourceUrl;
         closeMenu();
         if (kind === 'original') await copyOriginal(src);
+        if (kind === 'open-original') {
+          api.runtime.sendMessage({ type: 'xit:open-original', url: src }).then((result) => {
+            if (!result || !result.ok) toast('Could not open that X link.', 'error');
+          }).catch(() => toast('Could not open that X link.', 'error'));
+        }
         if (kind === 'options') api.runtime.sendMessage({ type: 'xit:open-options' }).catch(() => {});
         return;
       }
@@ -224,6 +229,11 @@
       const redirector = XITStore.findRedirector(settings, row.getAttribute('data-id'));
       if (!redirector) return;
       const src = menuSourceUrl;
+
+      if (act && act.getAttribute('data-act') === 'pin') {
+        await XITStore.setPinned(redirector.id, !settings.pinnedIds.includes(redirector.id));
+        return;
+      }
 
       if (act && act.getAttribute('data-act') === 'open') {
         closeMenu();
@@ -291,11 +301,9 @@
     const focusAction = focused && focused.getAttribute('data-act');
     const focusFoot = focused && focused.getAttribute('data-foot');
     const scrollTop = menuEl.scrollTop;
-    const list = XITStore.enabledRedirectors(settings);
     const fragment = document.createDocumentFragment();
-    for (const g of XIT.GROUPS) {
-      const inGroup = list.filter((r) => r.group === g.id);
-      if (!inGroup.length) continue;
+    for (const g of XITStore.redirectorGroups(settings)) {
+      const inGroup = g.entries;
       fragment.appendChild(element('div', 'xit-group-label', g.label));
       for (const r of inGroup) {
         const row = element('div', 'xit-row');
@@ -308,6 +316,12 @@
         label.appendChild(element('span', 'xit-row-name', r.name));
         if (r.note) label.appendChild(element('span', 'xit-row-note', r.note));
         row.appendChild(label);
+        const pinned = settings.pinnedIds.includes(r.id);
+        const pin = element('button', 'xit-row-act xit-pin', pinned ? 'Unpin' : 'Pin');
+        pin.setAttribute('data-act', 'pin');
+        pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+        pin.setAttribute('aria-pressed', String(pinned));
+        row.appendChild(pin);
         for (const [action, title, pathData] of [
           ['open', 'Open with ' + r.name, ICON_OPEN],
           ['default', 'Make ' + r.name + ' the default', ICON_STAR],
@@ -324,7 +338,7 @@
     }
     fragment.appendChild(element('div', 'xit-sep'));
     const foot = element('div', 'xit-foot');
-    for (const [action, text] of [['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
+    for (const [action, text] of [['open-original', 'Open on X once'], ['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
       const button = element('button', '', text);
       button.setAttribute('data-foot', action);
       foot.appendChild(button);
@@ -600,7 +614,7 @@
     }
 
     if (msg.type === 'xit:ping') {
-      sendResponse({ ok: true, url: location.href });
+      sendResponse({ ok: true });
       return true;
     }
   });

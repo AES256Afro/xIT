@@ -66,6 +66,7 @@ function harness(firefox = false) {
   }
   const store = {
     startWriter() {},
+    isPaused: s => s.browseRedirect && s.browsePausedUntil > Date.now(),
     browseStatusKey: s => JSON.stringify(s),
     load: async () => ({ ...settings }),
     save: async () => { changed({ ...settings }); },
@@ -120,7 +121,9 @@ test(`Firefox=${firefox}: install, startup, storage events and popup messages ca
   assert.deepEqual(h.errors,[]);
   assert.equal(response?.ok,true);
   assert.equal(h.menus.get('xit-link-copy-default').title,'Copy as latest');
-  assert.equal(h.menus.size,11);
+  assert.equal(h.menus.size,13);
+  assert.ok(h.menus.has('xit-link-open-original'));
+  assert.ok(h.menus.has('xit-page-open-original'));
   h.change({contextMenu:false});
   await h.settle();
   assert.equal(h.menus.size,0);

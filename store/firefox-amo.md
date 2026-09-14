@@ -1,7 +1,7 @@
 # Firefox Add-ons (AMO) submission copy
 
 Paste-ready values for <https://addons.mozilla.org/developers/addon/submit/distribution>.
-Upload: `dist/xit-firefox-1.0.5.zip`
+Upload: `dist/xit-firefox-1.0.6.zip`
 
 ---
 
@@ -64,7 +64,11 @@ xIT also strips the ?s=20&t=… share telemetry X appends to copied links.
 
 OPTIONAL: SKIP X ENTIRELY
 
-Off by default. When enabled, x.com page loads are redirected before the request leaves your browser, scoped to tweets, profiles or everything. Your timeline, DMs, notifications and settings are never redirected. Append ?xit_bypass=1 to reach x.com anyway.
+Off by default. When enabled, x.com page loads are redirected before the request leaves your browser, scoped to tweets, profiles or everything. Your timeline, DMs, notifications and settings are never redirected. Choose Open on X once to reach the original page. Pause redirects for 15 minutes or resume early whenever you need to.
+
+EVERYDAY CONTROLS
+
+Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Check one enabled host or all of them, with the time of each check shown. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
 
 PRIVACY
 
@@ -88,18 +92,20 @@ Source is unminified and unbundled; what you see in the package is what runs. No
 
 Repository: https://github.com/AES256Afro/xIT
 
-Two points for reviewers:
+Implementation details for reviewers:
 
 1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL. Prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
 
 2. optional_host_permissions is "*://*/*" but nothing is granted at install. Enabling page redirecting requests the selected destination host (e.g. https://xcancel.com/*), including custom instances. Starting the optional reachability check requests access to the enabled redirector hosts together. Disabled hosts are excluded. Check requests omit credentials and referrers and do not follow redirects.
 
+3. The alarms permission resumes page redirects after a user-requested pause. storage.session keeps the last removed custom entry for Undo; it is cleared on browser restart. Diagnostics are generated and copied only on request, exclude user URLs and templates, and are never sent by the extension.
+
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
 ```
 
-**Version notes (1.0.5)**
+**Version notes (1.0.6)**
 ```
-Fix browse-rule installation, concurrent settings writes, dropdown keyboard actions, clipboard success reporting, and custom destination handling. Check only enabled redirectors, delete legacy failed-copy data, and scan only affected tweet elements. Include earlier scrolling and unresponsive-tab fixes.
+Add Open on X once, pinned redirector ordering, custom editing and duplication with Undo, Enter-to-copy, timed redirect pauses, individual host checks with check times, and diagnostics without personal links or clipboard data. Includes the 1.0.5 correctness, performance, and privacy fixes.
 ```
 
 ---

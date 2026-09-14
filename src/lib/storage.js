@@ -17,6 +17,7 @@
     defaultRedirector: 'fxtwitter',
     enabledIds: XIT.PRESETS.map((p) => p.id),
     custom: [],
+    pinnedIds: [],
 
     copyButton: true,
     hijackNativeCopy: true,
@@ -27,6 +28,7 @@
     browseRedirect: false,
     browseRedirectorId: 'xcancel',
     browseScope: { status: true, profile: true, other: false },
+    browsePausedUntil: 0,
   };
 
   function clone(v) {
@@ -78,6 +80,9 @@
 
     const known = new Set(XIT.PRESETS.map((p) => p.id).concat(s.custom.map((c) => c.id)));
     s.enabledIds = [...new Set((Array.isArray(s.enabledIds) ? s.enabledIds : []).filter((id) => known.has(id)))];
+    s.pinnedIds = [...new Set((Array.isArray(s.pinnedIds) ? s.pinnedIds : []).filter((id) => known.has(id)))];
+    s.browsePausedUntil = Number.isSafeInteger(s.browsePausedUntil) && s.browsePausedUntil > 0 ? s.browsePausedUntil : 0;
+    if (!s.browseRedirect) s.browsePausedUntil = 0;
 
     if (!known.has(s.defaultRedirector) || !s.enabledIds.includes(s.defaultRedirector)) {
       s.defaultRedirector = s.enabledIds.includes('fxtwitter') ? 'fxtwitter' : (s.enabledIds[0] || DEFAULTS.defaultRedirector);
@@ -105,6 +110,7 @@
   async function applyMutation(operation) {
     const current = await load();
     let raw = current;
+    let undo = null;
     if (!operation || typeof operation !== 'object') throw new Error('Invalid settings operation.');
     if (operation.type === 'patch') {
       const patch = operation.patch || {};
@@ -120,9 +126,42 @@
       if (operation.enabled) ids.add(operation.id); else ids.delete(operation.id);
       raw = { ...current, enabledIds: [...ids] };
     } else if (operation.type === 'remove-custom') {
+      const entry = current.custom.find((c) => c.id === operation.id);
+      if (!entry) throw new Error('That custom redirector no longer exists.');
       raw = { ...current, custom: current.custom.filter((c) => c.id !== operation.id) };
-    } else if (operation.type === 'add-custom') {
-      const entry = operation.entry || {};
+      undo = { entry, enabled: current.enabledIds.includes(entry.id), pinIndex: current.pinnedIds.indexOf(entry.id),
+        defaultBefore: current.defaultRedirector, browseBefore: current.browseRedirectorId };
+    } else if (operation.type === 'restore-custom') {
+      const removed = await getUndo();
+      if (!removed) throw new Error('There is no removed redirector to restore.');
+      if (allRedirectors(current).some((r) => r.id === removed.entry.id)) throw new Error('That redirector ID is already in use.');
+      const pins = [...current.pinnedIds];
+      if (removed.pinIndex >= 0) pins.splice(removed.pinIndex, 0, removed.entry.id);
+      raw = { ...current, custom: [...current.custom, removed.entry], pinnedIds: pins,
+        enabledIds: removed.enabled ? [...current.enabledIds, removed.entry.id] : current.enabledIds,
+        defaultRedirector: current.defaultRedirector === removed.defaultAfter ? removed.defaultBefore : current.defaultRedirector,
+        browseRedirectorId: current.browseRedirectorId === removed.browseAfter ? removed.browseBefore : current.browseRedirectorId };
+    } else if (operation.type === 'pin') {
+      const pins = current.pinnedIds.filter((id) => id !== operation.id);
+      if (operation.pinned) pins.push(operation.id);
+      raw = { ...current, pinnedIds: pins };
+    } else if (operation.type === 'move-pin') {
+      const pins = [...current.pinnedIds];
+      const index = pins.indexOf(operation.id);
+      const nextIndex = index + (operation.direction < 0 ? -1 : 1);
+      if (index >= 0 && nextIndex >= 0 && nextIndex < pins.length) [pins[index], pins[nextIndex]] = [pins[nextIndex], pins[index]];
+      raw = { ...current, pinnedIds: pins };
+    } else if (operation.type === 'pause') {
+      if (!current.browseRedirect) throw new Error('Enable page redirects before pausing them.');
+      raw = { ...current, browsePausedUntil: Date.now() + 15 * 60 * 1000 };
+    } else if (operation.type === 'resume') {
+      raw = { ...current, browsePausedUntil: 0 };
+    } else if (operation.type === 'expire-pause') {
+      if (current.browsePausedUntil <= Date.now()) raw = { ...current, browsePausedUntil: 0 };
+    } else if (['add-custom', 'edit-custom', 'duplicate-custom'].includes(operation.type)) {
+      const original = current.custom.find((c) => c.id === operation.id);
+      if (operation.type !== 'add-custom' && !original) throw new Error('That custom redirector no longer exists.');
+      const entry = operation.type === 'duplicate-custom' ? { ...original, name: original.name + ' copy' } : operation.entry || {};
       const name = String(entry.name || '').trim();
       const validation = XIT.validateTemplate(entry.template);
       if (!name || !validation.ok) throw new Error(validation.error || 'Give the redirector a name.');
@@ -130,13 +169,23 @@
       const taken = new Set(allRedirectors(current).map((r) => r.id));
       let id = base;
       for (let n = 2; taken.has(id); n++) id = base + '-' + n;
-      raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
+      if (operation.type === 'edit-custom') {
+        raw = { ...current, custom: current.custom.map((c) => c.id === original.id ? { ...c, name, template: entry.template } : c) };
+      } else {
+        raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
+      }
     } else {
       throw new Error('Unknown settings operation.');
     }
     const next = normalize(raw);
     if (JSON.stringify(next) !== JSON.stringify(current) || operation.type === 'reset') {
       await promisify((cb) => api.storage.local.set({ settings: next }, cb));
+    }
+    if (undo) {
+      await promisify((cb) => api.storage.session.set({ removedCustom: { ...undo,
+        defaultAfter: next.defaultRedirector, browseAfter: next.browseRedirectorId } }, cb));
+    } else if (['restore-custom', 'reset', 'replace'].includes(operation.type)) {
+      await promisify((cb) => api.storage.session.remove('removedCustom', cb));
     }
     return next;
   }
@@ -159,16 +208,28 @@
   const setEnabled = (id, enabled) => mutate({ type: 'enabled', id, enabled });
   const addCustom = (entry) => mutate({ type: 'add-custom', entry });
   const removeCustom = (id) => mutate({ type: 'remove-custom', id });
+  const editCustom = (id, entry) => mutate({ type: 'edit-custom', id, entry });
+  const duplicateCustom = (id) => mutate({ type: 'duplicate-custom', id });
+  const restoreCustom = () => mutate({ type: 'restore-custom' });
+  const setPinned = (id, pinned) => mutate({ type: 'pin', id, pinned });
+  const movePinned = (id, direction) => mutate({ type: 'move-pin', id, direction });
+  const pause = () => mutate({ type: 'pause' });
+  const resume = () => mutate({ type: 'resume' });
+  const isPaused = (settings) => settings.browseRedirect && settings.browsePausedUntil > Date.now();
+  const getUndo = async () => (await promisify((cb) => api.storage.session.get('removedCustom', cb))).removedCustom || null;
 
   function browseStatusKey(settings) {
     const r = findRedirector(settings, settings.browseRedirectorId);
-    return JSON.stringify([settings.browseRedirect, r && r.template, settings.browseScope]);
+    return JSON.stringify([settings.browseRedirect, r && r.template, settings.browseScope, settings.browsePausedUntil]);
   }
 
   function browseStatusMessage(settings, status) {
     if (!status || status.key !== browseStatusKey(settings)) return 'Applying page redirect settings…';
     if (status.state === 'error') return status.message;
     if (status.state === 'updating') return 'Applying page redirect settings…';
+    if (status.state === 'paused') return isPaused(settings)
+      ? 'Paused until ' + new Date(settings.browsePausedUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Copy rewriting stays on.'
+      : 'Resuming page redirects…';
     if (status.state === 'active') return 'Page redirect is active.';
     return settings.browseRedirect ? 'No page types are selected.' : '';
   }
@@ -194,7 +255,15 @@
   /** Only the ones the user kept, in preset order then custom order. */
   function enabledRedirectors(settings) {
     const on = new Set((settings && settings.enabledIds) || []);
-    return allRedirectors(settings).filter((r) => on.has(r.id));
+    return redirectorGroups(settings).flatMap((g) => g.entries).filter((r) => on.has(r.id));
+  }
+
+  function redirectorGroups(settings, enabledOnly = true) {
+    const all = allRedirectors(settings).filter((r) => !enabledOnly || settings.enabledIds.includes(r.id));
+    const pinned = settings.pinnedIds || [];
+    return [{ id: 'pinned', label: 'Pinned', entries: pinned.map((id) => all.find((r) => r.id === id)).filter(Boolean) },
+      ...XIT.GROUPS.map((g) => ({ ...g, entries: all.filter((r) => r.group === g.id && !pinned.includes(r.id)) }))]
+      .filter((g) => g.entries.length);
   }
 
   function findRedirector(settings, id) {
@@ -227,6 +296,7 @@
     api, DEFAULTS, SCHEMA_VERSION,
     load, save, replace, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
     startWriter, mutate, browseStatusKey, browseStatusMessage, watchStatus,
+    editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups, pause, resume, isPaused,
     allRedirectors, enabledRedirectors, findRedirector, defaultRedirector, extraHosts,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

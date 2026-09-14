@@ -151,8 +151,37 @@ Settings and the popup report whether the rules are active or an update failed.
 If a new configuration cannot be installed, xIT removes its old rules and reports
 the error. A separate context-menu error does not prevent redirect removal.
 
-To reach a page on x.com anyway, append `?xit_bypass=1`. The extension tidies the
-parameter out of the address bar once the page loads.
+Use **Open on X once** in the popup, tweet dropdown, or right-click menu to open
+the original page while keeping your redirect settings. It uses a one-time
+`xit_bypass=1` parameter, which xIT removes from the address bar after loading.
+
+**Pause for 15 minutes** temporarily stops page redirects. The popup and Settings
+show the resume time, and the toolbar icon displays `PAUSE`. **Resume now** ends
+the pause early. Copy rewriting remains available. The extension restores the
+resume alarm after a background restart and checks the saved expiry after sleep
+or browser restart.
+
+## Everyday controls
+
+- **Pin** a redirector in Settings, the popup, or the tweet dropdown to put it
+  first. **Move up** and **Move down** in Settings order the pinned entries.
+  Pins share one order across both copy lists; the star still selects a default.
+- **Edit** a custom redirector without losing its enabled state, pin, or default
+  selections. **Duplicate** creates a separate enabled entry. **Undo removal**
+  restores the last deleted custom entry, including its selections, unless you
+  changed those selections after deleting it. Undo survives closing Settings
+  but is cleared by browser restart, reset, import, or the next removal.
+- Paste a link in the popup and press **Enter** to copy the previewed URL. The
+  paste field receives focus when the current tab has no usable X link.
+- **Check this host** checks one enabled redirector. **Check which are reachable**
+  checks all enabled entries. Results show the check time and remain visible
+  while that Settings page is open. A responding server may still fail to show
+  tweets; these checks do not inspect tweet content.
+- **Copy diagnostics** in the popup or Settings copies versions, X access,
+  redirect and menu status, and whether the content script responds in an open
+  X tab. The report excludes tweet URLs, custom templates, clipboard contents,
+  raw errors, and browsing history. Settings also displays the report for
+  inspection or manual copying.
 
 ## Keyboard shortcut
 
@@ -170,6 +199,7 @@ page link to those addresses, so paste them in yourself.
 | `activeTab` + `scripting` | Writing to the clipboard when you use the right-click menu on a page where the content script is not running. Granted per click, not standing. |
 | `declarativeNetRequest` | The browse redirect. Rules are evaluated by the browser; the extension never sees your browsing. |
 | `clipboardWrite` | Copying. |
+| `alarms` | Resume page redirects when a requested pause expires. |
 | Host access to x.com / twitter.com | The button, and reading the tweet permalink. |
 | Optional host access | Requested for the selected redirect destination when enabling browse redirect, or for the enabled redirectors when starting a reachability check. No destination access is granted at installation. |
 
@@ -192,6 +222,7 @@ Run the native Chrome regression checks after building:
 ```bash
 npm run test:browser
 npm run test:firefox
+npm run test:qol
 ```
 
 The browser checks need Playwright and its full Chromium browser installed in
@@ -214,6 +245,14 @@ native settings messaging, menu creation, rule installation and removal, and
 the Settings status display in a disposable profile. Results are written to
 `.harness/firefox-results.json`. It does not exercise Firefox's content script
 against authenticated X pages or validate a signed Store package.
+
+`test:qol` uses the same Playwright setup as `test:browser`. It exercises the
+new controls through native Chrome APIs and writes `.harness/qol-results.json`.
+It includes a real resume-alarm event, undo through session storage, one-time
+bypass navigation on synthetic X pages, and diagnostics with injected private
+test strings to check that the report excludes them.
+For API-created tabs, the test captures the requested URL and navigates after
+the browser automation attaches its request handler, keeping the fixture local.
 
 Settings mutations run through one background writer. Individual list and scope
 changes are merged there against current settings, so concurrent pages cannot

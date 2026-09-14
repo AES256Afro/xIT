@@ -29,16 +29,19 @@
     <button id="copy-default" class="primary" disabled>Copy</button>
     <button id="open-default" class="ghost" disabled>Open</button>
     <button id="copy-clean" class="ghost" disabled>Copy x.com link</button>
+    <button id="open-original" class="ghost" disabled>Open on X once</button>
   </div>
 </section>
 
 <section class="card">
   <label class="label" for="manual">Or paste any tweet link</label>
   <input id="manual" type="url" placeholder="https://x.com/user/status/123…" spellcheck="false" autocomplete="off">
+  <p class="input-hint">Paste a link, then press <kbd>Enter</kbd> to copy.</p>
 </section>
 
 <section class="card tight">
   <div class="label pad">Copy with</div>
+  <p class="list-hint">Pin your favourites. Reorder them in Settings.</p>
   <div id="list" class="list"></div>
 </section>
 
@@ -49,6 +52,10 @@
   </label>
   <select id="browse-target" class="select"></select>
   <p id="browse-note" class="note"></p>
+  <div class="actions pause-controls">
+    <button id="pause-browse" class="ghost">Pause for 15 minutes</button>
+    <button id="resume-browse" class="ghost" hidden>Resume now</button>
+  </div>
   <label class="switch">
     <input type="checkbox" id="t-button">
     <span>Button on every tweet</span>
@@ -64,6 +71,7 @@
 </section>
 
 <div id="status" class="status" role="status" aria-live="polite"></div>
+<footer class="support"><button id="copy-diagnostics" class="mini">Copy diagnostics</button><span>No links or clipboard data included.</span></footer>
 
 <script src="../lib/redirectors.js"></script>
 <script src="../lib/storage.js"></script>

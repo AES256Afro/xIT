@@ -15,12 +15,15 @@ traps. For how the extension works and how to build it, read the
 | Chrome item ID | `clilllbfkoeamfonhoeaaepglgceanlc` |
 | Firefox add-on ID | `xit@aes256afro.github.io` (permanent once submitted) |
 | Published | Chrome **1.0.3** |
-| In the repo | **1.0.5**, audit fixes; see validation below. Not uploaded. |
+| In the repo | **1.0.6**, QoL controls plus the audit fixes; see validation below. Not uploaded. |
 
 ## Do this next
 
-1. **Upload `dist/xit-chrome-1.0.5.zip` after reviewing the release checks.**
-   This replaces the unuploaded 1.0.4 package. It fixes the audit findings in
+1. **Upload `dist/xit-chrome-1.0.6.zip` after reviewing the release checks.**
+   This replaces the unuploaded 1.0.5 package. It adds Open on X once, pins,
+   custom editing and Undo, Enter-to-copy, timed pause, individual host checks,
+   and diagnostics. It needs the new alarms permission justification in the
+   Store listing. It fixes the audit findings in
    [AUDIT-2026-09-14.md](AUDIT-2026-09-14.md), including Chrome rejecting browse
    rules, lost settings writes, keyboard actions, request scope, and failed-copy
    data retention. It also includes the 1.0.4 scrolling and menu-refresh fixes.
@@ -28,7 +31,7 @@ traps. For how the extension works and how to build it, read the
    tab. The live listing still has the pre-14 September images with em dashes
    burned into the captions. A listing edit gets a light review and needs no
    version bump.
-3. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.0.5.zip`
+3. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.0.6.zip`
    and the copy is in [store/firefox-amo.md](store/firefox-amo.md). No fee.
    Unlisted skips the review queue if a signed build for personal use is all
    that is wanted.
@@ -108,10 +111,11 @@ what ships.
 ## Verifying a change
 
 ```bash
-npm test              # 47 tests: URL logic, settings writes, menus and clipboard
+npm test              # 52 tests: URL logic, settings writes, menus and clipboard
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules
+npm run test:qol      # new controls, native alarms, undo and diagnostics
 npm run store-assets  # re-render screenshots and promo tiles (needs Chrome)
 ```
 
@@ -122,17 +126,38 @@ The checks use native extension APIs and mock X documents. They include regex
 compilation, installed rules, settings from separate pages, permission denial,
 error display, keyboard controls, scrolling, and article lifecycle changes.
 
-The 1.0.5 build passed native checks in Chrome for Testing 151.0.7922.34 and
-Firefox 154.0.1. Both installed all 40 rules for the default tweet/profile
-configuration. Firefox's check uses WebDriver BiDi and Node 22 or later; set
-`FIREFOX_PATH` if needed. It validates native settings messages, menu creation,
-rule installation and removal, and status display. See the audit for the full
-validation record and remaining coverage limits.
+The 1.0.6 build passed 52 automated tests, 13 existing Chrome regression checks,
+seven new QoL checks, and eight Firefox checks. Chrome for Testing was
+151.0.7922.34; Firefox was 154.0.1. Both installed all 40 rules for the default
+tweet/profile configuration. Firefox's check uses WebDriver BiDi and Node 22 or
+later; set `FIREFOX_PATH` if needed.
+
+The new checks cover shared pin order, custom edits and duplication, removal
+and Undo through session storage, Enter-to-copy, one-host requests, pause and
+resume, a real Chrome alarm firing, missing-alarm recovery, one-time original
+navigation, and diagnostics during menu failures. Diagnostics are checked
+against a fixed field list and injected private strings. The Chrome test
+captures API-created tab URLs and then navigates after attaching the synthetic
+page handler, avoiding a dependency on live X.
+
+All 17 source files match both 1.0.6 build folders and ZIPs byte for byte. Both
+archives pass integrity checks, and all 19 JavaScript files pass syntax checks.
+The Store packages, authenticated live X, declared minimum browser versions,
+and Firefox in-page clipboard/DOM interaction remain outside this validation.
+The earlier report of X access failing with the public Store package is not
+claimed resolved by these checks.
+
+Pins and defaults remain separate. Undo retains only the last removed custom
+entry in `storage.session`, so it survives closing Settings but ends at browser
+restart, import, reset, undo, or another removal. Host-check results remain in
+the open Settings page only. Timed pause keeps its expiry in local settings and
+recreates its alarm when the background starts. Both manifests now request
+`alarms`; neither adds clipboard-read, history, or broader host permissions.
 
 At the end of the fix pass, the Chrome regression workload recorded zero full-
 document scans for 60 unrelated mutations at 50, 200, and 1,000 mounted tweets.
 The earlier audit recorded 31 scans for each workload. This is a synthetic DOM
 measurement, not an authenticated live X performance claim.
 
-The public version badge still reported 1.0.3 before the 1.0.5 bump. Store upload
+The public version badge still reported 1.0.3 before the 1.0.6 bump. Store upload
 and publication are separate from the checked-in version and package build.

@@ -175,3 +175,10 @@ test('thread tool URLs retarget through the recovered tweet ID', () => {
   }
   assert.equal(XIT.parse('https://threadreaderapp.com/about'),null);
 });
+
+test('Open on X once canonicalizes mirrors and adds one exact bypass value', () => {
+  assert.equal(XIT.originalUrl('https://fxtwitter.com/jack/status/20?s=20&lang=en'), 'https://x.com/jack/status/20?lang=en&xit_bypass=1');
+  assert.equal(XIT.originalUrl('https://x.com/jack/status/20?xit_bypass=10#photo'), 'https://x.com/jack/status/20?xit_bypass=1#photo');
+  assert.equal(XIT.originalUrl('https://threadreaderapp.com/thread/20.html'),'https://x.com/i/web/status/20?xit_bypass=1');
+  assert.equal(XIT.originalUrl('https://example.com/not-a-tweet'),null);
+});

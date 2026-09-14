@@ -39,7 +39,7 @@ function baseManifest() {
     name: 'xIT',
     version: pkg.version,
     description: 'Copy X/Twitter links through fxtwitter, xcancel and friends. Pick a default, or choose per copy.',
-    permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
+    permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite', 'alarms'],
     host_permissions: HOSTS,
     // Redirecting page loads needs permission for the destination too, and the
     // destination is whatever the user picks. Asked for on demand.

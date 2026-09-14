@@ -53,6 +53,17 @@ try {
   const ui=await evaluate('({saved:document.getElementById("saved").textContent,status:document.getElementById("browse-warn").textContent,state:document.getElementById("browse-warn").dataset.state,rows:document.querySelectorAll("[data-probe]").length})');
   assert.equal(ui.saved,'');assert.equal(ui.status,'Page redirect is active.');assert.equal(ui.state,'normal');assert.equal(ui.rows,13);
   check('Settings displays successful redirect installation without a warning');
+  const paused=await evaluate('(async()=>{await XITStore.pause();await browser.runtime.sendMessage({type:"xit:settings-changed"});return {status:(await browser.storage.local.get("dnrStatus")).dnrStatus.state,rules:(await browser.declarativeNetRequest.getDynamicRules()).length,alarm:!!(await browser.alarms.get("xit-resume-redirects"))}})()');
+  assert.equal(paused.status,'paused');assert.equal(paused.rules,0);assert.equal(paused.alarm,true);
+  assert.equal(await evaluate('(async()=>{await XITStore.resume();await browser.runtime.sendMessage({type:"xit:settings-changed"});return (await browser.declarativeNetRequest.getDynamicRules()).length})()'),40);
+  check('Native Firefox pause creates an alarm and Resume restores redirects');
+  const custom=await evaluate('(async()=>{let s=await XITStore.addCustom({name:"Firefox instance",template:"https://example.com/{path}"});const id=s.custom.at(-1).id;await XITStore.setPinned(id,true);await XITStore.removeCustom(id);s=await XITStore.restoreCustom();return {restored:s.custom.some(r=>r.id===id),pinned:s.pinnedIds.includes(id),undo:await XITStore.getUndo()}})()');
+  assert.deepEqual(custom,{restored:true,pinned:true,undo:null});
+  check('Native Firefox session storage restores a removed custom entry and its pin');
+  const diagnostic=await evaluate('browser.runtime.sendMessage({type:"xit:diagnostics"})');
+  assert.equal(diagnostic.ok,true);assert.match(diagnostic.report.browser,/Firefox/);assert.equal(diagnostic.report.redirectStatus,'active');
+  assert.ok(!JSON.stringify(diagnostic.report).includes('example.com'));
+  check('Firefox diagnostics return versions and status without custom hostnames');
   assert.equal(await evaluate('(async()=>{await XITStore.save({browseRedirect:false});await browser.runtime.sendMessage({type:"xit:settings-changed"});return (await browser.declarativeNetRequest.getDynamicRules()).length})()'),0);
   check('Turning redirects off removes the native rules');
   await mkdir(path.join(root,'.harness'),{recursive:true});
