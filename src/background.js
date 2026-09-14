@@ -306,6 +306,10 @@ async function handleCommand(command, tab) {
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
 
+  // storage.onChanged is the normal trigger for a refresh and fires in the
+  // background for writes from any extension context, so nothing needs to send
+  // this. It stays for an explicit refresh, and for content scripts left over
+  // from a previous version that still send it.
   if (msg.type === 'xit:settings-changed') {
     (async () => {
       try {

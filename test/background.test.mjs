@@ -7,6 +7,7 @@ import { setImmediate as tick } from 'node:timers/promises';
 function harness(firefox = false) {
   const menus = new Map();
   const errors = [];
+  let created = 0;
   const events = {};
   let settings = { contextMenu: true, browseRedirect: false, name: 'first' };
   let changed;
@@ -34,7 +35,7 @@ function harness(firefox = false) {
           const error = failCreation ? 'create failed' : menus.has(opts.id) ? 'duplicate ' + opts.id : null;
           failCreation = false;
           if (error) errors.push(error);
-          else menus.set(opts.id, opts);
+          else { menus.set(opts.id, opts); created += 1; }
           complete(cb, error);
         });
         return opts.id;
@@ -61,7 +62,7 @@ function harness(firefox = false) {
   const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: { GROUPS: [{id:'test',label:'Test'}] }, XITStore: store });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
-  return { menus, errors, events, settle,
+  return { menus, errors, events, settle, createCount: () => created,
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
   };
@@ -110,3 +111,23 @@ test(`Firefox=${firefox}: asynchronous menu errors are reported to the caller an
 });
 
 }
+
+test('a settings write alone rebuilds the menus exactly once', async () => {
+  // Nothing sends xit:settings-changed any more: storage.onChanged is the
+  // single trigger. If a caller re-adds the message, this rebuilds twice.
+  const h = harness(false);
+  h.events.installed({ reason: 'startup' });
+  await h.settle();
+
+  const menuSize = h.menus.size;
+  assert.ok(menuSize > 0, 'expected an initial menu');
+
+  const before = h.createCount();
+  h.change({ name: 'second' });
+  await h.settle();
+
+  assert.equal(h.createCount() - before, menuSize, 'a settings write should rebuild the menu once');
+  assert.equal(h.errors.length, 0, 'rebuilding must not collide with itself');
+  assert.equal([...h.menus.values()].some((m) => String(m.title).includes('second')), true,
+    'the rebuilt menu should reflect the new settings');
+});
