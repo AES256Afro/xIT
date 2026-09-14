@@ -242,7 +242,11 @@
           ? Math.min(rows.length - 1, idx + 1)
           : Math.max(0, idx <= 0 ? 0 : idx - 1);
         rows.forEach((r) => r.classList.remove('xit-active'));
-        if (rows[next]) { rows[next].classList.add('xit-active'); rows[next].focus(); }
+        if (rows[next]) {
+          rows[next].classList.add('xit-active');
+          rows[next].focus({ preventScroll: true });
+          rows[next].scrollIntoView({ block: 'nearest' });
+        }
       } else if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault();
         if (rows[idx]) rows[idx].click();
@@ -588,12 +592,25 @@
     document.addEventListener('click', nativeCopyFallback, true);
 
     document.addEventListener('click', (ev) => {
-      if (menuEl && !menuEl.hidden && !ev.target.closest('.xit-menu') && !ev.target.closest('.xit-wrap')) closeMenu();
+      if (!menuEl || menuEl.hidden) return;
+      const t = ev.target;
+      if (!t || t.nodeType !== 1 || !t.closest) { closeMenu(); return; }
+      if (!t.closest('.xit-menu') && !t.closest('.xit-wrap')) closeMenu();
     }, true);
     window.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && menuEl && !menuEl.hidden) closeMenu();
     }, true);
-    window.addEventListener('scroll', () => { if (menuEl && !menuEl.hidden) closeMenu(); }, true);
+    // The menu is position:fixed and anchored to its button, so it closes when
+    // the page scrolls out from under it. This is a capture listener, so it
+    // also sees the menu scrolling its own overflow: ignore that, or the list
+    // cannot be scrolled at all.
+    window.addEventListener('scroll', (ev) => {
+      if (!menuEl || menuEl.hidden) return;
+      const t = ev.target;
+      if (t === menuEl) return;
+      if (t && t.nodeType === 1 && menuEl.contains(t)) return;
+      closeMenu();
+    }, true);
     window.addEventListener('resize', () => { if (menuEl && !menuEl.hidden) closeMenu(); });
 
     XITStore.onChanged((next) => {
