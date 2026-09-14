@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+- Fix the redirector menu closing as soon as you scrolled it, which made the thread tools and the footer buttons unreachable.
+- Navigate the menu with the keyboard without the list closing partway down.
+- Rebuild the context menus once per settings change instead of twice, with storage events as the single trigger.
+
 ## 1.0.3
 
 - Serialize all startup and settings refreshes to prevent duplicate context-menu IDs during installation and updates.

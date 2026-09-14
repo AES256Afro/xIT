@@ -224,7 +224,6 @@
       }
       if (act && act.getAttribute('data-act') === 'default') {
         await XITStore.save({ defaultRedirector: redirector.id });
-        api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
         toast(redirector.name + ' is now the default', 'ok');
         closeMenu();
         return;

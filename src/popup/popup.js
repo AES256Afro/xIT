@@ -133,7 +133,6 @@
         defBtn.setAttribute('aria-label', defBtn.title);
         defBtn.addEventListener('click', async () => {
           settings = await XITStore.save({ defaultRedirector: r.id });
-          api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
           status(r.name + ' is now the default');
           refreshPreview();
         });
@@ -243,7 +242,6 @@
     const toggle = async (id, key) => {
       $(id).addEventListener('change', async (ev) => {
         settings = await XITStore.save({ [key]: ev.target.checked });
-        api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
         refreshPreview();
         renderBrowse();
       });
@@ -262,7 +260,6 @@
         }
       }
       settings = await XITStore.save({ browseRedirect: ev.target.checked });
-      api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
       renderBrowse();
     });
 
@@ -274,7 +271,6 @@
         return;
       }
       settings = await XITStore.save({ browseRedirectorId: ev.target.value });
-      api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
       renderBrowse();
     });
   }

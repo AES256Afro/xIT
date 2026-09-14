@@ -19,7 +19,6 @@
 
   async function commit(patch) {
     settings = await XITStore.save(patch);
-    api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
     saved();
     render();
   }
@@ -256,7 +255,6 @@
     try {
       const raw = JSON.parse(await file.text());
       settings = await XITStore.save(raw);
-      api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
       render();
       saved('Imported');
     } catch (e) {
@@ -359,7 +357,6 @@
       await api.storage.local.remove('settings');
       settings = await XITStore.load();
       await XITStore.save({});
-      api.runtime.sendMessage({ type: 'xit:settings-changed' }).catch(() => {});
       render();
       saved('Reset');
     });
