@@ -10,7 +10,6 @@
   const HOST_PATTERNS = ['*://x.com/*', '*://twitter.com/*', '*://mobile.twitter.com/*'];
 
   let settings = null;
-  let redirectStatus = null;
   let tab = null;
   let sourceUrl = '';        // what we convert: the tab URL, or whatever is pasted
   let statusTimer = 0;
@@ -162,53 +161,11 @@
     list.scrollTop = scrollTop;
   }
 
-  /* ---- browse redirect ---- */
-
-  function renderBrowse() {
-    const paused = XITStore.isPaused(settings);
-    $('pause-browse').hidden = paused;
-    $('pause-browse').disabled = !settings.browseRedirect;
-    $('resume-browse').hidden = !paused;
-    const sel = $('browse-target');
-    sel.textContent = '';
-    for (const r of XITStore.enabledRedirectors(settings)) {
-      if (!XIT.supportsBrowse(r)) continue;
-      const o = document.createElement('option');
-      o.value = r.id;
-      o.textContent = r.name;
-      sel.appendChild(o);
-    }
-    sel.value = settings.browseRedirectorId;
-    sel.disabled = !settings.browseRedirect;
-    $('t-browse').checked = settings.browseRedirect;
-
-    const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
-    const scope = settings.browseScope;
-    const which = [scope.status && 'tweets', scope.profile && 'profiles', scope.other && 'everything else']
-      .filter(Boolean).join(', ');
-    const state = XITStore.browseStatusMessage(settings, redirectStatus);
-    $('browse-note').textContent = state + (settings.browseRedirect && redirectStatus &&
-      redirectStatus.state === 'active' && redirectStatus.key === XITStore.browseStatusKey(settings)
-      ? ' Redirecting ' + which + ' with ' + r.name + '.' : '');
-  }
-
   async function commit(operation) {
     try {
       settings = await operation;
       refreshPreview();
-      renderBrowse();
     } catch (error) { status('Could not save: ' + error.message, 'error'); }
-  }
-
-  async function ensureOriginPermission(redirector) {
-    const origin = XIT.permissionOrigin(redirector && redirector.template);
-    if (!origin) return false;
-    const origins = [origin];
-    try {
-      return await api.permissions.request({ origins });
-    } catch (_) {
-      return false;
-    }
   }
 
   /* ---- host permission gate (mostly Firefox) ---- */
@@ -242,12 +199,9 @@
     sourceUrl = (tab && tab.url) || '';
 
     refreshPreview();
-    renderBrowse();
-    XITStore.watchStatus((next) => { redirectStatus = next; renderBrowse(); });
     XITStore.onChanged((next) => {
       settings = next;
       refreshPreview();
-      renderBrowse();
       $('t-button').checked = settings.copyButton;
       $('t-hijack').checked = settings.hijackNativeCopy;
       $('t-strip').checked = settings.stripTracking;
@@ -286,8 +240,6 @@
         window.close();
       } catch (error) { status(error.message, 'error'); }
     });
-    $('pause-browse').addEventListener('click', () => commit(XITStore.pause()));
-    $('resume-browse').addEventListener('click', () => commit(XITStore.resume()));
     $('copy-diagnostics').addEventListener('click', async () => {
       const button = $('copy-diagnostics');
       button.disabled = true;
@@ -310,38 +262,11 @@
       $(id).addEventListener('change', async (ev) => {
         settings = await XITStore.save({ [key]: ev.target.checked });
         refreshPreview();
-        renderBrowse();
       });
     };
     await toggle('t-button', 'copyButton');
     await toggle('t-hijack', 'hijackNativeCopy');
     await toggle('t-strip', 'stripTracking');
-
-    $('t-browse').addEventListener('change', async (ev) => {
-      const enabled = ev.target.checked;
-      if (enabled) {
-        const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
-        if (!(await ensureOriginPermission(r))) {
-          ev.target.checked = false;
-          status('Page redirecting needs access to ' + XIT.templateHost(r.template), 'error');
-          return;
-        }
-      }
-      settings = await XITStore.save({ browseRedirect: enabled });
-      renderBrowse();
-    });
-
-    $('browse-target').addEventListener('change', async (ev) => {
-      const id = ev.target.value;
-      const r = XITStore.findRedirector(settings, id);
-      if (settings.browseRedirect && !(await ensureOriginPermission(r))) {
-        ev.target.value = settings.browseRedirectorId;
-        status('Needs access to ' + XIT.templateHost(r.template), 'error');
-        return;
-      }
-      settings = await XITStore.save({ browseRedirectorId: id });
-      renderBrowse();
-    });
   }
 
   init().catch((e) => status(String(e && e.message || e), 'error'));

@@ -79,16 +79,6 @@ kbd { border: 1px solid var(--line); }
 .switch b { display: block; font-weight: 600; font-size: 13.5px; }
 .switch i { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-style: normal; }
 
-.indent { margin: 4px 0 0 26px; }
-.field { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.field-label { font-size: 12.5px; color: var(--muted); }
-
-.scopes { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
-.scopes legend { padding: 0 5px; font-size: 11.5px; color: var(--muted); }
-.scopes label { display: block; padding: 3px 0; font-size: 13px; cursor: pointer; }
-.scopes input { margin-right: 7px; accent-color: var(--accent); }
-.scopes i { color: var(--muted); font-size: 12px; font-style: normal; }
-
 .rgroup { margin-top: 12px; }
 .rgroup-head { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .rgroup-blurb { margin: 1px 0 6px; color: var(--muted); font-size: 12px; }
@@ -106,9 +96,6 @@ kbd { border: 1px solid var(--line); }
 .ritem-main span { display: block; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 .ritem-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 9999px; white-space: nowrap; }
 .badge-default { background: rgba(29, 155, 240, .16); color: var(--accent); }
-.badge-ok { background: rgba(0, 186, 124, .16); color: var(--ok); }
-.badge-bad { background: rgba(244, 33, 46, .14); color: var(--danger); }
-.badge-wait { background: rgba(127, 127, 127, .18); color: var(--muted); }
 
 .custom-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .custom-form input { flex: 1 1 190px; min-width: 0; }
@@ -130,15 +117,6 @@ button.ghost:hover { border-color: var(--accent); color: var(--accent); }
 button.ghost.danger:hover { border-color: var(--danger); color: var(--danger); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.link-btn {
-  all: unset;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  font-size: 12.5px;
-}
-.link-btn:focus-visible { outline: 2px solid var(--accent); }
-
 .row-btn {
   all: unset;
   padding: 4px 9px;
@@ -158,8 +136,5 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 
 .warn-text { margin: 6px 0 0; color: var(--danger); font-size: 12.5px; min-height: 1px; }
 .warn-text:empty { display: none; }
-.browse-status { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
-.browse-status:empty { display: none; }
-.browse-status[data-state="error"] { color: var(--danger); }
 
 .saved { position: sticky; bottom: 0; margin: 0; padding: 8px 2px; color: var(--ok); font-size: 12.5px; font-weight: 600; }

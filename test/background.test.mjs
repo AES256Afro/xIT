@@ -9,11 +9,13 @@ function harness(firefox = false) {
   const errors = [];
   let created = 0;
   const events = {};
-  let settings = { contextMenu: true, browseRedirect: false, name: 'first' };
+  let settings = { contextMenu: true, name: 'first' };
   let changed;
   let rules = [];
+  let ruleUpdates = 0;
   const local = {};
-  let rejectRules = false;
+  const rewrites = [];
+  const badge = { text: 'PAUSE' };
   const event = (name) => ({ addListener(fn) { events[name] = fn; } });
   const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup') };
   let failRemoval = false;
@@ -45,13 +47,15 @@ function harness(firefox = false) {
       },
     },
     storage: { local: {
-      remove: async (key) => { delete local[key]; },
+      get: async (keys) => Object.fromEntries([].concat(keys).filter((k) => k in local).map((k) => [k, JSON.parse(JSON.stringify(local[k]))])),
+      remove: async (keys) => { for (const k of [].concat(keys)) delete local[k]; },
       set: async (value) => { Object.assign(local, value); },
     } },
+    action: { setBadgeText: async ({ text }) => { badge.text = text; } },
     declarativeNetRequest: {
       getDynamicRules: async () => rules,
-      isRegexSupported: async () => ({isSupported:!rejectRules,reason:'memoryLimitExceeded'}),
       updateDynamicRules: async ({removeRuleIds = [], addRules = []}) => {
+        ruleUpdates += 1;
         rules = rules.filter(r => !removeRuleIds.includes(r.id)).concat(addRules);
       },
     },
@@ -64,10 +68,17 @@ function harness(firefox = false) {
       });
     });
   }
+  const LEGACY = ['browseRedirect', 'browseRedirectorId', 'browseScope', 'browsePausedUntil'];
   const store = {
     startWriter() {},
-    isPaused: s => s.browseRedirect && s.browsePausedUntil > Date.now(),
-    browseStatusKey: s => JSON.stringify(s),
+    // The real rewrite re-saves normalized settings, which drops legacy keys.
+    mutate: async (op) => {
+      rewrites.push(op.type);
+      if (op.type === 'rewrite' && local.settings) {
+        local.settings = Object.fromEntries(Object.entries(local.settings).filter(([k]) => !LEGACY.includes(k)));
+      }
+      return { ...settings };
+    },
     load: async () => ({ ...settings }),
     save: async () => { changed({ ...settings }); },
     onChanged(fn) { changed = fn; },
@@ -76,37 +87,61 @@ function harness(firefox = false) {
     findRedirector: () => ({template:'https://example.com/{path}'}),
   };
   const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: {
-    GROUPS: [{id:'test',label:'Test'}], supportsBrowse:()=>true, guardRules:()=>[],
-    compileBrowseRules:()=>[{priority:1,regexFilter:'^https://x.com/(.*)$',regexSubstitution:'https://example.com/\\1'}],
+    GROUPS: [{id:'test',label:'Test'}],
   }, XITStore: store });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
-  return { menus, errors, events, settle, local, rules:()=>rules, rejectRules:()=>{rejectRules=true;}, createCount: () => created,
+  return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
+    rewrites, badge, createCount: () => created,
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
   };
 }
 
-test('menu failures cannot prevent removing redirects or clearing old copy data', async () => {
-  const h=harness(); await h.settle();
-  h.change({browseRedirect:true}); await h.settle();
-  assert.equal(h.rules().length,1);
-  h.local.lastCopyFailure={text:'synthetic',at:0};
-  h.failCreate();h.change({browseRedirect:false});await h.settle();
-  assert.equal(h.rules().length,0);
-  assert.equal(h.local.dnrStatus.state,'off');
-  assert.match(h.local.menuError,/create failed/);
-  assert.equal(h.local.lastCopyFailure,undefined);
+// Shape of what 1.0.3 left behind for a user redirecting page loads to xcancel.
+const LEFTOVER_RULES = [
+  { id: 1000, priority: 3, action: { type: 'allow' }, condition: { regexFilter: '^https?://x\\.com/home', resourceTypes: ['main_frame'] } },
+  { id: 1001, priority: 4, action: { type: 'redirect', redirect: { regexSubstitution: 'https://xcancel.com/\\1' } },
+    condition: { regexFilter: '^https?://x\\.com/([^/?#]+/status/\\d+.*)$', resourceTypes: ['main_frame'] } },
+];
+
+test('redirect rules left by earlier versions are removed on start', async () => {
+  const h=harness();
+  h.setRules(LEFTOVER_RULES);
+  h.local.dnrStatus={state:'active'}; h.local.dnrError='old';
+  await h.settle();
+  assert.deepEqual(h.rules(),[],'no rule may keep sending users to a withdrawn front-end');
+  assert.equal(h.badge.text,'','the pause badge is cleared');
+  assert.equal(h.local.dnrStatus,undefined);assert.equal(h.local.dnrError,undefined);
 });
 
-test('native regex rejection clears previous redirects and publishes an error', async () => {
+test('stored page-redirect settings are rewritten once, then left alone', async () => {
+  const h=harness();
+  h.local.settings={toast:false,browseRedirect:true,browseRedirectorId:'xcancel',browseScope:{status:true},browsePausedUntil:5};
+  await h.settle();
+  assert.deepEqual(h.rewrites,['rewrite']);
+  assert.equal(JSON.stringify(h.local.settings).match(/browse|xcancel/),null);
+  assert.equal(h.local.settings.toast,false,'unrelated settings survive');
+  h.change({name:'later'}); await h.settle();
+  assert.deepEqual(h.rewrites,['rewrite'],'clean settings are not rewritten again');
+});
+
+test('cleanup changes nothing when there is nothing to clean', async () => {
+  const h=harness();
+  h.local.settings={toast:true};
+  await h.settle();
+  assert.equal(h.ruleUpdates(),0,'no rule update without leftover rules');
+  assert.deepEqual(h.rewrites,[]);
+});
+
+test('menu failures cannot prevent the redirect cleanup or clearing old copy data', async () => {
   const h=harness(); await h.settle();
-  h.change({browseRedirect:true});await h.settle();
-  assert.equal(h.rules().length,1);
-  h.rejectRules();h.change({name:'new-target'});await h.settle();
-  assert.equal(h.rules().length,0);
-  assert.equal(h.local.dnrStatus.state,'error');
-  assert.match(h.local.dnrStatus.message,/memoryLimitExceeded/);
+  h.setRules(LEFTOVER_RULES);
+  h.local.lastCopyFailure={text:'synthetic',at:0};
+  h.failCreate();h.change({name:'after-update'});await h.settle();
+  assert.deepEqual(h.rules(),[]);
+  assert.match(h.local.menuError,/create failed/);
+  assert.equal(h.local.lastCopyFailure,undefined);
 });
 
 for (const firefox of [false, true]) {

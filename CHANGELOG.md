@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7
+
+- Remove the Nitter-based privacy front-ends (xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net) after those services received a cease and desist. Links from them are still recognised so they can be converted to a redirector xIT does offer, but nothing sends you to them.
+- Remove page redirecting. Every remaining bundled destination answers a real browser by sending it back to x.com, so the feature had no working target left. The 15-minute pause and the host reachability check go with it.
+- Delete redirect rules installed by earlier versions on startup, so nobody is left being redirected to a withdrawn service, and remove the page-redirect settings from stored data.
+- Drop the `alarms` permission and all optional host permissions. `declarativeNetRequest` is kept for this release only, to perform that cleanup, and installs no rules.
+- Rename "Open on X once" to "Open on X" and stop appending a bypass parameter, which had nothing left to bypass.
+
 ## 1.0.6
 
 - Add Open on X once to the popup, tweet dropdown, and right-click menus.

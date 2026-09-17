@@ -46,8 +46,8 @@ try {
   assert.equal(await popup.evaluate(() => copies.at(-1)), 'https://fxtwitter.com/jack/status/20');
   check('The paste field focuses on unrelated tabs and Enter copies the previewed link');
 
-  await options.locator('[data-id="xcancel"] [data-action="pin"]').click();
-  await popup.waitForFunction(() => document.querySelector('#list .item')?.dataset.id === 'xcancel');
+  await options.locator('[data-id="unrollnow"] [data-action="pin"]').click();
+  await popup.waitForFunction(() => document.querySelector('#list .item')?.dataset.id === 'unrollnow');
   await popup.locator('[data-id="vxtwitter"] [data-action="pin"]').click();
   await options.waitForSelector('[data-id="vxtwitter"] [data-action="up"]');
   await options.locator('[data-id="vxtwitter"] [data-action="up"]').click();
@@ -62,7 +62,7 @@ try {
   await options.locator('#c-template').fill('https://one.example/{path}');
   await options.locator('#custom-submit').click();
   await options.waitForSelector('[data-id="c-my-instance"]');
-  await save({ defaultRedirector: 'c-my-instance', browseRedirectorId: 'c-my-instance' });
+  await save({ defaultRedirector: 'c-my-instance' });
   await options.locator('[data-id="c-my-instance"] [data-action="pin"]').click();
   await options.locator('[data-id="c-my-instance"] [data-action="edit"]').click();
   await options.locator('#c-name').fill('Renamed instance');
@@ -71,7 +71,6 @@ try {
   await waitFor(options, async () => (await XITStore.load()).custom[0].name === 'Renamed instance');
   let settings = await worker.evaluate(() => XITStore.load());
   assert.equal(settings.defaultRedirector, 'c-my-instance');
-  assert.equal(settings.browseRedirectorId, 'c-my-instance');
   assert.ok(settings.pinnedIds.includes('c-my-instance'));
   await options.locator('[data-id="c-my-instance"] [data-action="duplicate"]').click();
   await waitFor(options, async () => (await XITStore.load()).custom.length === 2);
@@ -82,43 +81,6 @@ try {
   await waitFor(options, async () => (await XITStore.load()).defaultRedirector === 'c-my-instance');
   assert.equal((await worker.evaluate(() => XITStore.load())).custom.length, 2);
   check('Custom edit, duplicate, remove, and Undo preserve selections; Undo survives a Settings reload');
-
-  await options.evaluate(() => {
-    window.requests = [];
-    chrome.permissions.request = async () => true;
-    chrome.permissions.contains = async () => true;
-    window.fetch = async (url, init) => { requests.push({ url, credentials: init.credentials }); return {}; };
-  });
-  await options.locator('[data-id="fxtwitter"] [data-action="check"]').click();
-  await options.waitForFunction(() => !document.getElementById('test-all').disabled);
-  assert.deepEqual(await options.evaluate(() => requests), [{ url: 'https://fxtwitter.com/', credentials: 'omit' }]);
-  assert.match(await options.locator('[data-probe="fxtwitter"]').textContent(), /Responded just now/);
-  await options.locator('[data-id="fixupx"] [data-action="pin"]').click();
-  assert.match(await options.locator('[data-probe="fxtwitter"]').textContent(), /Responded just now/);
-  assert.match(await options.locator('[data-probe="fxtwitter"]').getAttribute('title'), /Checked /);
-  check('An individual host check makes one request and keeps its dated result through settings updates');
-
-  await save({ browseRedirect: true, browseRedirectorId: 'xcancel' });
-  await popup.locator('#pause-browse').click();
-  await popup.waitForFunction(() => document.getElementById('browse-note').textContent.includes('Paused until'));
-  await settle();
-  assert.equal((await worker.evaluate(() => chrome.declarativeNetRequest.getDynamicRules())).length, 0);
-  assert.ok(await worker.evaluate(() => chrome.alarms.get('xit-resume-redirects')));
-  assert.equal(await worker.evaluate(() => chrome.action.getBadgeText({})), 'PAUSE');
-  await worker.evaluate(async () => { await chrome.alarms.clear('xit-resume-redirects'); await init('wake'); });
-  assert.ok(await worker.evaluate(() => chrome.alarms.get('xit-resume-redirects')));
-  await popup.locator('#resume-browse').click();
-  await popup.waitForFunction(() => document.getElementById('browse-note').textContent.includes('is active'));
-  assert.equal((await worker.evaluate(() => chrome.declarativeNetRequest.getDynamicRules())).length, 40);
-  assert.equal(await worker.evaluate(() => chrome.action.getBadgeText({})), '');
-  await save({ browsePausedUntil: Date.now() + 1500 });
-  await popup.waitForFunction(() => document.getElementById('browse-note').textContent.includes('Paused until'));
-  await waitFor(popup, async () => (await XITStore.load()).browsePausedUntil === 0, null, { timeout: 10000 });
-  await waitFor(popup, async () => (await chrome.storage.local.get('dnrStatus')).dnrStatus.state === 'active', null, { timeout: 10000 });
-  await settle();
-  const resumed = await worker.evaluate(async () => ({ settings: await XITStore.load(), stored: await chrome.storage.local.get(['dnrStatus', 'dnrError']), rules: await chrome.declarativeNetRequest.getDynamicRules(), alarms: await chrome.alarms.getAll() }));
-  assert.equal(resumed.rules.length, 40, JSON.stringify(resumed));
-  check('Pause removes rules, schedules native resume, recovers a missing alarm, and resumes automatically');
 
   const mock = (await readFile(path.join(root, 'tools/store-assets/mock-x.html'), 'utf8')).replace(/<script[\s\S]*$/, '</body></html>');
   const opened = [];
@@ -134,26 +96,25 @@ try {
       return original({ ...options, url: 'about:blank' });
     };
   });
-  const openOnce = async action => {
+  const openOnX = async action => {
     const pending = context.waitForEvent('page');
     await action();
     const page = await pending;
     const requested = await worker.evaluate(() => testOpenRequests.shift());
-    assert.equal(requested, 'https://x.com/jack/status/20?xit_bypass=1');
+    assert.equal(requested, 'https://x.com/jack/status/20');
     await page.goto(requested);
     await page.waitForSelector('.xit-btn-caret');
     return page;
   };
   await popup.locator('#manual').fill('https://fxtwitter.com/jack/status/20?s=20');
-  const tweet = await openOnce(() => popup.locator('#open-original').click());
-  assert.ok(opened.includes('https://x.com/jack/status/20?xit_bypass=1'));
-  assert.ok(!tweet.url().includes('xit_bypass'));
-  assert.equal((await worker.evaluate(() => XITStore.load())).browseRedirect, true);
+  const tweet = await openOnX(() => popup.locator('#open-original').click());
+  assert.ok(opened.includes('https://x.com/jack/status/20'));
+  assert.ok(!tweet.url().includes('xit_bypass'), 'no bypass parameter is added any more');
   await tweet.locator('.xit-btn-caret').first().click();
-  assert.deepEqual(await tweet.locator('.xit-row').evaluateAll(rows => rows.slice(0, 2).map(r => r.dataset.id)), ['vxtwitter', 'xcancel']);
-  await openOnce(() => tweet.locator('[data-foot="open-original"]').click());
-  await openOnce(() => worker.evaluate(() => handleMenuClick({ menuItemId: 'xit-link-open-original', linkUrl: 'https://x.com/jack/status/20?s=20' })));
-  check('Open on X once works from popup, tweet menu and context-menu handling; pinned order also reaches the tweet menu');
+  assert.deepEqual(await tweet.locator('.xit-row').evaluateAll(rows => rows.slice(0, 2).map(r => r.dataset.id)), ['vxtwitter', 'unrollnow']);
+  await openOnX(() => tweet.locator('[data-foot="open-original"]').click());
+  await openOnX(() => worker.evaluate(() => handleMenuClick({ menuItemId: 'xit-link-open-original', linkUrl: 'https://x.com/jack/status/20?s=20' })));
+  check('Open on X works from popup, tweet menu and context-menu handling; pinned order also reaches the tweet menu');
 
   await options.evaluate(() => { window.copiedReport = ''; Object.defineProperty(navigator.clipboard, 'writeText', { value: async text => { copiedReport = text; }, configurable: true }); });
   await worker.evaluate(() => { globalThis.originalCreate = chrome.contextMenus.create; chrome.contextMenus.create = () => { throw new Error('PRIVATE https://private.example/secret'); }; });
@@ -165,7 +126,8 @@ try {
   assert.equal(report.contextMenus, 'error');
   assert.equal(report.contentScript, 'responding');
   assert.ok(!/https:|jack|private|one\.example|two\.example|Renamed|My instance/i.test(reportText));
-  assert.deepEqual(Object.keys(report).sort(), ['extension', 'version', 'browser', 'xAccess', 'redirectStatus', 'redirectRuleCount', 'contextMenus', 'copyButton', 'nativeCopy', 'contentScript'].sort());
+  assert.deepEqual(Object.keys(report).sort(), ['extension', 'version', 'browser', 'xAccess', 'legacyRedirectRules', 'contextMenus', 'copyButton', 'nativeCopy', 'contentScript'].sort());
+  assert.equal(report.legacyRedirectRules, 0);
   await worker.evaluate(async () => { chrome.contextMenus.create = originalCreate; await init('recover'); });
   check('Diagnostics remain useful during menu failures and contain only the approved status fields');
 

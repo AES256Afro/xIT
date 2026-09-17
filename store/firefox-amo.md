@@ -29,13 +29,13 @@ Firefox restart. The temporary-add-on route in `about:debugging` does not.
 xIT
 ```
 
-**Summary** (250 max, this is 230)
+**Summary** (250 max, this is 198)
 ```
-Copy X/Twitter links through the front-end you actually want. One click on the tweet, or X's own "Copy link". Both give you fxtwitter, xcancel, nitter, a thread unroller, or your own self-hosted instance. Optional page redirecting.
+Copy X/Twitter links through the front-end you actually want. One click on the tweet, or X's own "Copy link". Both give you fxtwitter, vxtwitter, a thread unroller, or your own self-hosted instance.
 ```
 
 **Categories:** Privacy & Security, Social & Communication
-**Tags:** twitter, x, nitter, fxtwitter, privacy, redirect
+**Tags:** twitter, x, fxtwitter, vxtwitter, privacy, links
 **Licence:** MIT
 **Support site:** `https://github.com/AES256Afro/xIT`
 **Support email:** *(your address, or leave blank and rely on the issue tracker)*
@@ -56,27 +56,22 @@ Plus a right-click menu on tweet links anywhere on the web, and Alt+Shift+C for 
 BUILT IN
 
 Embed fixers: fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter.
-Privacy front-ends: xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net.
 Thread tools: Thread Reader App, Unroll Now.
 Custom: any self-hosted instance, via a live-validated URL template.
 
 xIT also strips the ?s=20&t=… share telemetry X appends to copied links.
 
-OPTIONAL: SKIP X ENTIRELY
-
-Off by default. When enabled, x.com page loads are redirected before the request leaves your browser, scoped to tweets, profiles or everything. Your timeline, DMs, notifications and settings are never redirected. Choose Open on X once to reach the original page. Pause redirects for 15 minutes or resume early whenever you need to.
-
 EVERYDAY CONTROLS
 
-Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Check one enabled host or all of them, with the time of each check shown. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
+Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Open the original x.com page for a link you are looking at on a redirector. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
 
 PRIVACY
 
-No analytics, no telemetry, no accounts, no remote code, no network requests of its own except an optional reachability check you trigger by hand. Settings stay on your device.
+No analytics, no telemetry, no accounts, no remote code, and no network requests of its own at all. Settings stay on your device.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
-Note: public Nitter instances go dark without warning. Settings includes a reachability check, and you can switch or add your own instance at any time.
+Note: public front-ends can disappear without warning, so you can switch your default or add your own instance at any time. The Nitter-based front-ends xIT used to include were withdrawn in 1.0.7 after those services received a cease and desist.
 ```
 
 ---
@@ -96,16 +91,16 @@ Implementation details for reviewers:
 
 1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL. Prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
 
-2. optional_host_permissions is "*://*/*" but nothing is granted at install. Enabling page redirecting requests the selected destination host (e.g. https://xcancel.com/*), including custom instances. Starting the optional reachability check requests access to the enabled redirector hosts together. Disabled hosts are excluded. Check requests omit credentials and referrers and do not follow redirects.
+2. declarativeNetRequest is declared but installs no rules. Page redirecting was removed in 1.0.7, and this permission is retained for one release so the background can delete rules that earlier versions installed: dynamic rules survive extension updates, so without it a user who had redirecting enabled would keep being sent to a front-end that is no longer offered. It is never used to observe, block or receive browsing. The permission is dropped in the next release. There are no optional host permissions.
 
-3. The alarms permission resumes page redirects after a user-requested pause. storage.session keeps the last removed custom entry for Undo; it is cleared on browser restart. Diagnostics are generated and copied only on request, exclude user URLs and templates, and are never sent by the extension.
+3. storage.session keeps the last removed custom entry for Undo; it is cleared on browser restart. Diagnostics are generated and copied only on request, exclude user URLs and templates, and are never sent by the extension.
 
-Settings are stored with storage.local and never transmitted. The only outbound request the add-on can make is the optional "check which are reachable" button on the Settings page, which the user must press.
+Settings are stored with storage.local and never transmitted. The add-on makes no outbound requests of any kind.
 ```
 
-**Version notes (1.0.6)**
+**Version notes (1.0.7)**
 ```
-Add Open on X once, pinned redirector ordering, custom editing and duplication with Undo, Enter-to-copy, timed redirect pauses, individual host checks with check times, and diagnostics without personal links or clipboard data. Includes the 1.0.5 correctness, performance, and privacy fixes.
+Remove the Nitter-based privacy front-ends (xcancel, twiiit and three Nitter instances) after those services received a cease and desist, and remove page redirecting, which had no remaining destination that worked. Redirect rules installed by earlier versions are deleted on startup, and the alarms permission and all optional host permissions are gone. Copying, the tweet button, the right-click menu, pinning, custom instances and Open on X are unchanged.
 ```
 
 ---

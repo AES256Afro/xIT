@@ -161,7 +161,6 @@ input[type=url]:focus-visible { outline: 2px solid var(--accent); border-color: 
 [hidden] { display: none !important; }
 .input-hint, .list-hint { font-size: 11px; color: var(--muted); margin: 5px 0 0; }
 .list-hint { margin: 0 10px 5px; }
-.pause-controls { margin: 8px 0 8px 23px; }
 .support { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 6px; }
 .support span { display: block; color: var(--muted); font-size: 10.5px; padding: 0 8px 4px; }
 .mini[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }

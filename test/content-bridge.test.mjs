@@ -77,10 +77,10 @@ for (const mainFirst of [true, false]) {
     await b.clipboard.writeText('https://x.com/jack/status/20?s=20');
     b.drain();
     assert.equal(b.copied.at(-1), 'https://fxtwitter.com/jack/status/20');
-    b.update({ defaultRedirector: 'xcancel' });
+    b.update({ defaultRedirector: 'vxtwitter' });
     await b.clipboard.writeText('https://x.com/jack/status/20');
     b.drain();
-    assert.equal(b.copied.at(-1), 'https://xcancel.com/jack/status/20');
+    assert.equal(b.copied.at(-1), 'https://vxtwitter.com/jack/status/20');
     b.update({ hijackNativeCopy: false });
     await b.clipboard.writeText('https://x.com/jack/status/20?s=20');
     b.drain();
