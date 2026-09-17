@@ -10,8 +10,8 @@ npm run store-assets    # screenshots and promo tiles into store/assets/
 
 | What | Where |
 |---|---|
-| Chrome package | `dist/xit-chrome-1.0.6.zip` |
-| Firefox package | `dist/xit-firefox-1.0.6.zip` |
+| Chrome package | `dist/xit-chrome-1.0.7.zip` |
+| Firefox package | `dist/xit-firefox-1.0.7.zip` |
 | Chrome listing copy | [`chrome-web-store.md`](chrome-web-store.md) |
 | Firefox listing copy | [`firefox-amo.md`](firefox-amo.md) |
 | Screenshots + tiles | `assets/` |
@@ -44,7 +44,7 @@ The steps below are kept for future submissions and version updates.
 1. Pay the one-time **US$5** developer registration at
    <https://chrome.google.com/webstore/devconsole>. Nothing can be submitted
    before this clears.
-2. **New item** → upload `dist/xit-chrome-1.0.6.zip`.
+2. **New item** → upload `dist/xit-chrome-1.0.7.zip`.
 3. Fill **Store listing** from [`chrome-web-store.md`](chrome-web-store.md):
    name, short description, detailed description, category, graphics.
 4. Fill **Privacy practices**: single purpose, a justification for every
@@ -58,11 +58,11 @@ The steps below are kept for future submissions and version updates.
 1. Sign in at <https://addons.mozilla.org/developers/>. No fee.
 2. **Submit a New Add-on** → choose **listed** (public directory) or
    **unlisted** (signed file only, no review queue, no public page).
-3. Upload `dist/xit-firefox-1.0.6.zip`.
+3. Upload `dist/xit-firefox-1.0.7.zip`.
 4. Fill the fields from [`firefox-amo.md`](firefox-amo.md), including the
    **notes for the reviewer**, which pre-empt the two questions this add-on
    will otherwise get asked about (the main-world clipboard patch, and the
-   broad optional host permission).
+   declarativeNetRequest permission kept only for cleanup).
 5. Submit. Unlisted is usually signed within minutes; listed goes into a queue.
 
 Either route gives you a **signed** build. That matters: the
@@ -86,9 +86,12 @@ Neither store lets you reuse a version number, even for a rejected submission.
 
 ## Honest expectations
 
-- **Nitter instances die.** The bundled list is current as of release, not a
-  permanent promise. Expect to update defaults periodically, and expect the odd
-  review complaining that one is down.
+- **Public front-ends can disappear.** The bundled list is current as of
+  release, not a permanent promise. The Nitter-based ones were withdrawn in
+  1.0.7 after a cease and desist; expect to revisit the list again.
+- **`declarativeNetRequest` is declared but unused.** It exists only to remove
+  rules earlier versions installed. Drop it in the release after users have had
+  time to update, which also removes a permission warning.
 - **The in-tweet button depends on X's DOM.** X ships breaking layout changes
   regularly. When it happens, `isTweetActionBar` in `src/content/inject.js` is
   the thing to fix. The native "Copy link" patch does not depend on the DOM and

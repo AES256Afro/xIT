@@ -16,8 +16,8 @@ Both copy routes give you the same rewritten link:
 - **X's own "Copy link".** The native share menu is patched so it returns the
   redirected URL too, with no change to how the menu looks or behaves.
 
-Plus a right-click menu on any tweet link anywhere on the web, an optional
-browse redirect, and a keyboard shortcut.
+Plus a right-click menu on any tweet link anywhere on the web, and a keyboard
+shortcut.
 
 ![Copying a tweet through a chosen front-end, with the redirector list open](store/assets/screenshot-1-copy-any-tweet.png)
 
@@ -44,12 +44,10 @@ default, while real parameters are left alone.
     <td>Every part of the copy behaviour is switchable, including the patch on X's native menu.</td>
   </tr>
   <tr>
-    <td width="50%"><img alt="Page redirect settings, scoped by page type" src="store/assets/screenshot-4-browse-redirect.png"></td>
-    <td width="50%"><img alt="Adding a custom redirector with a live validated template" src="store/assets/screenshot-5-custom-instance.png"></td>
+    <td colspan="2"><img alt="Adding a custom redirector with a live validated template" src="store/assets/screenshot-4-custom-instance.png"></td>
   </tr>
   <tr>
-    <td>Optional page redirecting, scoped to tweets, profiles, or everything. Off by default.</td>
-    <td>Custom templates for a self-hosted instance, validated live as you type.</td>
+    <td colspan="2">Custom templates for your own instance, validated live as you type.</td>
   </tr>
 </table>
 
@@ -58,7 +56,6 @@ default, while real parameters are left alone.
 | Group | Redirectors | For |
 |---|---|---|
 | Embed fixers | fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter | Tweets that unfurl properly in Discord, Slack and Signal |
-| Privacy front-ends | xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net | Reading without tracking or a login wall |
 | Thread tools | Thread Reader App, Unroll Now | Unrolling a long thread into one page |
 | Custom | yours | Self-hosted instances, anything not listed |
 
@@ -113,10 +110,14 @@ Where the logs are:
 
 The service worker going idle is normal, not a fault; it wakes on demand.
 
-**Public instances come and go.** Nitter instances in particular go dark without
-warning. Settings has a *Check which are reachable* button, but it only proves
-the host answered, not that it still renders tweets. If your default stops
-working, switch it, or add your own instance under **Custom redirector**.
+**Public services come and go.** If your default stops working, switch it, or
+add your own instance under **Custom redirector**.
+
+xIT shipped a group of Nitter-based privacy front-ends (xcancel, twiiit and
+three Nitter instances) up to 1.0.6. They were withdrawn in 1.0.7 after those
+services received a cease and desist. Links you already have from them are still
+recognised, so xIT can convert them to a redirector it does offer, but it will
+not send you to them.
 
 ## Custom templates
 
@@ -136,31 +137,6 @@ single tweets is more like `https://your.host/tweet/{id}`. Templates built from
 `{id}` are automatically refused for profile links rather than producing a
 broken URL.
 
-## Browse redirect
-
-Off by default. When on, loading `x.com` sends you to your chosen frontend
-before the page is fetched (via `declarativeNetRequest`, so x.com never loads
-and never sees the request).
-
-Scope is per page type (tweets, profiles, everything else), and your own home
-timeline, messages, notifications, bookmarks and settings are **never**
-redirected, since a frontend cannot show them and you would just be locked out.
-Your logged-in X session is untouched; you simply stop landing on it.
-
-Settings and the popup report whether the rules are active or an update failed.
-If a new configuration cannot be installed, xIT removes its old rules and reports
-the error. A separate context-menu error does not prevent redirect removal.
-
-Use **Open on X once** in the popup, tweet dropdown, or right-click menu to open
-the original page while keeping your redirect settings. It uses a one-time
-`xit_bypass=1` parameter, which xIT removes from the address bar after loading.
-
-**Pause for 15 minutes** temporarily stops page redirects. The popup and Settings
-show the resume time, and the toolbar icon displays `PAUSE`. **Resume now** ends
-the pause early. Copy rewriting remains available. The extension restores the
-resume alarm after a background restart and checks the saved expiry after sleep
-or browser restart.
-
 ## Everyday controls
 
 - **Pin** a redirector in Settings, the popup, or the tweet dropdown to put it
@@ -173,12 +149,10 @@ or browser restart.
   but is cleared by browser restart, reset, import, or the next removal.
 - Paste a link in the popup and press **Enter** to copy the previewed URL. The
   paste field receives focus when the current tab has no usable X link.
-- **Check this host** checks one enabled redirector. **Check which are reachable**
-  checks all enabled entries. Results show the check time and remain visible
-  while that Settings page is open. A responding server may still fail to show
-  tweets; these checks do not inspect tweet content.
+- **Open on X** in the popup, tweet dropdown, or right-click menu opens the
+  original x.com page for a link you are looking at on a redirector.
 - **Copy diagnostics** in the popup or Settings copies versions, X access,
-  redirect and menu status, and whether the content script responds in an open
+  menu status, and whether the content script responds in an open
   X tab. The report excludes tweet URLs, custom templates, clipboard contents,
   raw errors, and browsing history. Settings also displays the report for
   inspection or manual copying.
@@ -197,15 +171,12 @@ page link to those addresses, so paste them in yourself.
 | `storage` | Your settings. Local only. |
 | `contextMenus` | The right-click menu. |
 | `activeTab` + `scripting` | Writing to the clipboard when you use the right-click menu on a page where the content script is not running. Granted per click, not standing. |
-| `declarativeNetRequest` | The browse redirect. Rules are evaluated by the browser; the extension never sees your browsing. |
+| `declarativeNetRequest` | Kept for 1.0.7 only, so the extension can remove page-redirect rules that earlier versions installed. It installs none. |
 | `clipboardWrite` | Copying. |
-| `alarms` | Resume page redirects when a requested pause expires. |
 | Host access to x.com / twitter.com | The button, and reading the tweet permalink. |
-| Optional host access | Requested for the selected redirect destination when enabling browse redirect, or for the enabled redirectors when starting a reachability check. No destination access is granted at installation. |
 
 No analytics, no network requests of its own, no remote code. The only outbound
-request it ever makes is the reachability check, and only when you press that
-button.
+request it makes is nothing at all: xIT has no network access of its own.
 
 ## Development
 
@@ -233,29 +204,30 @@ extension from the command line. The check uses a disposable profile, synthetic
 X pages, and captured clipboard writes. Results are written to the ignored
 `.harness/browser-results.json` file.
 
-These checks exercise the browser's regex compiler, installed redirect rules,
-settings writes from separate pages, keyboard actions, permission denial,
-redirect failures, legacy data cleanup, and DOM updates. JavaScript regex tests
-alone do not establish that Chrome can install a rule.
+These checks exercise settings writes from separate pages, keyboard actions,
+DOM updates, and the 1.0.7 cleanup: a redirect rule is installed the way earlier
+versions installed one, then the browser's own matcher confirms the rule is gone
+and an x.com link is no longer redirected. Unit tests with mocked APIs cannot
+establish that.
 
 The Firefox check uses a recent Firefox release with WebDriver BiDi extension
 installation support and Node 22 or later. Set `FIREFOX_PATH` if Firefox is not
 in its standard macOS or Linux location. It checks temporary installation,
-native settings messaging, menu creation, rule installation and removal, and
-the Settings status display in a disposable profile. Results are written to
+native settings messaging, menu creation, removal of redirect rules left by
+earlier versions, and the Settings layout in a disposable profile. Results are written to
 `.harness/firefox-results.json`. It does not exercise Firefox's content script
 against authenticated X pages or validate a signed Store package.
 
 `test:qol` uses the same Playwright setup as `test:browser`. It exercises the
 new controls through native Chrome APIs and writes `.harness/qol-results.json`.
-It includes a real resume-alarm event, undo through session storage, one-time
-bypass navigation on synthetic X pages, and diagnostics with injected private
-test strings to check that the report excludes them.
+It includes undo through session storage, Open on X navigation on synthetic X
+pages, and diagnostics with injected private test strings to check that the
+report excludes them.
 For API-created tabs, the test captures the requested URL and navigates after
 the browser automation attaches its request handler, keeping the fixture local.
 
-Settings mutations run through one background writer. Individual list and scope
-changes are merged there against current settings, so concurrent pages cannot
+Settings mutations run through one background writer. Individual list changes
+are merged there against current settings, so concurrent pages cannot
 replace one another's unrelated changes. The content observer scans affected
 articles; unrelated page mutations do not trigger full-document scans.
 
@@ -308,9 +280,8 @@ live in [`store/`](store/):
 
 ## Privacy
 
-No analytics, no telemetry, no accounts, no remote code. xIT makes no network
-requests of its own except the optional reachability check you trigger by hand.
-Full text: [PRIVACY.md](PRIVACY.md).
+No analytics, no telemetry, no accounts, no remote code, and no network
+requests of its own at all. Full text: [PRIVACY.md](PRIVACY.md).
 
 ## Licence
 

@@ -21,9 +21,9 @@ Upload: `dist/xit-chrome-1.0.6.zip`
 xIT
 ```
 
-**Short description** (132 max, this is 111)
+**Short description** (132 max, this is 114)
 ```
-Copy X/Twitter links through fxtwitter, xcancel, nitter or your own instance. One click, or X's own Copy link.
+Copy X/Twitter links through fxtwitter, vxtwitter, a thread reader or your own instance. One click, or X's own Copy link.
 ```
 
 **Category:** Productivity
@@ -46,8 +46,6 @@ WHAT'S BUILT IN
 
 Embed fixers: fxtwitter, fixupx, twittpr, vxtwitter, fixvx, and d.fxtwitter for the media file itself. These make tweets unfurl properly, with video and multi-image galleries, in Discord, Slack and Signal.
 
-Privacy front-ends: xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net. Read without the tracking or the login wall.
-
 Thread tools: Thread Reader App and Unroll Now, for turning a 40-post thread into one readable page.
 
 Your own: add any self-hosted instance with a simple template. Tokens are {path}, {query}, {user}, {id}, {hash} and {host}, validated live as you type, with a worked example shown before you save.
@@ -56,23 +54,19 @@ TIDIER LINKS
 
 xIT strips the ?s=20&t=… share telemetry X appends to copied links, while leaving real parameters alone. You can turn that off.
 
-OPTIONALLY, SKIP X ENTIRELY
-
-Off by default. Turn on "Redirect page loads" and visiting x.com sends you straight to your chosen front-end, before the request leaves your browser. Scope it to tweets, profiles, or everything. Your own timeline, DMs, notifications, bookmarks and settings are never redirected, because a front-end cannot show them and you would just be locked out. Your logged-in session is untouched; you simply stop landing on it. Choose Open on X once to reach the original page, or pause redirects for 15 minutes and resume automatically.
-
 EVERYDAY CONTROLS
 
-Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Check one enabled host or all of them, with the time of each check shown. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
+Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a custom instance and undo its removal. Paste a link in the popup and press Enter to copy. Open the original x.com page for a link you are looking at on a redirector. Copy diagnostics for troubleshooting without including personal URLs, custom templates or clipboard contents.
 
 PRIVACY
 
-No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own except optional host checks that you start in Settings. Settings stay in your browser. Rewriting a link is local text manipulation.
+No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own at all. Settings stay in your browser. Rewriting a link is local text manipulation.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
-A NOTE ON PUBLIC INSTANCES
+A NOTE ON PUBLIC SERVICES
 
-Nitter instances go dark without warning. That is the nature of them, not a fault in xIT. Settings has a reachability check, and you can switch your default or add your own instance at any time.
+Public front-ends can disappear without warning. You can switch your default or add your own instance at any time. The Nitter-based front-ends xIT used to include were withdrawn in 1.0.7 after those services received a cease and desist.
 ```
 
 ---
@@ -88,21 +82,19 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 
 | Permission | Justification |
 |---|---|
-| `storage` | Stores default and enabled redirectors, pins, custom templates, copy preferences and pause expiry locally. Session storage supports undoing the last custom-entry removal. Nothing is transmitted. |
+| `storage` | Stores default and enabled redirectors, pins, custom templates and copy preferences locally. Session storage supports undoing the last custom-entry removal. Nothing is transmitted. |
 | `contextMenus` | Adds the right-click menu that lets the user copy or open a tweet link through a chosen redirector. |
 | `activeTab` | When the user picks an item from the right-click menu, the rewritten URL must be written to the clipboard in the page they clicked in. activeTab grants that access for that click only, rather than standing access to every site. |
 | `scripting` | Used solely with activeTab to run a short clipboard-write function in the tab the user just invoked the context menu in. No code is injected at any other time, and no remote code is ever executed. |
-| `declarativeNetRequest` | Implements the optional "redirect page loads" feature. Rules are declared to the browser, which evaluates them itself; the extension never observes or receives the user's browsing. |
-| `alarms` | The user can pause page redirecting for 15 minutes from the popup. alarms is used only to turn it back on when that pause expires. An MV3 service worker is terminated when idle, so a setTimeout would not survive the wait. One alarm named `xit-resume-redirects` is scheduled for the pause end time and cleared as soon as the pause is lifted or page redirecting is switched off. No alarm exists unless the user starts a pause, and it is never used for polling, background work, network requests or telemetry. |
+| `declarativeNetRequest` | Retained in 1.0.7 only to remove rules that earlier versions installed. Page redirecting was removed in this version, and the extension now installs no rules: on every start it deletes any dynamic rule still present, so a user who had redirecting enabled is not left being redirected to a service that is no longer offered. Dynamic rules survive extension updates, which is why the permission cannot be dropped in the same release that removes the feature. It is never used to observe, block or receive the user's browsing. |
 | `clipboardWrite` | The extension's entire purpose is putting a rewritten link on the clipboard. |
 | Host permissions for `x.com` / `twitter.com` | Needed to place the copy button in the tweet action bar, read the tweet's permalink, and rewrite the link X's own "Copy link" produces. These are the only sites the extension's content scripts run on. |
-| Optional host permissions (`*://*/*`, not granted by default) | Nothing is granted at install time. Enabling page redirecting requests the selected destination host (for example `https://xcancel.com/*`), including custom instances. A single-host check requests that enabled host; the all-host check requests the enabled redirector hosts together. Disabled hosts are excluded. Requests use HTTPS, omit credentials and referrers, and do not follow redirects. |
 
 **Are you using remote code?** Select **No**. The dashboard still requires a
 written justification, and blocks submission without one. Paste:
 
 ```
-xIT does not use remote code. Everything that executes ships inside the package: there are no externally hosted scripts, no CDN or remote module imports, no eval() or new Function(), and no string-based code execution anywhere in the extension. The service worker's importScripts() call loads only two files contained in this package (lib/redirectors.js and lib/storage.js). The single main-world content script (content/main-world.js) is likewise a static file in the package, declared in the manifest. The extension's only possible outbound request is an optional reachability check that the user starts by pressing a button on the Settings page; it is a no-cors HEAD request whose response is never read and never executed.
+xIT does not use remote code. Everything that executes ships inside the package: there are no externally hosted scripts, no CDN or remote module imports, no eval() or new Function(), and no string-based code execution anywhere in the extension. The service worker's importScripts() call loads only two files contained in this package (lib/redirectors.js and lib/storage.js). The single main-world content script (content/main-world.js) is likewise a static file in the package, declared in the manifest. The extension makes no outbound requests at all: the reachability check earlier versions offered was removed in 1.0.7 along with page redirecting.
 ```
 
 **Data usage**: tick nothing. Then certify:
@@ -125,8 +117,7 @@ https://github.com/AES256Afro/xIT/blob/main/PRIVACY.md
 | Screenshot 1 | `store/assets/screenshot-1-copy-any-tweet.png` | 1280×800 |
 | Screenshot 2 | `store/assets/screenshot-2-popup.png` | 1280×800 |
 | Screenshot 3 | `store/assets/screenshot-3-both-routes.png` | 1280×800 |
-| Screenshot 4 | `store/assets/screenshot-4-browse-redirect.png` | 1280×800 |
-| Screenshot 5 | `store/assets/screenshot-5-custom-instance.png` | 1280×800 |
+| Screenshot 4 | `store/assets/screenshot-4-custom-instance.png` | 1280×800 |
 | Small promo tile | `store/assets/promo-tile-small-440x280.png` | 440×280 |
 | Marquee promo tile | `store/assets/promo-tile-marquee-1400x560.png` | 1400×560 |
 
@@ -159,12 +150,10 @@ Press **Save draft** after fixing them, then try **Submit for review** again.
 
 Be ready for these; none are fatal, but they slow a first submission:
 
-1. **Broad optional host permissions.** `*://*/*` in `optional_host_permissions`
-   draws attention even though nothing is granted at install. The justification
-   above is the honest explanation, since custom self-hosted instances cannot be
-   enumerated ahead of time. If a reviewer pushes back, the fallback is to drop
-   `*://*/*`, list only the bundled redirector hosts, and accept that custom
-   templates can then only be used for copying, not for page redirecting.
+1. **A permission the extension no longer uses to act.** `declarativeNetRequest`
+   is declared but installs nothing; it exists only to clean up rules from
+   earlier versions. Say that plainly if asked, and drop the permission in the
+   release after users have had time to update.
 2. **Affecting a major site's behaviour.** Rewriting X's own "Copy link" is
    legitimate and disclosed, but say so plainly if asked: it is a user-invoked
    convenience, applied only to a lone tweet URL, and switchable off.

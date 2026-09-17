@@ -38,30 +38,8 @@
   </section>
 
   <section class="panel">
-    <h2>Redirect page loads</h2>
-    <p class="hint">Off by default. When on, visiting x.com sends you straight to your chosen frontend. Your logged-in X session stays untouched. You just stop landing on it.</p>
-    <label class="switch"><input type="checkbox" id="t-browse">
-      <span><b>Redirect x.com and twitter.com as I browse</b></span></label>
-    <div class="indent">
-      <label class="field">
-        <span class="field-label">Send me to</span>
-        <select id="browse-select" class="select"></select>
-      </label>
-      <fieldset class="scopes">
-        <legend>Which pages</legend>
-        <label><input type="checkbox" id="s-status"> Tweets</label>
-        <label><input type="checkbox" id="s-profile"> Profiles</label>
-        <label><input type="checkbox" id="s-other"> Everything else <i>(timeline, search, lists)</i></label>
-      </fieldset>
-      <p class="hint">Your own home timeline, messages, notifications and settings are never redirected, since you would just be locked out of them.</p>
-      <p id="browse-warn" class="browse-status" role="status"></p>
-      <div class="actions"><button id="pause-browse" class="ghost">Pause for 15 minutes</button><button id="resume-browse" class="ghost" hidden>Resume now</button></div>
-    </div>
-  </section>
-
-  <section class="panel">
     <h2>Redirectors</h2>
-    <p class="hint">Untick any you do not want cluttering the dropdown. <button id="test-all" class="link-btn">Check which are reachable</button></p>
+    <p class="hint">Untick any you do not want cluttering the dropdown.</p>
     <p class="hint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
     <div id="undo-custom" class="undo-bar" hidden role="status"><span id="undo-text"></span><button id="undo-remove" class="row-btn">Undo removal</button></div>
     <div id="redirector-list"></div>
@@ -73,8 +51,8 @@
       <code>{path}</code> <code>{query}</code> <code>{user}</code> <code>{id}</code> <code>{hash}</code> <code>{host}</code>.
       A plain mirror is usually <code>https://your.host/{path}{query}</code>.</p>
     <form id="custom-form" class="custom-form">
-      <input id="c-name" type="text" aria-label="Redirector name" placeholder="Name, e.g. My Nitter" required maxlength="48">
-      <input id="c-template" type="text" aria-label="Redirector URL template" placeholder="https://nitter.example.com/{path}{query}" required spellcheck="false">
+      <input id="c-name" type="text" aria-label="Redirector name" placeholder="Name, e.g. My instance" required maxlength="48">
+      <input id="c-template" type="text" aria-label="Redirector URL template" placeholder="https://links.example.com/{path}{query}" required spellcheck="false">
       <button id="custom-submit" type="submit" class="primary">Add</button>
       <button id="custom-cancel" type="button" class="ghost" hidden>Cancel edit</button>
     </form>
@@ -102,7 +80,7 @@
 
   <section class="panel">
     <h2>Troubleshooting</h2>
-    <p class="hint">Copy the extension and browser versions, access status, redirect status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.</p>
+    <p class="hint">Copy the extension and browser versions, access status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.</p>
     <button id="copy-diagnostics" class="ghost">Copy diagnostics</button>
     <pre id="diagnostics-preview" class="sample" hidden></pre>
   </section>

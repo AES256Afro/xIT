@@ -51,8 +51,7 @@ const ASSETS = [
   ['shot-hero',     1280, 800, 'screenshot-1-copy-any-tweet'],
   ['shot-popup',    1280, 800, 'screenshot-2-popup'],
   ['shot-options',  1280, 800, 'screenshot-3-both-routes'],
-  ['shot-redirect', 1280, 800, 'screenshot-4-browse-redirect'],
-  ['shot-custom',   1280, 800, 'screenshot-5-custom-instance'],
+  ['shot-custom',   1280, 800, 'screenshot-4-custom-instance'],
   ['tile-small',     440, 280, 'promo-tile-small-440x280'],
   ['tile-marquee',  1400, 560, 'promo-tile-marquee-1400x560'],
 ];

@@ -2,9 +2,8 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const seed = {};
-  if (params.get('browse') === '1') { seed.browseRedirect = true; seed.browseRedirectorId = 'xcancel'; }
   if (params.get('custom') === '1') {
-    seed.custom = [{ id: 'c-my-nitter', name: 'My Nitter', group: 'custom', template: 'https://nitter.example.net/{path}{query}', requires: [], note: '' }];
+    seed.custom = [{ id: 'c-my-instance', name: 'My instance', group: 'custom', template: 'https://links.example.net/{path}{query}', requires: [], note: '' }];
   }
   let store = { settings: Object.keys(seed).length ? seed : undefined };
   const ls = [];
@@ -36,9 +35,7 @@
           if (store.settings && store.settings.custom && !store.settings.enabledIds) {
             store.settings.enabledIds = window.XITStore.DEFAULTS.enabledIds.concat(store.settings.custom.map(c => c.id));
           }
-          const s = window.XITStore && window.XITStore.normalize(store.settings);
-          const data = { ...store, dnrStatus: s && {key:window.XITStore.browseStatusKey(s),state:s.browseRedirect?'active':'off'} };
-          const result = typeof k === 'string' ? {[k]:data[k]} : data;
+          const result = typeof k === 'string' ? {[k]:store[k]} : { ...store };
           if(cb) cb(result);
           return Promise.resolve(result);
         },
@@ -71,8 +68,8 @@
       const name = document.getElementById('c-name');
       const tpl = document.getElementById('c-template');
       if (!name || !tpl) return;
-      name.value = 'My Nitter';
-      tpl.value = 'https://nitter.example.net/{path}{query}';
+      name.value = 'My instance';
+      tpl.value = 'https://links.example.net/{path}{query}';
       tpl.dispatchEvent(new Event('input', { bubbles: true }));
     }, 260));
   }

@@ -1,6 +1,6 @@
 {
   "name": "xit",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "description": "Chrome and Firefox extension that copies X/Twitter links through a redirector of your choice.",
   "type": "module",

@@ -13,8 +13,6 @@
    * ------------------------------------------------------------------ */
 
   const SOURCE_HOST_RE = /^(?:www\.|mobile\.|m\.)?(?:twitter|x)\.com$/i;
-  const SOURCE_HOSTS = ['x.com', 'www.x.com', 'mobile.x.com', 'm.x.com',
-    'twitter.com', 'www.twitter.com', 'mobile.twitter.com', 'm.twitter.com'];
 
   // First path segment that is a site feature, never a username.
   const RESERVED = new Set([
@@ -36,7 +34,6 @@
 
   const GROUPS = [
     { id: 'embed',   label: 'Embed fixers',      blurb: 'Tweets unfurl properly in Discord, Slack and Signal.' },
-    { id: 'privacy', label: 'Privacy frontends', blurb: 'Read without X tracking or the login wall.' },
     { id: 'thread',  label: 'Thread tools',      blurb: 'Unroll a long thread into one page.' },
     { id: 'custom',  label: 'Custom',            blurb: 'Your own instances and templates.' },
   ];
@@ -59,22 +56,8 @@
       template: 'https://fixvx.com/{path}{query}',
       note: 'vxTwitter alias.' },
     { id: 'fxtwitter-direct', name: 'FxTwitter (direct media)', group: 'embed', host: 'd.fxtwitter.com',
-      template: 'https://d.fxtwitter.com/{path}', requires: ['id'], browse: false,
+      template: 'https://d.fxtwitter.com/{path}', requires: ['id'],
       note: 'Jumps straight to the video/image file itself.' },
-
-    // --- privacy frontends ---------------------------------------------
-    { id: 'xcancel', name: 'xcancel', group: 'privacy', host: 'xcancel.com',
-      template: 'https://xcancel.com/{path}{query}',
-      note: 'The most dependable public Nitter instance.' },
-    { id: 'twiiit', name: 'twiiit (picks an instance)', group: 'privacy', host: 'twiiit.com',
-      template: 'https://twiiit.com/{path}{query}',
-      note: 'Forwards to whichever Nitter instance is currently up.' },
-    { id: 'nitter-net', name: 'nitter.net', group: 'privacy', host: 'nitter.net',
-      template: 'https://nitter.net/{path}{query}' },
-    { id: 'nitter-poast', name: 'nitter.poast.org', group: 'privacy', host: 'nitter.poast.org',
-      template: 'https://nitter.poast.org/{path}{query}' },
-    { id: 'nitter-privacydev', name: 'nitter.privacydev.net', group: 'privacy', host: 'nitter.privacydev.net',
-      template: 'https://nitter.privacydev.net/{path}{query}' },
 
     // --- thread tools ---------------------------------------------------
     { id: 'threadreader', name: 'Thread Reader App', group: 'thread', host: 'threadreaderapp.com',
@@ -86,6 +69,11 @@
   ];
 
   const PRESET_HOSTS = new Set(PRESETS.map((p) => p.host));
+
+  // Front-ends xIT no longer offers. Links from them are still read, so a
+  // pasted xcancel or Nitter URL can be converted to a supported redirector,
+  // but nothing ever sends a user to these hosts.
+  const WITHDRAWN_HOSTS = new Set(['xcancel.com', 'twiiit.com']);
 
   /* ------------------------------------------------------------------ *
    * Parsing
@@ -102,7 +90,7 @@
   // A host we can re-parse, so an already-redirected link can be retargeted.
   function isMirrorHost(hostname, extraHosts) {
     const bare = bareHost(hostname);
-    if (PRESET_HOSTS.has(bare)) return true;
+    if (PRESET_HOSTS.has(bare) || WITHDRAWN_HOSTS.has(bare)) return true;
     if (extraHosts && extraHosts.has(String(hostname).toLowerCase())) return true;
     return /(^|\.)nitter\b/.test(bare) || bare.startsWith('nitter.');
   }
@@ -232,17 +220,6 @@
     } catch (_) { return null; }
   }
 
-  function templateOrigin(template) {
-    const u = templateURL(template);
-    return u ? u.origin : null;
-  }
-
-  function permissionOrigin(template) {
-    const host = templateHost(template);
-    // Match patterns address hosts, not individual ports.
-    return host ? 'https://' + host + '/*' : null;
-  }
-
   /**
    * Convert a URL with a redirector.
    * Returns { ok:true, url } or { ok:false, reason } (reason is user-facing).
@@ -273,97 +250,10 @@
     return 'https://x.com/' + parts.path + (o.stripTracking === false ? parts.search : stripTracking(parts.search)) + parts.hash;
   }
 
-  function supportsBrowse(redirector) {
-    if (!redirector) return false;
-    if (redirector.browse === false) return false;
-    return compileBrowseRules(redirector.template, { status: true, profile: true, other: true }).length > 0;
-  }
-
-  /* ------------------------------------------------------------------ *
-   * declarativeNetRequest rule compilation
-   *
-   * Chrome and Firefox both run these through RE2: no lookahead, no
-   * backreferences. Layering is done with rule priority instead.
-   *   5 bypass allow  4 status redirect  3 reserved allow
-   *   2 profile redirect  1 catch-all redirect
-   * ------------------------------------------------------------------ */
-
-  const SRC = '^https?://(?:www\\.|mobile\\.|m\\.)?(?:twitter|x)\\.com/';
-  const RESERVED_PATHS = [
-    'i', 'home', 'explore', 'notifications', 'messages', 'settings', 'search',
-    'compose', 'login', 'logout', 'signup', 'intent', 'account', 'tos',
-    'privacy', 'about', 'bookmarks', 'topics', 'jobs', 'oauth', 'widgets',
-  ];
-
-  const BYPASS_PARAM = 'xit_bypass';
-
-  function originalUrl(input, opts) {
-    const clean = canonical(input, opts);
-    if (!clean) return null;
-    const url = new URL(clean);
-    url.searchParams.set(BYPASS_PARAM, '1');
-    return url.href;
-  }
-
-  function compileBrowseRules(template, scopes) {
-    const t = String(template || '');
-    const origin = templateOrigin(t);
-    if (!origin || !validateTemplate(t).ok) return [];
-    const sc = scopes || {};
-    const rules = [];
-
-    // Shape A: plain host swap, path preserved.
-    if (/^https:\/\/[^/{}\s]+\/\{path\}(?:\{query\})?(?:\{hash\})?$/i.test(t)) {
-      if (sc.status) {
-        rules.push({ priority: 4, regexFilter: SRC + '([^/?#]+/status(?:es)?/\\d+.*)$', regexSubstitution: origin + '/\\1' });
-        rules.push({ priority: 4, regexFilter: SRC + '(i/(?:web/)?status/\\d+.*)$', regexSubstitution: origin + '/\\1' });
-      }
-      if (sc.profile) {
-        // Splitting scheme and source host, and using a URL transform instead
-        // of captures, keeps the 15-character bound within Chrome's budget.
-        for (const host of SOURCE_HOSTS) {
-          for (const scheme of ['https', 'http']) {
-            const destination = new URL(origin);
-            rules.push({ priority: 2,
-              regexFilter: '^' + scheme + '://' + host.replace(/\./g, '\\.') + '/[A-Za-z0-9_]{1,15}/?(?:[?#]|$)',
-              transform: { scheme: 'https', host: destination.hostname, port: destination.port },
-            });
-          }
-        }
-      }
-      if (sc.other) {
-        rules.push({ priority: 1, regexFilter: SRC + '(.*)$', regexSubstitution: origin + '/\\1' });
-      }
-      return rules;
-    }
-
-    // Shape B: status-only template built from {user} and/or {id}.
-    if (/\{id\}/.test(t) && !/\{path\}|\{query\}|\{hash\}|\{host\}/.test(t)) {
-      if (!sc.status) return [];
-      const subUserId = t.replace(/\{user\}/g, '\\1').replace(/\{id\}/g, '\\2');
-      rules.push({ priority: 4, regexFilter: SRC + '([^/?#]+)/status(?:es)?/(\\d+)', regexSubstitution: subUserId });
-      const subIdOnly = t.replace(/\{user\}/g, 'i').replace(/\{id\}/g, '\\1');
-      rules.push({ priority: 4, regexFilter: SRC + 'i/(?:web/)?status/(\\d+)', regexSubstitution: subIdOnly });
-      return rules;
-    }
-
-    return []; // Not expressible as a pre-request rule.
-  }
-
-  function guardRules() {
-    return [
-      { priority: 5, regexFilter: SRC + '[^#]*[?&]' + BYPASS_PARAM + '=1(?:[&#]|$)', action: 'allow' },
-      ...RESERVED_PATHS.map((path) => ({
-        priority: 3, regexFilter: SRC + path + '(?:[/?#]|$)', action: 'allow',
-      })),
-    ];
-  }
-
   root.XIT = {
-    GROUPS, PRESETS, TOKENS, TRACKING_PARAMS, BYPASS_PARAM, RESERVED,
-    parse, expand, convert, canonical, originalUrl, stripTracking,
-    validateTemplate, templateHost, templateOrigin, permissionOrigin, supportsBrowse,
-    compileBrowseRules, guardRules,
+    GROUPS, PRESETS, TOKENS, TRACKING_PARAMS,
+    parse, expand, convert, canonical, stripTracking,
+    validateTemplate, templateHost,
     isSourceHost, isMirrorHost, bareHost,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

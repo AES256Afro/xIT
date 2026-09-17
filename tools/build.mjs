@@ -38,12 +38,12 @@ function baseManifest() {
     manifest_version: 3,
     name: 'xIT',
     version: pkg.version,
-    description: 'Copy X/Twitter links through fxtwitter, xcancel and friends. Pick a default, or choose per copy.',
-    permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite', 'alarms'],
+    description: 'Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.',
+    // declarativeNetRequest is kept for 1.0.7 only, so the background can
+    // remove redirect rules earlier versions installed. Page redirecting is
+    // gone; drop this permission once users have had time to update.
+    permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
     host_permissions: HOSTS,
-    // Redirecting page loads needs permission for the destination too, and the
-    // destination is whatever the user picks. Asked for on demand.
-    optional_host_permissions: ['*://*/*'],
     action: {
       default_title: 'xIT',
       default_popup: 'popup/popup.html',

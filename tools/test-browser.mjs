@@ -33,55 +33,14 @@ try {
   const settle = () => worker.evaluate(() => initChain);
   const save = async (patch) => { await worker.evaluate(patch => XITStore.save(patch), patch); await settle(); };
   await settle();
-  const unsupported = await worker.evaluate(async () => {
-    const compiled = [...XIT.guardRules()];
-    for (const r of [...XIT.PRESETS, {template:'https://www.example.com:8443/{path}{query}'}, {template:'https://[::1]:8443/{path}'}]) {
-      compiled.push(...XIT.compileBrowseRules(r.template, {status:true,profile:true,other:true}));
-    }
-    const unique = [...new Map(compiled.map(r=>[JSON.stringify([r.regexFilter,!!r.regexSubstitution]),r])).values()];
-    const checked = await Promise.all(unique.map(async r=>({regex:r.regexFilter,...await chrome.declarativeNetRequest.isRegexSupported({regex:r.regexFilter,requireCapturing:!!r.regexSubstitution})})));
-    return checked.filter(r=>!r.isSupported);
-  });
-  assert.deepEqual(unsupported, []);check('All generated patterns fit the native regex compiler');
-  await save({browseRedirect:true,browseScope:{status:true,profile:true,other:false}});
-  const outcomes = await worker.evaluate(async () => {
-    const rules=await chrome.declarativeNetRequest.getDynamicRules();
-    const samples = {
-      'https://x.com/homegrown':'redirect','https://x.com/topicsmith':'redirect',
-      'https://x.com/home':'allow','https://x.com/settings/account':'allow',
-      'https://x.com/i/web/status/20':'redirect','https://x.com/jack?xit_bypass=1':'allow',
-      'https://x.com/jack?xit_bypass=10':'redirect','https://x.com/abcdefghijklmnop':null,
-      'https://mobile.twitter.com/ABCDEFGHIJKLMNO?lang=en':'redirect',
-      'http://www.twitter.com/jack':'redirect','https://x.com/jack/followers':null,
-      'https://api.x.com/jack':null,'https://example.com/jack':null,
-    };
-    const out=[];
-    for(const [url,expected] of Object.entries(samples)) {
-      const {matchedRules}=await chrome.declarativeNetRequest.testMatchOutcome({url,type:'main_frame'});
-      out.push({url,expected,actual:rules.find(r=>r.id===matchedRules[0]?.ruleId)?.action.type || null});
-    }
-    return {out,status:(await chrome.storage.local.get('dnrStatus')).dnrStatus,count:rules.length};
-  });
-  for(const row of outcomes.out) assert.equal(row.actual,row.expected,row.url);
-  assert.equal(outcomes.status.state,'active');results.ruleCount=outcomes.count;check('Native redirect matching protects reserved paths and rejects long profiles');
-  for (const template of ['https://www.example.com:8443/{path}{query}', 'https://[::1]:8443/{path}']) {
-    const state = await worker.evaluate(async template => {
-      const settings = await XITStore.addCustom({name:'Destination check',template});
-      await XITStore.save({browseRedirectorId:settings.custom.at(-1).id});
-      await init('destination-test');
-      return (await chrome.storage.local.get('dnrStatus')).dnrStatus.state;
-    },template);
-    assert.equal(state,'active',template);
-  }
-  await save({custom:[],browseRedirectorId:'xcancel'});
-  check('Custom www hosts, ports and IPv6 destinations install as native rules');
   const options=await context.newPage();
   const second=await context.newPage();
   for(const page of [options,second]) {await page.goto(`chrome-extension://${id}/options/options.html`);await page.waitForSelector('#en-fxtwitter');}
-  await Promise.all([options.evaluate(()=>XITStore.save({toast:false,browseScope:{status:false}})),second.evaluate(()=>XITStore.save({stripTracking:false,browseScope:{profile:false}}))]);
+  await Promise.all([options.evaluate(()=>XITStore.save({toast:false,copyButton:false})),second.evaluate(()=>XITStore.save({stripTracking:false,contextMenu:false}))]);
   let settings=await worker.evaluate(()=>XITStore.load());
   assert.equal(settings.toast,false);assert.equal(settings.stripTracking,false);
-  assert.equal(settings.browseScope.status,false);assert.equal(settings.browseScope.profile,false);
+  assert.equal(settings.copyButton,false);assert.equal(settings.contextMenu,false);
+  await save({copyButton:true,contextMenu:true});
   check('Concurrent saves from separate extension pages preserve all changes');
   await options.evaluate(()=>XITStore.addCustom({name:'Audit custom',template:'https://www.example.com:8443/{path}'}));
   await options.locator('#en-c-audit-custom').uncheck();
@@ -91,74 +50,36 @@ try {
   await options.evaluate(async()=>XITStore.replace(JSON.parse(JSON.stringify(await XITStore.load()))));
   assert.equal((await worker.evaluate(()=>XITStore.load())).enabledIds.includes('c-audit-custom'),false);
   check('Custom disable survives UI interaction, reload and import');
-  await save({browseRedirect:false});
-  await options.evaluate(()=>{chrome.permissions.request=()=>new Promise(resolve=>{window.resolvePermission=resolve;});});
-  await options.locator('#t-browse').check();
-  await options.waitForFunction(()=>!!window.resolvePermission);
-  await second.evaluate(()=>XITStore.save({toast:true}));
-  await options.waitForFunction(()=>document.getElementById('t-toast').checked);
-  await options.evaluate(()=>resolvePermission(true));
-  await waitFor(options, async()=>(await XITStore.load()).browseRedirect);
-  await options.evaluate(()=>{window.resolvePermission=null;});
-  await options.locator('#browse-select').selectOption('fxtwitter');
-  await options.waitForFunction(()=>!!window.resolvePermission);
-  await second.evaluate(()=>XITStore.save({toast:false}));
-  await options.waitForFunction(()=>!document.getElementById('t-toast').checked);
-  await options.evaluate(()=>resolvePermission(true));
-  await waitFor(options, async()=>(await XITStore.load()).browseRedirectorId==='fxtwitter');
-  check('Permission prompts preserve the selected control value during other settings updates');
-  await save({custom:[],enabledIds:['fxtwitter'],browseRedirect:false});
-  await options.evaluate(()=>{
-    window.probeLog=[];window.permissionLog=[];window.probeActive=0;window.probePeak=0;
-    chrome.permissions.request=async options=>{permissionLog.push(options.origins);return true;};
-    chrome.permissions.contains=async()=>true;
-    window.fetch=async(url,options)=>{
-      probeLog.push({url,credentials:options.credentials,redirect:options.redirect});
-      probePeak=Math.max(probePeak,++probeActive);
-      await new Promise(r=>setTimeout(r,30));probeActive--;return {ok:true};
-    };
+  // What 1.0.3 left on the machine of a user redirecting page loads to xcancel.
+  const leftover = await worker.evaluate(async()=>{
+    await chrome.declarativeNetRequest.updateDynamicRules({removeRuleIds:[],addRules:[
+      {id:1000,priority:3,action:{type:'allow'},condition:{regexFilter:'^https?://(?:www\\.)?x\\.com/home(?:[/?#]|$)',resourceTypes:['main_frame']}},
+      {id:1001,priority:4,action:{type:'redirect',redirect:{regexSubstitution:'https://xcancel.com/\\1'}},
+        condition:{regexFilter:'^https?://(?:www\\.)?x\\.com/([^/?#]+/status/\\d+.*)$',resourceTypes:['main_frame']}},
+    ]});
+    const {settings}=await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({settings:{...settings,browseRedirect:true,browseRedirectorId:'xcancel',
+      browseScope:{status:true,profile:true,other:false},browsePausedUntil:0}});
+    const {matchedRules}=await chrome.declarativeNetRequest.testMatchOutcome({url:'https://x.com/jack/status/20',type:'main_frame'});
+    return {rules:(await chrome.declarativeNetRequest.getDynamicRules()).length,matched:matchedRules.length};
   });
-  const probe = async () => {
-    await options.click('#test-all');
-    await options.waitForFunction(()=>!document.getElementById('test-all').disabled);
-  };
-  await probe();
-  let log=await options.evaluate(()=>({requests:probeLog,permissions:permissionLog,peak:probePeak}));
-  assert.equal(log.requests.length,1);assert.equal(log.requests[0].url,'https://fxtwitter.com/');
-  assert.deepEqual(log.permissions,[['https://fxtwitter.com/*']]);
-  assert.equal(log.requests[0].credentials,'omit');assert.equal(log.requests[0].redirect,'manual');
-  await worker.evaluate(()=>XITStore.save({enabledIds:XITStore.DEFAULTS.enabledIds}));await settle();
-  await options.evaluate(()=>{probeLog=[];permissionLog=[];probePeak=0;});
-  await options.click('#test-all');
-  await options.evaluate(()=>document.getElementById('test-all').dispatchEvent(new MouseEvent('click',{bubbles:true})));
-  await options.waitForFunction(()=>!document.getElementById('test-all').disabled);
-  log=await options.evaluate(()=>({requests:probeLog,permissions:permissionLog,peak:probePeak}));
-  assert.equal(log.requests.length,13);assert.equal(log.permissions.length,1);assert.equal(log.peak,3);
-  check('Reachability respects enabled hosts, limits concurrency to three, and prevents overlapping runs');
-  await options.evaluate(()=>{probeLog=[];chrome.permissions.request=async()=>false;chrome.permissions.contains=async()=>false;});
-  await probe();assert.equal(await options.evaluate(()=>probeLog.length),0);
-  check('Denied host access prevents reachability requests');
-  await save({browseRedirect:true,browseScope:{status:true,profile:true,other:false}});
+  assert.equal(leftover.rules,2);assert.equal(leftover.matched,1,'the seeded rule must really redirect before cleanup');
+  // A menu failure must not stop the cleanup.
   await worker.evaluate(async()=>{
     const create=chrome.contextMenus.create;
     chrome.contextMenus.create=()=>{throw new Error('Synthetic menu failure');};
-    await XITStore.save({browseRedirect:false});
-    try{await init('failure-test');}catch{}finally{chrome.contextMenus.create=create;}
+    try{await init('migration-test');}catch{}finally{chrome.contextMenus.create=create;}
   });
-  assert.equal((await worker.evaluate(()=>chrome.declarativeNetRequest.getDynamicRules())).length,0);
-  check('A failed menu rebuild cannot prevent disabling redirects');
-  await worker.evaluate(async()=>{
-    const update=chrome.declarativeNetRequest.updateDynamicRules;
-    chrome.declarativeNetRequest.updateDynamicRules=async change=>{if(change.addRules?.length)throw new Error('Synthetic redirect failure');return update(change);};
-    await XITStore.save({browseRedirect:true});
-    try{await init('failure-test');}catch{}finally{chrome.declarativeNetRequest.updateDynamicRules=update;}
+  const cleaned = await worker.evaluate(async()=>{
+    const {matchedRules}=await chrome.declarativeNetRequest.testMatchOutcome({url:'https://x.com/jack/status/20',type:'main_frame'});
+    const {settings}=await chrome.storage.local.get('settings');
+    return {rules:(await chrome.declarativeNetRequest.getDynamicRules()).length,matched:matchedRules.length,stored:JSON.stringify(settings)};
   });
-  await options.waitForFunction(()=>document.getElementById('browse-warn').textContent.includes('Synthetic redirect failure'));
-  assert.equal((await worker.evaluate(()=>chrome.declarativeNetRequest.getDynamicRules())).length,0);
-  const popup=await context.newPage();await popup.goto(`chrome-extension://${id}/popup/popup.html`);
-  await popup.waitForFunction(()=>document.getElementById('browse-note').textContent.includes('Synthetic redirect failure'));
-  check('Redirect errors appear in Settings and popup and leave no old rules');
-  await save({browseRedirect:false,toast:false,stripTracking:true});
+  assert.equal(cleaned.rules,0);
+  assert.equal(cleaned.matched,0,'Chrome must no longer redirect x.com links');
+  assert.equal(/browse|xcancel/.test(cleaned.stored),false,'stored settings must not name a withdrawn front-end');
+  check('Rules and settings left by 1.0.3 are removed on start, even when the menu rebuild fails');
+  await save({toast:false,stripTracking:true});
   await worker.evaluate(async()=>{
     await chrome.storage.local.set({lastCopyFailure:{text:'synthetic',at:0}});
     await init('migration-test');

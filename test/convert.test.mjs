@@ -18,7 +18,7 @@ test('rewrites a plain tweet link', () => {
 
 test('accepts twitter.com, www and mobile hosts', () => {
   for (const host of ['twitter.com', 'www.twitter.com', 'mobile.twitter.com', 'www.x.com']) {
-    assert.equal(conv(`https://${host}/jack/status/20`, 'xcancel').url, 'https://xcancel.com/jack/status/20');
+    assert.equal(conv(`https://${host}/jack/status/20`, 'vxtwitter').url, 'https://vxtwitter.com/jack/status/20');
   }
 });
 
@@ -42,7 +42,7 @@ test('handles the /i/web/status form', () => {
   const p = XIT.parse('https://twitter.com/i/web/status/20');
   assert.equal(p.kind, 'status');
   assert.equal(p.id, '20');
-  assert.equal(conv('https://twitter.com/i/web/status/20', 'xcancel').url, 'https://xcancel.com/i/web/status/20');
+  assert.equal(conv('https://twitter.com/i/web/status/20', 'vxtwitter').url, 'https://vxtwitter.com/i/web/status/20');
 });
 
 test('templates that need a tweet id refuse a profile link', () => {
@@ -72,7 +72,7 @@ test('non-twitter and non-http URLs are rejected', () => {
 });
 
 test('an already-redirected link can be retargeted', () => {
-  assert.equal(conv('https://fxtwitter.com/jack/status/20', 'xcancel').url, 'https://xcancel.com/jack/status/20');
+  assert.equal(conv('https://fxtwitter.com/jack/status/20', 'vxtwitter').url, 'https://vxtwitter.com/jack/status/20');
   assert.equal(conv('https://nitter.net/jack/status/20', 'fxtwitter').url, 'https://fxtwitter.com/jack/status/20');
 });
 
@@ -99,66 +99,12 @@ test('custom templates convert', () => {
   assert.equal(XIT.convert('https://x.com/jack/status/20?s=1', custom).url, 'https://n.example.com/jack/status/20');
 });
 
-test('browse rules compile for host-swap templates', () => {
-  const rules = XIT.compileBrowseRules('https://xcancel.com/{path}{query}', { status: true, profile: true, other: true });
-  assert.ok(rules.some(r => r.priority === 2));
-  assert.ok(rules.every((r) => r.transform ? r.transform.host === 'xcancel.com' : r.regexSubstitution.startsWith('https://xcancel.com/')));
-  // RE2 has no lookahead; make sure we never emit one.
-  assert.ok(rules.every((r) => !/\(\?[=!<]/.test(r.regexFilter)));
-});
-
-test('browse rules compile for id templates, status scope only', () => {
-  const rules = XIT.compileBrowseRules('https://threadreaderapp.com/thread/{id}.html', { status: true, profile: true, other: true });
-  assert.equal(rules.length, 2);
-  assert.equal(XIT.compileBrowseRules('https://threadreaderapp.com/thread/{id}.html', { profile: true }).length, 0);
-});
-
-test('direct-media template is not offered for browsing', () => {
-  assert.equal(XIT.supportsBrowse(byId('fxtwitter-direct')), false);
-  assert.equal(XIT.supportsBrowse(byId('fxtwitter')), true);
-});
-
-test('guard rules keep reserved paths and bypassed URLs out of redirects', () => {
-  const guards = XIT.guardRules();
-  assert.ok(guards.every((g) => g.action === 'allow'));
-  const reserved = guards.find((g) => g.regexFilter.includes('notifications'));
-  assert.ok(new RegExp(reserved.regexFilter).test('https://x.com/notifications'));
-  assert.ok(!new RegExp(reserved.regexFilter).test('https://x.com/jack/status/20'));
-  const bypass = guards.find((g) => g.regexFilter.includes('xit_bypass'));
-  assert.ok(new RegExp(bypass.regexFilter).test('https://x.com/jack?xit_bypass=1'));
-});
-
-test('generated browse regexes match what they should', () => {
-  const rules = XIT.compileBrowseRules(
-    'https://xcancel.com/{path}{query}', { status: true, profile: true, other: true });
-  const [status, iStatus] = rules;
-  const profile = rules.find(r => r.priority === 2);
-  const other = rules.find(r => r.priority === 1);
-  assert.ok(new RegExp(status.regexFilter).test('https://x.com/jack/status/20'));
-  assert.ok(!new RegExp(status.regexFilter).test('https://x.com/jack'));
-  assert.ok(new RegExp(iStatus.regexFilter).test('https://x.com/i/web/status/20'));
-  assert.ok(new RegExp(profile.regexFilter).test('https://x.com/jack'));
-  assert.ok(!new RegExp(profile.regexFilter).test('https://x.com/jack/status/20'));
-  assert.ok(new RegExp(other.regexFilter).test('https://x.com/search?q=hi'));
-});
-
-test('reserved routes and bypass values match complete segments', () => {
-  const guards=XIT.guardRules();
-  const allowed=url=>guards.some(r=>new RegExp(r.regexFilter).test(url));
-  for(const p of ['home','home?lang=en','settings/account','i/lists/20']) assert.equal(allowed('https://x.com/'+p),true,p);
-  for(const p of ['homegrown','topicsmith','jobsmith','jack?xit_bypass=10','jack?xit_bypass=1no','jack#?xit_bypass=1']) assert.equal(allowed('https://x.com/'+p),false,p);
-  assert.equal(allowed('https://x.com/jack?xit_bypass=1&lang=en'),true);
-});
-
-test('destination hostname and origin survive www, ports, and IPv6', () => {
+test('custom template hostnames survive www, ports, and IPv6', () => {
   for(const [authority,hostname] of [['www.example.com','www.example.com'],['www.example.com:8443','www.example.com'],['[::1]:8443','[::1]']]) {
     const t='https://'+authority+'/{path}{query}';
     assert.equal(XIT.validateTemplate(t).ok,true);
     assert.equal(XIT.templateHost(t),hostname);
-    assert.equal(XIT.templateOrigin(t),'https://'+authority);
-    assert.equal(XIT.permissionOrigin(t),'https://'+hostname+'/*');
     assert.equal(XIT.convert('https://x.com/jack/status/20',{template:t}).url,'https://'+authority+'/jack/status/20');
-    assert.ok(XIT.compileBrowseRules(t,{status:true}).every(r=>r.regexSubstitution==='https://'+authority+'/\\1'));
   }
 });
 
@@ -176,9 +122,32 @@ test('thread tool URLs retarget through the recovered tweet ID', () => {
   assert.equal(XIT.parse('https://threadreaderapp.com/about'),null);
 });
 
-test('Open on X once canonicalizes mirrors and adds one exact bypass value', () => {
-  assert.equal(XIT.originalUrl('https://fxtwitter.com/jack/status/20?s=20&lang=en'), 'https://x.com/jack/status/20?lang=en&xit_bypass=1');
-  assert.equal(XIT.originalUrl('https://x.com/jack/status/20?xit_bypass=10#photo'), 'https://x.com/jack/status/20?xit_bypass=1#photo');
-  assert.equal(XIT.originalUrl('https://threadreaderapp.com/thread/20.html'),'https://x.com/i/web/status/20?xit_bypass=1');
-  assert.equal(XIT.originalUrl('https://example.com/not-a-tweet'),null);
+test('Open on X canonicalizes mirrors without adding parameters', () => {
+  // There is no page redirect to bypass any more, so nothing is appended.
+  assert.equal(XIT.canonical('https://fxtwitter.com/jack/status/20?s=20&lang=en'), 'https://x.com/jack/status/20?lang=en');
+  assert.equal(XIT.canonical('https://x.com/jack/status/20#photo'), 'https://x.com/jack/status/20#photo');
+  assert.equal(XIT.canonical('https://threadreaderapp.com/thread/20.html'), 'https://x.com/i/web/status/20');
+  assert.equal(XIT.canonical('https://example.com/not-a-tweet'), null);
+});
+
+test('withdrawn front-ends are no longer offered', () => {
+  const hosts = XIT.PRESETS.map((p) => p.host);
+  for (const withdrawn of ['xcancel.com', 'twiiit.com']) assert.equal(hosts.includes(withdrawn), false, withdrawn);
+  assert.equal(hosts.some((h) => /nitter/.test(h)), false, 'no Nitter instance');
+  assert.equal(XIT.GROUPS.some((g) => g.id === 'privacy'), false, 'no privacy front-end group');
+  for (const id of ['xcancel', 'twiiit', 'nitter-net', 'nitter-poast', 'nitter-privacydev']) assert.equal(byId(id), undefined, id);
+});
+
+test('links from withdrawn front-ends can still be converted away from them', () => {
+  // Reading these hosts is kept on purpose: it moves users off them.
+  for (const url of ['https://xcancel.com/jack/status/20', 'https://twiiit.com/jack/status/20', 'https://nitter.poast.org/jack/status/20']) {
+    assert.equal(conv(url, 'fxtwitter').url, 'https://fxtwitter.com/jack/status/20', url);
+    assert.equal(XIT.canonical(url), 'https://x.com/jack/status/20', url);
+  }
+});
+
+test('the redirect engine is not exported', () => {
+  for (const name of ['compileBrowseRules', 'guardRules', 'supportsBrowse', 'originalUrl', 'permissionOrigin', 'templateOrigin', 'BYPASS_PARAM']) {
+    assert.equal(name in XIT, false, name);
+  }
 });

@@ -9,11 +9,8 @@
 
   const SAMPLE = 'https://x.com/jack/status/20?s=20&t=xyz';
   let settings = null;
-  let redirectStatus = null;
   let savedTimer = 0;
   let editingId = null;
-  const probeResults = new Map();
-  let probing = false;
 
   function saved(text) {
     $('saved').textContent = text || 'Saved';
@@ -60,57 +57,6 @@
     const b = document.createElement('b');
     b.textContent = sampleFor(d);
     prev.append(document.createTextNode('x.com/jack/status/20 becomes '), b);
-  }
-
-  /* ---- browse redirect ---- */
-
-  function renderBrowse() {
-    const paused = XITStore.isPaused(settings);
-    $('pause-browse').hidden = paused;
-    $('pause-browse').disabled = !settings.browseRedirect;
-    $('resume-browse').hidden = !paused;
-    $('t-browse').checked = settings.browseRedirect;
-    const sel = $('browse-select');
-    sel.textContent = '';
-    for (const r of XITStore.enabledRedirectors(settings)) {
-      if (!XIT.supportsBrowse(r)) continue;
-      const o = document.createElement('option');
-      o.value = r.id;
-      o.textContent = r.name;
-      sel.appendChild(o);
-    }
-    // Keep the stored choice visible even if it is not browse-capable.
-    if (!sel.querySelector('option[value="' + CSS.escape(settings.browseRedirectorId) + '"]')) {
-      const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
-      if (r) {
-        const o = document.createElement('option');
-        o.value = r.id;
-        o.textContent = r.name + ' (not usable for page loads)';
-        sel.appendChild(o);
-      }
-    }
-    sel.value = settings.browseRedirectorId;
-
-    $('s-status').checked = !!settings.browseScope.status;
-    $('s-profile').checked = !!settings.browseScope.profile;
-    $('s-other').checked = !!settings.browseScope.other;
-
-    for (const el of [sel, $('s-status'), $('s-profile'), $('s-other')]) el.disabled = !settings.browseRedirect;
-
-    const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
-    const msgs = [];
-    if (settings.browseRedirect) {
-      if (!r || !XIT.supportsBrowse(r)) {
-        msgs.push('“' + ((r && r.name) || 'none') + '” cannot be expressed as a redirect rule. Pick another, or turn this off.');
-      } else if (!settings.browseScope.status && !settings.browseScope.profile && !settings.browseScope.other) {
-        msgs.push('No page types selected, so nothing is being redirected.');
-      }
-    }
-    const state = XITStore.browseStatusMessage(settings, redirectStatus);
-    $('browse-warn').dataset.state = msgs.length || (redirectStatus &&
-      redirectStatus.key === XITStore.browseStatusKey(settings) && redirectStatus.state === 'error') ? 'error' : 'normal';
-    if (state) msgs.push(state);
-    $('browse-warn').textContent = msgs.join(' ');
   }
 
   /* ---- redirector list ---- */
@@ -179,13 +125,6 @@
           rowButton(actions, r.id, 'up', 'Move up', () => commit(XITStore.movePinned(r.id, -1))).disabled = index === 0;
           rowButton(actions, r.id, 'down', 'Move down', () => commit(XITStore.movePinned(r.id, 1))).disabled = index === settings.pinnedIds.length - 1;
         }
-        const check = rowButton(actions, r.id, 'check', 'Check this host', () => probeList([r]));
-        check.disabled = probing || !cb.checked || !XIT.templateOrigin(r.template);
-        if (!cb.checked) check.title = 'Enable this redirector to check it.';
-        const probe = document.createElement('span');
-        probe.className = 'ritem-badge';
-        probe.dataset.probe = r.id;
-        actions.appendChild(probe);
         if (r.custom) {
           rowButton(actions, r.id, 'edit', 'Edit', () => editCustom(r));
           rowButton(actions, r.id, 'duplicate', 'Duplicate', () => commit(XITStore.duplicateCustom(r.id)));
@@ -202,78 +141,11 @@
       }
       host.appendChild(wrap);
     }
-    renderProbes();
     if (focusRow && focusAction) {
       const row = host.querySelector('[data-id="' + CSS.escape(focusRow) + '"]');
       let target = row && row.querySelector('[data-action="' + focusAction + '"]');
       if (target && target.disabled) target = row.querySelector('[data-action="pin"]');
       target?.focus({ preventScroll: true });
-    }
-  }
-
-  function renderProbes() {
-    for (const badge of document.querySelectorAll('[data-probe]')) {
-      const r = XITStore.findRedirector(settings, badge.dataset.probe);
-      const result = probeResults.get(badge.dataset.probe);
-      if (!result || !r || result.origin !== XIT.templateOrigin(r.template)) { badge.textContent = ''; continue; }
-      const minutes = Math.floor((Date.now() - result.at) / 60000);
-      const age = minutes < 1 ? 'just now' : minutes === 1 ? '1 minute ago' : minutes + ' minutes ago';
-      badge.textContent = result.state === 'checking' ? 'Checking…' : result.state === 'denied' ? 'Access not granted' :
-        (result.state === 'ok' ? 'Responded ' : 'Did not respond ') + age;
-      badge.className = 'ritem-badge ' + (result.state === 'ok' ? 'badge-ok' : result.state === 'failed' ? 'badge-bad' : 'badge-wait');
-      badge.title = result.state === 'checking' ? '' : 'Checked ' + new Date(result.at).toLocaleString();
-    }
-  }
-
-  async function probeOne(redirector) {
-    const origin = XIT.templateOrigin(redirector.template);
-    const permission = XIT.permissionOrigin(redirector.template);
-    const record = (state) => { probeResults.set(redirector.id, { origin, state, at: Date.now() }); renderProbes(); };
-    record('checking');
-    try {
-      if (!origin || !permission || !(await api.permissions.contains({ origins: [permission] }))) throw new Error('No access');
-    } catch (_) { record('denied'); return; }
-    const current = XITStore.findRedirector(settings, redirector.id);
-    if (!settings.enabledIds.includes(redirector.id) || !current || XIT.templateOrigin(current.template) !== origin) {
-      probeResults.delete(redirector.id); renderProbes(); return;
-    }
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
-    try {
-      await fetch(origin + '/', { method: 'HEAD', mode: 'no-cors', signal: ctrl.signal,
-        cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'manual' });
-      record('ok');
-    } catch (_) { record('failed'); }
-    finally { clearTimeout(timer); }
-  }
-
-  async function probeList(list) {
-    if (probing) return;
-    probing = true;
-    const origins = [...new Set(list.map((r) => XIT.permissionOrigin(r.template)).filter(Boolean))];
-    // Request immediately in the click handler, before awaiting anything else.
-    let permission;
-    try { permission = origins.length ? Promise.resolve(api.permissions.request({ origins })).catch(() => false) : Promise.resolve(false); }
-    catch (_) { permission = Promise.resolve(false); }
-    $('test-all').disabled = true;
-    $('test-all').textContent = 'Checking…';
-    document.querySelectorAll('[data-action="check"]').forEach((button) => { button.disabled = true; });
-    try {
-      await permission;
-      let index = 0;
-      const worker = async () => {
-        while (index < list.length) {
-          const r = list[index++];
-          if (settings.enabledIds.includes(r.id)) await probeOne(r);
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(3, list.length) }, worker));
-      saved('Check complete. A response does not prove the host can display tweets.');
-    } finally {
-      probing = false;
-      $('test-all').disabled = false;
-      $('test-all').textContent = 'Check which are reachable';
-      renderList();
     }
   }
 
@@ -349,7 +221,6 @@
 
   function render() {
     renderDefault();
-    renderBrowse();
     renderList();
     $('t-button').checked = settings.copyButton;
     $('t-hijack').checked = settings.hijackNativeCopy;
@@ -359,27 +230,12 @@
     renderCustomPreview();
   }
 
-  async function ensureOriginPermission(redirector) {
-    const origin = XIT.permissionOrigin(redirector && redirector.template);
-    if (!origin) return false;
-    const origins = [origin];
-    try {
-      return await api.permissions.request({ origins });
-    } catch (_) {
-      return false;
-    }
-  }
-
   async function init() {
     settings = await XITStore.load();
     render();
     XITStore.onChanged((next) => { settings = next; render(); });
-    XITStore.watchStatus((next) => { redirectStatus = next; renderBrowse(); });
     await renderUndo();
     api.storage.onChanged.addListener((changes, area) => { if (area === 'session' && changes.removedCustom) renderUndo(); });
-    setInterval(renderProbes, 30000);
-    $('pause-browse').addEventListener('click', () => commit(XITStore.pause()));
-    $('resume-browse').addEventListener('click', () => commit(XITStore.resume()));
     $('undo-remove').addEventListener('click', async () => { await commit(XITStore.restoreCustom()); await renderUndo(); });
     $('custom-cancel').addEventListener('click', cancelEdit);
 
@@ -388,38 +244,6 @@
     for (const [id, key] of [['t-button', 'copyButton'], ['t-hijack', 'hijackNativeCopy'],
       ['t-strip', 'stripTracking'], ['t-toast', 'toast'], ['t-menu', 'contextMenu']]) {
       $(id).addEventListener('change', (ev) => commit({ [key]: ev.target.checked }));
-    }
-
-    $('t-browse').addEventListener('change', async (ev) => {
-      const enabled = ev.target.checked;
-      if (enabled) {
-        const r = XITStore.findRedirector(settings, settings.browseRedirectorId);
-        if (!(await ensureOriginPermission(r))) {
-          ev.target.checked = false;
-          $('browse-warn').textContent = 'Redirecting page loads needs access to ' + XIT.templateHost(r.template) + '.';
-          $('browse-warn').dataset.state = 'error';
-          return;
-        }
-      }
-      commit({ browseRedirect: enabled });
-    });
-
-    $('browse-select').addEventListener('change', async (ev) => {
-      const id = ev.target.value;
-      const r = XITStore.findRedirector(settings, id);
-      if (settings.browseRedirect && !(await ensureOriginPermission(r))) {
-        ev.target.value = settings.browseRedirectorId;
-        $('browse-warn').textContent = 'Needs access to ' + XIT.templateHost(r.template) + '.';
-        $('browse-warn').dataset.state = 'error';
-        return;
-      }
-      commit({ browseRedirectorId: id });
-    });
-
-    for (const [id, key] of [['s-status', 'status'], ['s-profile', 'profile'], ['s-other', 'other']]) {
-      $(id).addEventListener('change', (ev) => {
-        commit({ browseScope: { [key]: ev.target.checked } });
-      });
     }
 
     $('c-template').addEventListener('input', renderCustomPreview);
@@ -433,15 +257,10 @@
       if (!name) { $('custom-error').textContent = 'Give it a name.'; return; }
       if (!v.ok) { $('custom-error').textContent = v.error; return; }
       const entry = { name, template };
-      if (settings.browseRedirect && id === settings.browseRedirectorId && !(await ensureOriginPermission(entry))) {
-        $('custom-error').textContent = 'Allow access to the new destination before saving an active page redirect.';
-        return;
-      }
       if (id !== editingId) return;
       if (await commit(id ? XITStore.editCustom(id, entry) : XITStore.addCustom(entry))) cancelEdit();
     });
 
-    $('test-all').addEventListener('click', () => probeList(XITStore.enabledRedirectors(settings)));
     $('copy-diagnostics').addEventListener('click', async () => {
       const button = $('copy-diagnostics');
       button.disabled = true;

@@ -10,8 +10,8 @@
 
   const SCHEMA_VERSION = 1;
 
-  // Everything on by default except browse redirect, which changes where you
-  // land and so should be an explicit opt-in.
+  // Keys absent from DEFAULTS are dropped by normalize(). That is how the
+  // page-redirect settings removed in 1.0.7 disappear from stored data.
   const DEFAULTS = {
     schemaVersion: SCHEMA_VERSION,
     defaultRedirector: 'fxtwitter',
@@ -24,11 +24,6 @@
     toast: true,
     stripTracking: true,
     contextMenu: true,
-
-    browseRedirect: false,
-    browseRedirectorId: 'xcancel',
-    browseScope: { status: true, profile: true, other: false },
-    browsePausedUntil: 0,
   };
 
   function clone(v) {
@@ -56,8 +51,6 @@
       if (raw && Object.prototype.hasOwnProperty.call(raw, key)) s[key] = raw[key];
     }
     s.schemaVersion = SCHEMA_VERSION;
-    s.browseScope = Object.assign(clone(DEFAULTS.browseScope), (raw && raw.browseScope) || {});
-    s.browseScope = Object.fromEntries(Object.keys(DEFAULTS.browseScope).map((key) => [key, !!s.browseScope[key]]));
 
     // Drop custom entries that no longer validate, and de-duplicate ids.
     const seen = new Set(XIT.PRESETS.map((p) => p.id));
@@ -81,15 +74,12 @@
     const known = new Set(XIT.PRESETS.map((p) => p.id).concat(s.custom.map((c) => c.id)));
     s.enabledIds = [...new Set((Array.isArray(s.enabledIds) ? s.enabledIds : []).filter((id) => known.has(id)))];
     s.pinnedIds = [...new Set((Array.isArray(s.pinnedIds) ? s.pinnedIds : []).filter((id) => known.has(id)))];
-    s.browsePausedUntil = Number.isSafeInteger(s.browsePausedUntil) && s.browsePausedUntil > 0 ? s.browsePausedUntil : 0;
-    if (!s.browseRedirect) s.browsePausedUntil = 0;
 
     if (!known.has(s.defaultRedirector) || !s.enabledIds.includes(s.defaultRedirector)) {
       s.defaultRedirector = s.enabledIds.includes('fxtwitter') ? 'fxtwitter' : (s.enabledIds[0] || DEFAULTS.defaultRedirector);
     }
-    if (!known.has(s.browseRedirectorId)) s.browseRedirectorId = DEFAULTS.browseRedirectorId;
 
-    for (const k of ['copyButton', 'hijackNativeCopy', 'toast', 'stripTracking', 'contextMenu', 'browseRedirect']) {
+    for (const k of ['copyButton', 'hijackNativeCopy', 'toast', 'stripTracking', 'contextMenu']) {
       s[k] = !!s[k];
     }
     return s;
@@ -114,10 +104,14 @@
     if (!operation || typeof operation !== 'object') throw new Error('Invalid settings operation.');
     if (operation.type === 'patch') {
       const patch = operation.patch || {};
-      raw = { ...current, ...patch, browseScope: { ...current.browseScope, ...patch.browseScope } };
+      raw = { ...current, ...patch };
     } else if (operation.type === 'replace') {
       if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error('Settings must be a JSON object.');
       raw = operation.settings;
+    } else if (operation.type === 'rewrite') {
+      // Re-save normalized settings so keys that are no longer in DEFAULTS
+      // leave stored data, not just the object normalize() returns.
+      raw = current;
     } else if (operation.type === 'reset') {
       raw = DEFAULTS;
       await promisify((cb) => api.storage.local.remove('lastCopyFailure', cb));
@@ -130,7 +124,7 @@
       if (!entry) throw new Error('That custom redirector no longer exists.');
       raw = { ...current, custom: current.custom.filter((c) => c.id !== operation.id) };
       undo = { entry, enabled: current.enabledIds.includes(entry.id), pinIndex: current.pinnedIds.indexOf(entry.id),
-        defaultBefore: current.defaultRedirector, browseBefore: current.browseRedirectorId };
+        defaultBefore: current.defaultRedirector };
     } else if (operation.type === 'restore-custom') {
       const removed = await getUndo();
       if (!removed) throw new Error('There is no removed redirector to restore.');
@@ -139,8 +133,7 @@
       if (removed.pinIndex >= 0) pins.splice(removed.pinIndex, 0, removed.entry.id);
       raw = { ...current, custom: [...current.custom, removed.entry], pinnedIds: pins,
         enabledIds: removed.enabled ? [...current.enabledIds, removed.entry.id] : current.enabledIds,
-        defaultRedirector: current.defaultRedirector === removed.defaultAfter ? removed.defaultBefore : current.defaultRedirector,
-        browseRedirectorId: current.browseRedirectorId === removed.browseAfter ? removed.browseBefore : current.browseRedirectorId };
+        defaultRedirector: current.defaultRedirector === removed.defaultAfter ? removed.defaultBefore : current.defaultRedirector };
     } else if (operation.type === 'pin') {
       const pins = current.pinnedIds.filter((id) => id !== operation.id);
       if (operation.pinned) pins.push(operation.id);
@@ -151,13 +144,6 @@
       const nextIndex = index + (operation.direction < 0 ? -1 : 1);
       if (index >= 0 && nextIndex >= 0 && nextIndex < pins.length) [pins[index], pins[nextIndex]] = [pins[nextIndex], pins[index]];
       raw = { ...current, pinnedIds: pins };
-    } else if (operation.type === 'pause') {
-      if (!current.browseRedirect) throw new Error('Enable page redirects before pausing them.');
-      raw = { ...current, browsePausedUntil: Date.now() + 15 * 60 * 1000 };
-    } else if (operation.type === 'resume') {
-      raw = { ...current, browsePausedUntil: 0 };
-    } else if (operation.type === 'expire-pause') {
-      if (current.browsePausedUntil <= Date.now()) raw = { ...current, browsePausedUntil: 0 };
     } else if (['add-custom', 'edit-custom', 'duplicate-custom'].includes(operation.type)) {
       const original = current.custom.find((c) => c.id === operation.id);
       if (operation.type !== 'add-custom' && !original) throw new Error('That custom redirector no longer exists.');
@@ -178,12 +164,12 @@
       throw new Error('Unknown settings operation.');
     }
     const next = normalize(raw);
-    if (JSON.stringify(next) !== JSON.stringify(current) || operation.type === 'reset') {
+    if (JSON.stringify(next) !== JSON.stringify(current) || operation.type === 'reset' || operation.type === 'rewrite') {
       await promisify((cb) => api.storage.local.set({ settings: next }, cb));
     }
     if (undo) {
       await promisify((cb) => api.storage.session.set({ removedCustom: { ...undo,
-        defaultAfter: next.defaultRedirector, browseAfter: next.browseRedirectorId } }, cb));
+        defaultAfter: next.defaultRedirector } }, cb));
     } else if (['restore-custom', 'reset', 'replace'].includes(operation.type)) {
       await promisify((cb) => api.storage.session.remove('removedCustom', cb));
     }
@@ -213,39 +199,7 @@
   const restoreCustom = () => mutate({ type: 'restore-custom' });
   const setPinned = (id, pinned) => mutate({ type: 'pin', id, pinned });
   const movePinned = (id, direction) => mutate({ type: 'move-pin', id, direction });
-  const pause = () => mutate({ type: 'pause' });
-  const resume = () => mutate({ type: 'resume' });
-  const isPaused = (settings) => settings.browseRedirect && settings.browsePausedUntil > Date.now();
   const getUndo = async () => (await promisify((cb) => api.storage.session.get('removedCustom', cb))).removedCustom || null;
-
-  function browseStatusKey(settings) {
-    const r = findRedirector(settings, settings.browseRedirectorId);
-    return JSON.stringify([settings.browseRedirect, r && r.template, settings.browseScope, settings.browsePausedUntil]);
-  }
-
-  function browseStatusMessage(settings, status) {
-    if (!status || status.key !== browseStatusKey(settings)) return 'Applying page redirect settings…';
-    if (status.state === 'error') return status.message;
-    if (status.state === 'updating') return 'Applying page redirect settings…';
-    if (status.state === 'paused') return isPaused(settings)
-      ? 'Paused until ' + new Date(settings.browsePausedUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Copy rewriting stays on.'
-      : 'Resuming page redirects…';
-    if (status.state === 'active') return 'Page redirect is active.';
-    return settings.browseRedirect ? 'No page types are selected.' : '';
-  }
-
-  function watchStatus(cb) {
-    let changed = false;
-    api.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes.dnrStatus) {
-        changed = true;
-        cb(changes.dnrStatus.newValue);
-      }
-    });
-    promisify((done) => api.storage.local.get('dnrStatus', done))
-      .then((value) => { if (!changed) cb(value && value.dnrStatus); })
-      .catch(() => { if (!changed) cb(null); });
-  }
 
   /** Every redirector definition, presets first, regardless of enabled state. */
   function allRedirectors(settings) {
@@ -295,8 +249,8 @@
   root.XITStore = {
     api, DEFAULTS, SCHEMA_VERSION,
     load, save, replace, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
-    startWriter, mutate, browseStatusKey, browseStatusMessage, watchStatus,
-    editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups, pause, resume, isPaused,
+    startWriter, mutate,
+    editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups,
     allRedirectors, enabledRedirectors, findRedirector, defaultRedirector, extraHosts,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

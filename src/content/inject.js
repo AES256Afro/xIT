@@ -338,7 +338,7 @@
     }
     fragment.appendChild(element('div', 'xit-sep'));
     const foot = element('div', 'xit-foot');
-    for (const [action, text] of [['open-original', 'Open on X once'], ['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
+    for (const [action, text] of [['open-original', 'Open on X'], ['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
       const button = element('button', '', text);
       button.setAttribute('data-foot', action);
       foot.appendChild(button);
@@ -620,19 +620,6 @@
   });
 
   /* ---------------------------------------------------------------- *
-   * Bypass parameter cleanup
-   * ---------------------------------------------------------------- */
-
-  function cleanBypassParam() {
-    try {
-      const u = new URL(location.href);
-      if (u.searchParams.get(XIT.BYPASS_PARAM) !== '1') return;
-      u.searchParams.delete(XIT.BYPASS_PARAM);
-      history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
-    } catch (_) { /* ignore */ }
-  }
-
-  /* ---------------------------------------------------------------- *
    * Start
    * ---------------------------------------------------------------- */
 
@@ -641,7 +628,6 @@
     extraHosts = XITStore.extraHosts(settings);
 
     syncTheme();
-    cleanBypassParam();
     pushConfig();
     queueScan();
 
