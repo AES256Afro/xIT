@@ -10,7 +10,7 @@ traps. For how the extension works and how to build it, read the
 | | |
 |---|---|
 | Repo | <https://github.com/AES256Afro/xIT> (public) |
-| Working copy | `/Users/chris/Projects/xIT` |
+| Working copy | `~/Projects/xIT` |
 | Chrome listing | <https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc> |
 | Chrome item ID | `clilllbfkoeamfonhoeaaepglgceanlc` |
 | Firefox add-on ID | `xit@aes256afro.github.io` (permanent once submitted) |
@@ -48,7 +48,7 @@ curl -s "https://img.shields.io/chrome-web-store/v/clilllbfkoeamfonhoeaaepglgcea
 ```
 
 **Git history contains two identities.** Commits from 13 September are authored
-`christopher.courtney@protonmail.com`; everything else uses
+under a personal address; everything else uses
 `AES256Afro@users.noreply.github.com`. A deliberate scrub on 12 September
 removed a personal name and email from the repo and its history. If you work
 from a different machine, set this before committing:
