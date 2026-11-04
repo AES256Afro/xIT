@@ -53,7 +53,29 @@ test('templates that need a tweet id refuse a profile link', () => {
 
 test('thread tools build their own path shape', () => {
   assert.equal(conv('https://x.com/jack/status/20', 'threadreader').url, 'https://threadreaderapp.com/thread/20.html');
-  assert.equal(conv('https://x.com/jack/status/20', 'unrollnow').url, 'https://unrollnow.com/status/20');
+});
+
+test('unrollnow is retired but its links are still readable', () => {
+  // The host answered 503 and was removed in 1.0.8. Nothing may send a user
+  // there, and a link somebody already has must still convert away from it.
+  assert.equal(XIT.PRESETS.some((p) => p.id === 'unrollnow'), false);
+  assert.equal(XIT.PRESETS.some((p) => p.host === 'unrollnow.com'), false);
+  assert.equal(XIT.isMirrorHost('unrollnow.com'), true);
+  assert.equal(conv('https://unrollnow.com/status/20', 'fxtwitter').url, 'https://fxtwitter.com/i/web/status/20');
+  assert.equal(XIT.canonical('https://unrollnow.com/status/20'), 'https://x.com/i/web/status/20');
+});
+
+test('the host pattern list is the one the manifest is built from', () => {
+  // B4: the popup gate, the menu patterns and the manifest all read this.
+  assert.deepEqual(Array.from(XIT.HOST_PATTERNS), [
+    '*://x.com/*', '*://www.x.com/*',
+    '*://twitter.com/*', '*://www.twitter.com/*',
+    '*://mobile.twitter.com/*', '*://m.twitter.com/*',
+  ]);
+  for (const pattern of XIT.HOST_PATTERNS) {
+    const host = pattern.replace('*://', '').replace('/*', '');
+    assert.equal(XIT.isSourceHost(host), true, host + ' should parse as a source host');
+  }
 });
 
 test('profiles are recognised but site features are not', () => {

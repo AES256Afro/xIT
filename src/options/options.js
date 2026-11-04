@@ -257,7 +257,6 @@
       if (!name) { $('custom-error').textContent = 'Give it a name.'; return; }
       if (!v.ok) { $('custom-error').textContent = v.error; return; }
       const entry = { name, template };
-      if (id !== editingId) return;
       if (await commit(id ? XITStore.editCustom(id, entry) : XITStore.addCustom(entry))) cancelEdit();
     });
 

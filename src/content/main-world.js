@@ -19,16 +19,28 @@
     if (ev.source !== window) return;
     const d = ev.data;
     if (!d || d.__xit !== 'config' || !d.payload) return;
+    // S1: postMessage is readable and writable by every script on the page,
+    // so this config cannot be authenticated. The template is therefore only
+    // honoured when it points at a redirector xIT ships: a hostile page script
+    // can swap one bundled redirector for another, but it cannot aim the
+    // user's own "Copy link" at a host of its choosing. A custom redirector is
+    // declined here and handled by the isolated world's DOM-level fallback,
+    // which no page script can speak to.
+    const template = typeof d.payload.template === 'string'
+      && XIT.validateTemplate(d.payload.template).ok
+      && XIT.isPresetTemplate(d.payload.template)
+      ? d.payload.template : null;
     cfg = {
       enabled: !!d.payload.enabled,
-      template: typeof d.payload.template === 'string' && XIT.validateTemplate(d.payload.template).ok ? d.payload.template : null,
+      template,
       name: typeof d.payload.name === 'string' ? d.payload.name : '',
       requires: Array.isArray(d.payload.requires) ? d.payload.requires.filter((v) => v === 'id' || v === 'user') : [],
       stripTracking: d.payload.stripTracking !== false,
     };
     // Acknowledge configuration without requesting it again. Replying with
     // hello here would create an endless config -> hello -> config loop.
-    post('ready');
+    // declined says the isolated world has to handle the copy itself.
+    post('ready', { declined: !!d.payload.enabled && !template });
   }, false);
 
   function post(type, extra) {

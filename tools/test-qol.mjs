@@ -46,8 +46,8 @@ try {
   assert.equal(await popup.evaluate(() => copies.at(-1)), 'https://fxtwitter.com/jack/status/20');
   check('The paste field focuses on unrelated tabs and Enter copies the previewed link');
 
-  await options.locator('[data-id="unrollnow"] [data-action="pin"]').click();
-  await popup.waitForFunction(() => document.querySelector('#list .item')?.dataset.id === 'unrollnow');
+  await options.locator('[data-id="threadreader"] [data-action="pin"]').click();
+  await popup.waitForFunction(() => document.querySelector('#list .item')?.dataset.id === 'threadreader');
   await popup.locator('[data-id="vxtwitter"] [data-action="pin"]').click();
   await options.waitForSelector('[data-id="vxtwitter"] [data-action="up"]');
   await options.locator('[data-id="vxtwitter"] [data-action="up"]').click();
@@ -111,7 +111,7 @@ try {
   assert.ok(opened.includes('https://x.com/jack/status/20'));
   assert.ok(!tweet.url().includes('xit_bypass'), 'no bypass parameter is added any more');
   await tweet.locator('.xit-btn-caret').first().click();
-  assert.deepEqual(await tweet.locator('.xit-row').evaluateAll(rows => rows.slice(0, 2).map(r => r.dataset.id)), ['vxtwitter', 'unrollnow']);
+  assert.deepEqual(await tweet.locator('.xit-row').evaluateAll(rows => rows.slice(0, 2).map(r => r.dataset.id)), ['vxtwitter', 'threadreader']);
   await openOnX(() => tweet.locator('[data-foot="open-original"]').click());
   await openOnX(() => worker.evaluate(() => handleMenuClick({ menuItemId: 'xit-link-open-original', linkUrl: 'https://x.com/jack/status/20?s=20' })));
   check('Open on X works from popup, tweet menu and context-menu handling; pinned order also reaches the tweet menu');

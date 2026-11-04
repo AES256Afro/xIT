@@ -151,13 +151,13 @@
       const name = String(entry.name || '').trim();
       const validation = XIT.validateTemplate(entry.template);
       if (!name || !validation.ok) throw new Error(validation.error || 'Give the redirector a name.');
-      const base = 'c-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
-      const taken = new Set(allRedirectors(current).map((r) => r.id));
-      let id = base;
-      for (let n = 2; taken.has(id); n++) id = base + '-' + n;
       if (operation.type === 'edit-custom') {
         raw = { ...current, custom: current.custom.map((c) => c.id === original.id ? { ...c, name, template: entry.template } : c) };
       } else {
+        const base = 'c-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
+        const taken = new Set(allRedirectors(current).map((r) => r.id));
+        let id = base;
+        for (let n = 2; taken.has(id); n++) id = base + '-' + n;
         raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
       }
     } else {

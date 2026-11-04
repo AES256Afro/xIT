@@ -13,6 +13,7 @@ import { cp, mkdir, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import vm from 'node:vm';
 import path from 'node:path';
 
 const run = promisify(execFile);
@@ -24,14 +25,12 @@ const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
 
 const LIB = ['lib/redirectors.js', 'lib/storage.js'];
 
-const HOSTS = [
-  '*://x.com/*',
-  '*://www.x.com/*',
-  '*://twitter.com/*',
-  '*://www.twitter.com/*',
-  '*://mobile.twitter.com/*',
-  '*://m.twitter.com/*',
-];
+// src/lib/redirectors.js owns the X origin list. Read it rather than keeping a
+// second copy here, so the manifest cannot drift from what the code matches.
+const hostCtx = vm.createContext({ URL, URLSearchParams, JSON });
+vm.runInContext(await readFile(path.join(SRC, 'lib/redirectors.js'), 'utf8'), hostCtx);
+const HOSTS = hostCtx.XIT.HOST_PATTERNS;
+if (!Array.isArray(HOSTS) || !HOSTS.length) throw new Error('XIT.HOST_PATTERNS is missing from src/lib/redirectors.js');
 
 function baseManifest() {
   return {

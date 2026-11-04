@@ -14,13 +14,23 @@
 
   const SOURCE_HOST_RE = /^(?:www\.|mobile\.|m\.)?(?:twitter|x)\.com$/i;
 
+  // The one list of X origins. tools/build.mjs reads this to generate
+  // host_permissions and the content script matches, the background uses it
+  // for menu patterns, and the popup uses it for its permission gate. Keeping
+  // three copies in step by hand is what let them drift apart.
+  const HOST_PATTERNS = [
+    '*://x.com/*', '*://www.x.com/*',
+    '*://twitter.com/*', '*://www.twitter.com/*',
+    '*://mobile.twitter.com/*', '*://m.twitter.com/*',
+  ];
+
   // First path segment that is a site feature, never a username.
   const RESERVED = new Set([
     'i', 'home', 'explore', 'notifications', 'messages', 'settings', 'search',
     'compose', 'login', 'logout', 'signup', 'intent', 'hashtag', 'share',
     'account', 'tos', 'privacy', 'about', 'who_to_follow', 'lists', 'topics',
-    'bookmarks', 'jobs', 'following', 'followers', 'connect_people', 'notifications',
-    'search-advanced', 'session', 'oauth', 'widgets', 'download', 'messages',
+    'bookmarks', 'jobs', 'following', 'followers', 'connect_people',
+    'search-advanced', 'session', 'oauth', 'widgets', 'download',
   ]);
 
   const USERNAME_RE = /^[A-Za-z0-9_]{1,15}$/;
@@ -63,9 +73,6 @@
     { id: 'threadreader', name: 'Thread Reader App', group: 'thread', host: 'threadreaderapp.com',
       template: 'https://threadreaderapp.com/thread/{id}.html', requires: ['id'],
       note: 'Unrolls the whole thread. Needs a tweet link, not a profile.' },
-    { id: 'unrollnow', name: 'Unroll Now', group: 'thread', host: 'unrollnow.com',
-      template: 'https://unrollnow.com/status/{id}', requires: ['id'],
-      note: 'Needs a tweet link, not a profile.' },
   ];
 
   const PRESET_HOSTS = new Set(PRESETS.map((p) => p.host));
@@ -73,7 +80,9 @@
   // Front-ends xIT no longer offers. Links from them are still read, so a
   // pasted xcancel or Nitter URL can be converted to a supported redirector,
   // but nothing ever sends a user to these hosts.
-  const WITHDRAWN_HOSTS = new Set(['xcancel.com', 'twiiit.com']);
+  // xcancel and twiiit went after a cease and desist; unrollnow.com stopped
+  // answering (503) and was retired in 1.0.8.
+  const WITHDRAWN_HOSTS = new Set(['xcancel.com', 'twiiit.com', 'unrollnow.com']);
 
   /* ------------------------------------------------------------------ *
    * Parsing
@@ -92,7 +101,7 @@
     const bare = bareHost(hostname);
     if (PRESET_HOSTS.has(bare) || WITHDRAWN_HOSTS.has(bare)) return true;
     if (extraHosts && extraHosts.has(String(hostname).toLowerCase())) return true;
-    return /(^|\.)nitter\b/.test(bare) || bare.startsWith('nitter.');
+    return /(^|\.)nitter\b/.test(bare);
   }
 
   /**
@@ -210,6 +219,22 @@
     return u ? u.hostname : null;
   }
 
+  /**
+   * Is this template pointed at one of the redirectors we ship?
+   *
+   * S1: the main world cannot authenticate the config it is handed, because
+   * the only channel into a page's own context is postMessage, which every
+   * script on the page can both read and send. So it does not trust the
+   * template: it accepts one only when the host is a bundled preset. A page
+   * script can still switch the user between two redirectors xIT ships, which
+   * is a nuisance; it can no longer aim the native copy at a host it chose.
+   */
+  function isPresetTemplate(template) {
+    const host = templateHost(template);
+    if (!host) return false;
+    return PRESET_HOSTS.has(host.toLowerCase());
+  }
+
   function templateURL(template) {
     const t = String(template || '').trim();
     const authority = /^https:\/\/([^/?#]+)/i.exec(t);
@@ -251,9 +276,9 @@
   }
 
   root.XIT = {
-    GROUPS, PRESETS, TOKENS, TRACKING_PARAMS,
+    GROUPS, PRESETS, TOKENS, TRACKING_PARAMS, HOST_PATTERNS,
     parse, expand, convert, canonical, stripTracking,
-    validateTemplate, templateHost,
+    validateTemplate, templateHost, isPresetTemplate,
     isSourceHost, isMirrorHost, bareHost,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

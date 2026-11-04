@@ -20,11 +20,7 @@ const MENU_ROOT_LINK = 'xit-link-root';
 const MENU_ROOT_PAGE = 'xit-page-root';
 const LEGACY_SETTINGS = ['browseRedirect', 'browseRedirectorId', 'browseScope', 'browsePausedUntil'];
 
-const LINK_PATTERNS = [
-  '*://x.com/*', '*://www.x.com/*',
-  '*://twitter.com/*', '*://www.twitter.com/*',
-  '*://mobile.twitter.com/*', '*://m.twitter.com/*',
-];
+const LINK_PATTERNS = XIT.HOST_PATTERNS;
 
 /* -------------------------------------------------------------------- *
  * Context menus
@@ -97,7 +93,11 @@ async function buildMenus(settings) {
  * context-menu click grants activeTab, which is what makes this allowed.
  * -------------------------------------------------------------------- */
 
-function clipboardPayload(text, showToast) {
+// Runs in the target page through scripting.executeScript, which is only
+// reached when there is no content script to take the copy. Nothing can show a
+// toast from here: the page has no xIT UI in it. An earlier version dispatched
+// an xit:toast CustomEvent that nothing ever listened for.
+function clipboardPayload(text) {
   const write = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -119,22 +119,20 @@ function clipboardPayload(text, showToast) {
       return false;
     }
   };
-  return write().then((ok) => {
-    if (showToast) {
-      try {
-        window.dispatchEvent(new CustomEvent('xit:toast', {
-          detail: { text: ok ? 'Copied: ' + text : 'Could not copy', ok },
-        }));
-      } catch (_) { /* no content script on this page; silent */ }
-    }
-    return ok;
-  });
+  return write();
 }
 
-async function copyInTab(tabId, text, showToast) {
+/**
+ * Copy `text` in the given tab. `note` replaces the confirmation toast, for
+ * the case where the copy succeeded but not with the redirector the user
+ * asked for. Off an X tab there is no content script and so no toast at all.
+ */
+async function copyInTab(tabId, text, showToast, note) {
   // Prefer the content script: it owns the in-page toast.
   try {
-    const res = await api.tabs.sendMessage(tabId, { type: 'xit:copy-text', text });
+    const res = await api.tabs.sendMessage(tabId, {
+      type: 'xit:copy-text', text, note: note || null, silent: !showToast,
+    });
     if (res && res.ok) return true;
   } catch (_) { /* not injected here */ }
 
@@ -142,7 +140,7 @@ async function copyInTab(tabId, text, showToast) {
     const results = await api.scripting.executeScript({
       target: { tabId },
       func: clipboardPayload,
-      args: [text, !!showToast],
+      args: [text],
     });
     return !!(results && results[0] && results[0].result);
   } catch (e) {
@@ -158,7 +156,7 @@ async function copyInTab(tabId, text, showToast) {
 async function handleMenuClick(info, tab) {
   const settings = await XITStore.load();
   const opts = { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) };
-  const target = info.linkUrl || (tab && tab.url) || '';
+  const target = info.linkUrl || info.frameUrl || (tab && tab.url) || '';
   const id = String(info.menuItemId || '');
 
   if (id === 'xit-link-open-original' || id === 'xit-page-open-original') {
@@ -187,8 +185,16 @@ async function handleMenuClick(info, tab) {
   const redirector = XITStore.findRedirector(settings, redirectorId);
   const out = XIT.convert(target, redirector, opts);
   if (!out.ok) {
-    if (tab) await copyInTab(tab.id, target, false).catch(() => {});
+    // The chosen redirector does not apply to this link. Fall back to the
+    // canonical x.com URL, never the raw target, which still carries the
+    // tracking parameters the user asked to have stripped. Say which it was:
+    // a silent substitution is how somebody pastes the wrong thing.
+    const clean = XIT.canonical(target, opts);
     console.warn('[xit]', out.reason);
+    if (tab && clean) {
+      await copyInTab(tab.id, clean, settings.toast,
+        out.reason + ' Copied the clean x.com link instead.').catch(() => {});
+    }
     return;
   }
 
@@ -292,11 +298,32 @@ async function handleCommand(command, tab) {
  * Messages from popup / options / content
  * -------------------------------------------------------------------- */
 
+/**
+ * Is this a URL one of the user's own redirectors would have produced?
+ * Everything that reaches xit:open comes from our own content script, so this
+ * is defence in depth rather than a gate against the web. It is cheap, and it
+ * means a single stray message cannot turn the extension into a way to open
+ * an arbitrary tab.
+ */
+async function isOwnDestination(url) {
+  let u;
+  try { u = new URL(String(url)); } catch (_) { return false; }
+  if (u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase();
+  if (XIT.isSourceHost(host)) return true;
+  const settings = await XITStore.load();
+  return XITStore.extraHosts(settings).has(host) || XITStore.extraHosts(settings).has(XIT.bareHost(host));
+}
+
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+  // Every sender is one of our own pages or content scripts. There is no
+  // externally_connectable, so nothing on the web can reach this listener,
+  // but three of the handlers below used to skip this check while the other
+  // three made it. One rule for all of them.
+  if (sender.id !== api.runtime.id) return;
 
   if (msg.type === 'xit:open-original' || msg.type === 'xit:diagnostics') {
-    if (sender.id !== api.runtime.id) return;
     const action = msg.type === 'xit:diagnostics' ? diagnostics() : openOriginal(msg.url, sender.tab);
     action.then((report) => sendResponse({ ok: true, report }),
       () => sendResponse({ ok: false, error: msg.type === 'xit:diagnostics' ? 'Could not collect diagnostics. Try again.' : 'Could not open that X link.' }));
@@ -304,7 +331,6 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'xit:mutate-settings') {
-    if (sender.id !== api.runtime.id) return;
     XITStore.mutate(msg.operation).then(
       (settings) => sendResponse({ ok: true, settings }),
       (error) => sendResponse({ ok: false, error: error.message })
@@ -336,19 +362,13 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'xit:open') {
     (async () => {
+      if (!await isOwnDestination(msg.url)) {
+        sendResponse({ ok: false, error: 'That is not one of your redirectors.' });
+        return;
+      }
       const tab = sender.tab;
       await api.tabs.create({ url: msg.url, index: tab ? tab.index + 1 : undefined, active: msg.active !== false });
       sendResponse({ ok: true });
-    })();
-    return true;
-  }
-
-  if (msg.type === 'xit:copy-via-background') {
-    (async () => {
-      const settings = await XITStore.load();
-      const tabId = (sender.tab && sender.tab.id) || msg.tabId;
-      const ok = tabId != null ? await copyInTab(tabId, msg.text, settings.toast) : false;
-      sendResponse({ ok });
     })();
     return true;
   }
