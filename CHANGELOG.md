@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.8
+
+- Stop putting the wrong link on the clipboard. When a redirector does not apply to a link, for example a thread tool on a profile, the clean x.com link is copied instead of the raw target, and the toast says which redirector declined and why. Previously the raw link was copied silently, tracking parameters and all.
+- Remove Unroll Now. The host stopped answering. Links from unrollnow.com are still recognised so they can be converted to a redirector that works, but nothing sends you there.
+- Apply the same sender check to every background message. Opening a tab now requires the destination to be a redirector your settings account for.
+- Right-clicking inside a frame on X converts that frame rather than the top of the page.
+- Read the X origin list from one place, so the manifest, the popup's access check and the right-click menus cannot disagree about which hosts are covered.
+- Collapse repeated theme reads into one per frame, instead of one for every style change X makes to the page.
+- Stop the page deciding where your "Copy link" goes. The clipboard wrapper that runs in the page's own context now accepts only the redirectors xIT ships, because the channel into that context is readable by every script on the page. If your default is a custom redirector, the copy is handled by the extension's own code instead, so it keeps working.
+- Remove dead code: a clipboard toast event that nothing listened for, an unreachable settings guard, an unused element in Settings, and duplicate entries in the reserved path list.
+
 ## 1.0.7
 
 - Remove the Nitter-based privacy front-ends (xcancel, twiiit, nitter.net, nitter.poast.org, nitter.privacydev.net) after those services received a cease and desist. Links from them are still recognised so they can be converted to a redirector xIT does offer, but nothing sends you to them.

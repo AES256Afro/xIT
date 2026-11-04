@@ -7,7 +7,9 @@
   const XITStore = globalThis.XITStore;
 
   const $ = (id) => document.getElementById(id);
-  const HOST_PATTERNS = ['*://x.com/*', '*://twitter.com/*', '*://mobile.twitter.com/*'];
+  // B4: this used to list three of the six origins the manifest declares, so
+  // the gate below could pass while diagnostics reported access as incomplete.
+  const HOST_PATTERNS = XIT.HOST_PATTERNS;
 
   let settings = null;
   let tab = null;
@@ -258,15 +260,15 @@
       window.close();
     });
 
-    const toggle = async (id, key) => {
+    const toggle = (id, key) => {
       $(id).addEventListener('change', async (ev) => {
         settings = await XITStore.save({ [key]: ev.target.checked });
         refreshPreview();
       });
     };
-    await toggle('t-button', 'copyButton');
-    await toggle('t-hijack', 'hijackNativeCopy');
-    await toggle('t-strip', 'stripTracking');
+    toggle('t-button', 'copyButton');
+    toggle('t-hijack', 'hijackNativeCopy');
+    toggle('t-strip', 'stripTracking');
   }
 
   init().catch((e) => status(String(e && e.message || e), 'error'));

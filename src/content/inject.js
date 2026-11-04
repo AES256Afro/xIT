@@ -13,6 +13,11 @@
   let settings = null;
   let extraHosts = new Set();
   let mainWorldReady = false;
+  // The main world refuses a template that is not one of the bundled presets,
+  // because it cannot tell our config from a page script's. When it declines,
+  // the DOM-level fallback below takes the copy instead, so a custom default
+  // keeps working.
+  let mainWorldDeclined = false;
 
   /* ---------------------------------------------------------------- *
    * Icons
@@ -39,6 +44,18 @@
     const l = luminance(bg);
     if (l == null) return;
     document.documentElement.setAttribute('data-xit-theme', l > 0.5 ? 'light' : 'dark');
+  }
+
+  // X rewrites body style and class often, and each getComputedStyle call
+  // forces a style recalculation. Collapse a burst into one read per frame.
+  let themeQueued = false;
+  function queueSyncTheme() {
+    if (themeQueued) return;
+    themeQueued = true;
+    requestAnimationFrame(() => {
+      themeQueued = false;
+      try { syncTheme(); } catch (e) { console.warn('[xit] theme sync failed', e); }
+    });
   }
 
   /* ---------------------------------------------------------------- *
@@ -128,7 +145,12 @@
       toast(out.reason, 'error');
       return;
     }
-    api.runtime.sendMessage({ type: 'xit:open', url: out.url }).catch(() => {
+    api.runtime.sendMessage({ type: 'xit:open', url: out.url }).then((result) => {
+      if (result && result.ok === false) toast(result.error || 'Could not open that link.', 'error');
+    }).catch(() => {
+      // The background did not answer at all (asleep, or mid-update). The
+      // destination came from the user's own settings, so opening it here is
+      // the same decision the background would have made.
       window.open(out.url, '_blank', 'noopener');
     });
   }
@@ -537,7 +559,8 @@
   }
 
   function nativeCopyFallback(ev) {
-    if (!settings || !settings.hijackNativeCopy || mainWorldReady) return;
+    if (!settings || !settings.hijackNativeCopy) return;
+    if (mainWorldReady && !mainWorldDeclined) return;
     const item = ev.target.closest && ev.target.closest('[role="menuitem"], [data-testid="copy-link-to-tweet"]');
     if (!item) return;
     const text = (item.textContent || '').trim().toLowerCase();
@@ -563,6 +586,10 @@
   function pushConfig() {
     if (!settings) return;
     const d = XITStore.defaultRedirector(settings);
+    // Work out here what the main world is going to decide, rather than
+    // waiting for its reply: this side has the same preset list, and the
+    // fallback must be armed even if the reply never arrives.
+    mainWorldDeclined = !!settings.hijackNativeCopy && !(d && XIT.isPresetTemplate(d.template));
     window.postMessage({
       __xit: 'config',
       payload: {
@@ -586,6 +613,10 @@
       // The document_start hello may predate our listener. This confirms
       // receipt of our config without starting another message exchange.
       mainWorldReady = true;
+      // Only ever arm the fallback from this reply, never disarm it: the
+      // message is readable and writable by any script on the page, and
+      // pushConfig has already worked out the answer for itself.
+      if (d.declined) mainWorldDeclined = true;
     } else if (d.__xit === 'copied' && typeof d.url === 'string') {
       toast('Copied: ' + shortLabel(d.url), 'ok');
     }
@@ -600,7 +631,9 @@
 
     if (msg.type === 'xit:copy-text') {
       writeClipboard(msg.text).then((ok) => {
-        toast(ok ? 'Copied: ' + shortLabel(msg.text) : 'Could not write to the clipboard', ok ? 'ok' : 'error');
+        if (!ok) toast('Could not write to the clipboard', 'error');
+        else if (msg.note) toast(msg.note, 'warn');
+        else if (!msg.silent) toast('Copied: ' + shortLabel(msg.text), 'ok');
         sendResponse({ ok });
       });
       return true;
@@ -634,7 +667,7 @@
     new MutationObserver(scanMutations).observe(document.body, { childList: true, subtree: true });
 
     // X swaps themes without a reload; body style is the tell.
-    new MutationObserver(syncTheme).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+    new MutationObserver(queueSyncTheme).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
 
     document.addEventListener('pointerdown', rememberTweet, true);
     document.addEventListener('click', nativeCopyFallback, true);

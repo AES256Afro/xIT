@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { setImmediate as tick } from 'node:timers/promises';
+import vmlib from 'node:vm';
+
+// The menu-click tests need the real URL logic, not a stub, or they would
+// agree with whatever the code happens to do.
+const realCtx = vmlib.createContext({ console, URL, URLSearchParams, JSON });
+vmlib.runInContext(readFileSync(new URL('../src/lib/redirectors.js', import.meta.url), 'utf8'), realCtx);
+const REAL = realCtx.XIT;
 
 function harness(firefox = false) {
   const menus = new Map();
@@ -16,6 +23,11 @@ function harness(firefox = false) {
   const local = {};
   const rewrites = [];
   const badge = { text: 'PAUSE' };
+  const sent = [];
+  const opened = [];
+  const injected = [];
+  let noContentScript = false;
+  let redirector = { name: 'Example', template: 'https://example.com/{path}' };
   const event = (name) => ({ addListener(fn) { events[name] = fn; } });
   const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup') };
   let failRemoval = false;
@@ -52,6 +64,19 @@ function harness(firefox = false) {
       set: async (value) => { Object.assign(local, value); },
     } },
     action: { setBadgeText: async ({ text }) => { badge.text = text; } },
+    tabs: {
+      sendMessage: async (tabId, message) => {
+        if (noContentScript) throw new Error('could not establish connection');
+        sent.push({ tabId, ...message });
+        return { ok: true };
+      },
+      create: async (opts) => { opened.push(opts); return { id: 99 }; },
+      query: async () => [],
+    },
+    scripting: {
+      executeScript: async ({ args }) => { injected.push(args); return [{ result: true }]; },
+    },
+    permissions: { contains: async () => true },
     declarativeNetRequest: {
       getDynamicRules: async () => rules,
       updateDynamicRules: async ({removeRuleIds = [], addRules = []}) => {
@@ -84,15 +109,22 @@ function harness(firefox = false) {
     onChanged(fn) { changed = fn; },
     enabledRedirectors: (s) => [{id:'example',group:'test',name:s.name}],
     defaultRedirector: (s) => ({name:s.name}),
-    findRedirector: () => ({template:'https://example.com/{path}'}),
+    findRedirector: () => redirector,
+    extraHosts: () => new Set(['example.com']),
   };
   const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: {
     GROUPS: [{id:'test',label:'Test'}],
-  }, XITStore: store });
+    HOST_PATTERNS: REAL.HOST_PATTERNS,
+    convert: REAL.convert, canonical: REAL.canonical,
+    isSourceHost: REAL.isSourceHost, bareHost: REAL.bareHost,
+  }, XITStore: store, URL, Set });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
   return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
     rewrites, badge, createCount: () => created,
+    sent, opened, injected,
+    setRedirector(value) { redirector = value; },
+    dropContentScript() { noContentScript = true; },
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
   };
@@ -208,4 +240,97 @@ test('a settings write alone rebuilds the menus exactly once', async () => {
   assert.equal(h.errors.length, 0, 'rebuilding must not collide with itself');
   assert.equal([...h.menus.values()].some((m) => String(m.title).includes('second')), true,
     'the rebuilt menu should reflect the new settings');
+});
+
+/* -------------------------------------------------------------------- *
+ * Milestone 1 regressions
+ * -------------------------------------------------------------------- */
+
+test('a redirector that does not apply copies the clean x.com link and says so', async () => {
+  // B1. This used to put the raw target on the clipboard, tracking parameters
+  // and all, with the toast suppressed and only a console warning. Deleting
+  // the fallback below makes this fail on the URL, deleting the note makes it
+  // fail on the explanation.
+  const h = harness();
+  await h.settle();
+  h.setRedirector({ name: 'Thread Reader App', template: 'https://threadreaderapp.com/thread/{id}.html', requires: ['id'] });
+
+  h.events.clicked({ menuItemId: 'xit-link-copy:threadreader', linkUrl: 'https://x.com/jack?s=20&t=abc' }, { id: 7, index: 2 });
+  await h.settle();
+
+  assert.equal(h.sent.length, 1, 'exactly one clipboard write');
+  assert.equal(h.sent[0].text, 'https://x.com/jack', 'the clean canonical link, not the raw target');
+  assert.match(h.sent[0].note, /specific tweet/, 'the reason the redirector did not apply');
+  assert.match(h.sent[0].note, /clean x\.com link instead/, 'and what was copied in its place');
+  assert.deepEqual(h.opened, [], 'nothing is opened on a copy action');
+});
+
+test('a successful copy carries no note', async () => {
+  const h = harness();
+  await h.settle();
+  h.events.clicked({ menuItemId: 'xit-link-copy:example', linkUrl: 'https://x.com/jack/status/20?s=20' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.sent[0].text, 'https://example.com/jack/status/20');
+  assert.equal(h.sent[0].note, null, 'no explanation is needed when it worked');
+});
+
+test('a frame context menu converts the frame, not the top document', async () => {
+  // B3. info.frameUrl is what the user right-clicked in.
+  const h = harness();
+  await h.settle();
+  h.events.clicked({ menuItemId: 'xit-page-copy-default', frameUrl: 'https://x.com/jack/status/20' },
+    { id: 7, index: 2, url: 'https://x.com/home' });
+  await h.settle();
+  assert.equal(h.sent[0].text, 'https://example.com/jack/status/20');
+});
+
+test('off an X page the copy falls back to executeScript with no toast argument', async () => {
+  // C7. clipboardPayload used to take a showToast flag and dispatch an event
+  // that nothing listened for. It now takes the text alone.
+  const h = harness();
+  await h.settle();
+  h.dropContentScript();
+  h.events.clicked({ menuItemId: 'xit-link-copy:example', linkUrl: 'https://x.com/jack/status/20' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.injected.length, 1, 'the script injection path ran');
+  assert.deepEqual(Array.from(h.injected[0]), ['https://example.com/jack/status/20'],
+    'one argument: the text to copy');
+});
+
+test('xit:open only opens a destination the settings account for', async () => {
+  // S2. Nothing on the web can reach this listener, so this is defence in
+  // depth. The check is what stops a single stray message opening any tab.
+  const h = harness();
+  await h.settle();
+
+  const call = (url) => new Promise((resolve) => {
+    h.events.message({ type: 'xit:open', url }, { id: undefined, tab: { id: 7, index: 2 } }, resolve);
+  });
+
+  assert.equal((await call('https://example.com/jack/status/20')).ok, true,
+    'a configured redirector host is allowed');
+  assert.equal(h.opened.length, 1);
+
+  for (const url of ['https://evil.test/jack', 'http://example.com/jack', 'javascript:alert(1)', 'not a url', '']) {
+    const result = await call(url);
+    assert.equal(result.ok, false, url + ' must be refused');
+  }
+  assert.equal(h.opened.length, 1, 'nothing further was opened');
+
+  assert.equal((await call('https://x.com/jack/status/20')).ok, true,
+    'x.com itself stays reachable, for Open on X');
+});
+
+test('a message from another extension is ignored outright', async () => {
+  // S2. Three handlers used to skip this check while three made it.
+  const h = harness();
+  await h.settle();
+  const before = h.opened.length;
+  let answered = false;
+  const handled = h.events.message({ type: 'xit:open', url: 'https://example.com/jack' },
+    { id: 'some-other-extension', tab: { id: 7, index: 2 } }, () => { answered = true; });
+  await h.settle();
+  assert.notEqual(handled, true, 'the listener must not claim the message');
+  assert.equal(answered, false, 'and must not answer it');
+  assert.equal(h.opened.length, before, 'and must not open anything');
 });

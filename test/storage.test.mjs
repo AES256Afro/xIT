@@ -99,16 +99,16 @@ test('reset restores defaults through the same writer and rejects invalid import
 
 test('pins have a stable shared order, survive reload, and do not change the default',async()=>{
   const h=harness(),a=h.context(),b=h.context();
-  await Promise.all([a.setPinned('unrollnow',true),b.setPinned('vxtwitter',true)]);
+  await Promise.all([a.setPinned('threadreader',true),b.setPinned('vxtwitter',true)]);
   await b.movePinned('vxtwitter',-1);
   let s=await a.load();
-  assert.deepEqual(Array.from(s.pinnedIds),['vxtwitter','unrollnow']);
-  assert.deepEqual(Array.from(a.enabledRedirectors(s).slice(0,2),r=>r.id),['vxtwitter','unrollnow']);
+  assert.deepEqual(Array.from(s.pinnedIds),['vxtwitter','threadreader']);
+  assert.deepEqual(Array.from(a.enabledRedirectors(s).slice(0,2),r=>r.id),['vxtwitter','threadreader']);
   assert.equal(s.defaultRedirector,'fxtwitter');
   await a.setEnabled('vxtwitter',false);
-  s=await b.load();assert.equal(b.enabledRedirectors(s)[0].id,'unrollnow');
+  s=await b.load();assert.equal(b.enabledRedirectors(s)[0].id,'threadreader');
   await a.replace(JSON.parse(JSON.stringify(s)));
-  assert.deepEqual(Array.from((await a.load()).pinnedIds),['vxtwitter','unrollnow']);
+  assert.deepEqual(Array.from((await a.load()).pinnedIds),['vxtwitter','threadreader']);
 });
 
 test('editing and duplicating custom entries preserve identity and existing selections',async()=>{

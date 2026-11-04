@@ -202,6 +202,8 @@ html[data-xit-theme="light"] {
 
 .xit-toast[data-show="1"] { opacity: 1; transform: translate(-50%, 0); }
 .xit-toast[data-kind="error"] { background: rgb(244, 33, 46); }
+/* The copy worked, but not with the redirector that was asked for. */
+.xit-toast[data-kind="warn"] { background: rgb(170, 101, 6); }
 
 @media (prefers-reduced-motion: reduce) {
   .xit-btn, .xit-toast { transition: none; }
