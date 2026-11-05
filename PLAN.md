@@ -146,13 +146,26 @@ justification for the optional hosts, which is new text a reviewer will read.
 
 ## Milestone 3, retirement and cleanup
 
-Can land alongside either milestone above.
+**Status, 4 November 2026: shipped as 1.1.1. Complete.** 83 unit tests pass,
+up from 82. The U5 assertions are in `tools/test-qol.mjs` and need Playwright,
+which is not installed here, so `npm run test:qol` must run on the host along
+with the browser suites still owed from 1.1.0.
 
-- Delete the dead code: C2, C3, C4, C5, C6, C8, and the `RESERVED` duplicates
-  (C1).
-- Delete `AUDIT-2026-09-14.md` (C9), superseded by `AUDIT-LOOP.md`.
-- Replace `alert()` and `confirm()` with in-page affordances (U5).
-- Memoise the pinned lookup in `redirectorGroups` (O3).
+- ~~Delete the dead code: C2, C3, C4, C5, C6, C8, and the `RESERVED`
+  duplicates (C1).~~ Already done in 1.0.8, before this milestone started.
+- **Done.** Delete `AUDIT-2026-09-14.md` (C9), superseded by `AUDIT-LOOP.md`.
+  The git history holds it.
+- **Done.** Replace `alert()` and `confirm()` with in-page affordances (U5).
+  The import failure is a persistent `role="alert"` paragraph in the Backup
+  panel, because the user may need to go and look at the file, rather than the
+  1.8 second flash the "Saved" status uses. Reset asks in a modal `<dialog>`
+  that spells out what is lost, which `confirm()` could not: custom entries,
+  catalogue entries taken, pins and the default. Escape and the backdrop mean
+  no.
+- **Done, differently.** Memoise the pinned lookup in `redirectorGroups` (O3).
+  Indexed once per call rather than memoised across calls: a cache would need
+  invalidating on every settings write, and the function is now linear in the
+  list instead of quadratic, so there is nothing left worth caching.
 
 ## Milestone 4, polish
 
@@ -163,6 +176,10 @@ Can land alongside either milestone above.
 - Copy formats: markdown link, and author plus link (Q4).
 - Filter field in the redirector list, and ordering for unpinned entries (U7).
 - Copy button for the browser shortcut address (U8).
+- Bring the status colours up to WCAG AA as text (U10). `--ok`, `--accent` and
+  `--danger` are all under 4.5:1 against the card in at least one theme, in
+  both `options.css` and `popup.css`. Found while fixing U5; one control got a
+  darker `--danger-fill` there, which is a patch, not the palette.
 
 ## Explicitly not doing
 

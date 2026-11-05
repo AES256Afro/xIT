@@ -5,8 +5,8 @@ with no findings**, then it retires from the loop and this file records the
 retirement. A category that retires is not re-opened unless the code it covers
 changes shape.
 
-Supersedes `AUDIT-2026-09-14.md`, which is a point-in-time report and should be
-deleted once the items below are closed.
+Supersedes `AUDIT-2026-09-14.md`, a point-in-time report deleted in 1.1.1 once
+its items were closed. The git history holds it if it is ever wanted.
 
 ## Status
 
@@ -50,6 +50,34 @@ click handler of the Check button. Route (b) under Milestone 2 item 6 in
 U4 has assertions at unit and Playwright level, but has not been through a
 screen reader, which the finding asks for.
 
+## What Milestone 3 produced
+
+Fixed in 1.1.1: C9, U5, O3. C1 to C8 were already fixed in 1.0.8, so the
+milestone's dead-code item was closed before it started.
+Nothing from Milestone 3 is still open.
+
+O3 was written as "memoise" and was not memoised. A cache across calls would
+have to be invalidated on every settings write, for a function whose cost is
+now proportional to the list rather than its square; the two lookups are
+indexed once per call instead. The new unit test is a regression guard, not a
+proof of the speedup: the fix is behaviour-preserving, so the test passes
+against the old code too. It was checked against a plausible slip the index
+invites, building it from every redirector instead of the filtered list, and
+fails there.
+
+U5's assertions are in `tools/test-qol.mjs`, which needs Playwright and has
+not been run here. One of them records every native dialog for the whole run
+and asserts at the end that none arrived, so a reintroduced `alert()` or
+`confirm()` anywhere in the options page or popup fails the suite.
+
+U5 turned up **U10**, a new finding. Filling a button with `--danger` and
+putting white text on it measured 4.11:1, under the AA floor, so that one
+control got `--danger-fill` at 5.72:1. Checking the rest of the palette then
+showed the problem is not confined to it: `--ok`, `--accent` and `--danger`
+all fail as text against the card in at least one theme. That is a change to
+every surface in two stylesheets and is left for Milestone 4 rather than
+widened into this one.
+
 One thing the split turned up that no sweep had: a thread tool publishes its
 own path shape, and `parse()` knew two of them by name. Adding
 `twitter-thread.com` without touching `parse()` produced
@@ -79,7 +107,7 @@ this pass.
 | C6 | `<div id="custom-list">` is never populated. Custom entries render into `#redirector-list`. | `src/options/options.html` |
 | C7 | `clipboardPayload` dispatches an `xit:toast` CustomEvent that nothing listens for. The `showToast` argument is inert, so a copy that falls back to `scripting.executeScript` gives the user no confirmation. | `src/background.js` |
 | C8 | Nothing in the tree sends `xit:copy-via-background`. The handler is dead and widens the message surface. | `src/background.js` |
-| C9 | `AUDIT-2026-09-14.md` is 22 KB of superseded report at the repo root. | repo root |
+| C9 | `AUDIT-2026-09-14.md` is 22 KB of superseded report at the repo root. **Fixed in 1.1.1:** deleted. | repo root |
 | C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. | whole tree |
 
 ### Bug
@@ -110,11 +138,12 @@ this pass.
 | U2 | Shipping all eight presets enabled is why the options page has to say "Untick any you do not want cluttering the dropdown". The default should be a small set, not an opt-out list. |
 | U3 | The context menu builds `Copy as X` and `Open with X` per redirector under the link root, plus `Open this page with X` per redirector under the page root. At eight presets that is roughly 25 items in one menu. **Fixed in 1.1.0:** the menu lists the default and the pinned entries, with a setting for the full grouped list. |
 | U4 | Content-script menu rows are `role="menuitem"` containing `<button>` children. ARIA forbids interactive descendants of `menuitem`, so the pin, open and make-default buttons are not reliably reachable by a screen reader. **Fixed in 1.1.0:** the row is a `role="group"` and each action is its own `role="menuitem"` button. Not yet through a screen reader. |
-| U5 | `alert()` on a failed import and `confirm()` on reset. Blocking native dialogs in a styled options page. |
+| U5 | `alert()` on a failed import and `confirm()` on reset. Blocking native dialogs in a styled options page. **Fixed in 1.1.1:** the import error is an in-page `role="alert"`, and reset asks in a modal `<dialog>` that says what is lost. |
 | U6 | FxTwitter, FixupX and Twittpr are one service under three names; vxTwitter and FixVX likewise. They are presented as five peers with no indication of that, so a new user cannot tell what choosing between them means. **Fixed in 1.1.0:** the five aliases moved to a catalogue, and each says which bundled service it is really an alias of. |
 | U7 | No filter or search in the redirector list, and no ordering control for anything that is not pinned. |
 | U8 | The shortcut panel asks the user to paste `chrome://extensions/shortcuts` by hand, correctly, but offers no copy button for the address. |
 | U9 | Pinning is explained in prose in two separate hints and nowhere prompted. |
+| U10 | The status colours fail WCAG AA as text. `--ok` `#00ba7c` is 2.39:1 on the light card, `--accent` `#1d9bf0` is 2.84:1, and `--danger` `#f4212e` is 3.89:1 on light and 3.60:1 on dark, all against the 4.5:1 floor. They carry meaning in `.saved`, `.warn-text`, the reachability badges and every ghost-button hover, in both the options page and the popup. Found while fixing U5 in 1.1.1; the filled button added there uses a separate `--danger-fill` at 5.72:1, which is a patch over one control, not the palette. |
 
 ### Quality of life
 
@@ -141,7 +170,7 @@ this pass.
 |---|---|
 | O1 | `syncTheme` unthrottled on body attribute mutations (same defect as B5, counted once in the fix). |
 | O2 | `renderList` in the popup re-runs `XIT.convert` for every redirector on every keystroke in the paste field. Cheap at eight entries, not cheap once a catalogue can add thirty. |
-| O3 | `redirectorGroups` does an O(n) `find` per pinned id on every render, in three separate render paths. |
+| O3 | `redirectorGroups` does an O(n) `find` per pinned id on every render, in three separate render paths. **Fixed in 1.1.1:** both lookups are indexed once per call. |
 | O4 | Any settings write rebuilds the entire context menu: one `removeAllMenus` plus roughly 25 awaited `create` calls, in sequence. Toggling the toast setting pays that cost for no reason. **Fixed in 1.1.0:** the menu is rebuilt only when something it is built from changes. |
 
 ## Redirector link audit, 4 November 2026

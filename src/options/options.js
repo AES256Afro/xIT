@@ -408,7 +408,20 @@
     saved('Exported');
   }
 
+  /**
+   * U5: an import failure used to come through alert(), which blocks the page
+   * and cannot be styled or read back. This stays on screen until the next
+   * attempt, because the user may need to go and look at the file, and
+   * role="alert" means a screen reader announces it without being moved.
+   */
+  function backupError(text) {
+    const node = $('backup-error');
+    node.textContent = text || '';
+    node.hidden = !text;
+  }
+
   async function importSettings(file) {
+    backupError('');
     try {
       const raw = JSON.parse(await file.text());
       settings = await XITStore.replace(raw);
@@ -416,7 +429,7 @@
       saved('Imported');
     } catch (e) {
       $('saved').textContent = '';
-      alert('That file could not be read as settings: ' + (e && e.message));
+      backupError('That file could not be read as settings: ' + (e && e.message));
     }
   }
 
@@ -495,8 +508,17 @@
       if (f) importSettings(f);
       ev.target.value = '';
     });
-    $('reset').addEventListener('click', async () => {
-      if (!confirm('Reset every setting back to defaults?')) return;
+    // U5: confirm() blocked the page and said only "Reset every setting back
+    // to defaults?". The dialog spells out what is actually lost, and
+    // showModal() gives the focus trap and Escape for free. Escape and the
+    // backdrop both mean no, because the only button that resets is reset-go.
+    $('reset').addEventListener('click', () => {
+      backupError('');
+      $('confirm-reset').showModal();
+    });
+    $('reset-cancel').addEventListener('click', () => $('confirm-reset').close());
+    $('reset-go').addEventListener('click', async () => {
+      $('confirm-reset').close();
       settings = await XITStore.reset();
       render();
       saved('Reset');

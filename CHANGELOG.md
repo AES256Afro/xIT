@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Replace the two blocking browser dialogs in Settings. A settings file that cannot be read now reports in the Backup panel and stays there while you go and look at the file, instead of an `alert()` box you have to dismiss before you can see the page behind it. Reset asks in a dialog that says what is actually lost: your own redirectors, any catalogue entries you took, your pins and your default. The old prompt said only "Reset every setting back to defaults?".
+- Build the redirector grouping's lookups once per render instead of searching the whole list for every pinned entry. No visible change; it stops the cost growing with the square of the list now that a catalogue can add to it.
+- Delete `AUDIT-2026-09-14.md`, a superseded audit report at the repo root. The git history holds it.
+
 ## 1.1.0
 
 - Ship three redirectors enabled, not eight. FxTwitter, vxTwitter and Thread Reader App, one per job. FixupX, Twittpr, FixVX, FxTwitter direct media and twitter-thread.com are still here as a catalogue you choose from, and each one now says what it actually is: three of the old eight were FxTwitter under other names, and two were vxTwitter, which the list gave no way of knowing.

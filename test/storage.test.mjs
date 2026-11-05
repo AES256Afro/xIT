@@ -265,3 +265,29 @@ test('only a change the menu is built from changes its signature',async()=>{
   assert.notEqual(sig(await a.save({contextMenuAll:true})),sig(base));
   assert.equal(sig(await a.save({contextMenu:false})),'off');
 });
+
+// O3 replaced a find-per-pinned-id and an includes-per-entry with two indexes.
+// The indexes are what could go wrong, so this pins the behaviour they carry:
+// pinned order, no entry in two groups at once, and a pin that is not enabled
+// being dropped rather than appearing as a hole.
+test('grouping follows pinned order and never lists an entry twice',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.save({enabledIds:['fxtwitter','vxtwitter','threadreader']});
+  s=await a.setPinned('threadreader',true);
+  s=await a.setPinned('fxtwitter',true);
+  const groups=a.redirectorGroups(s);
+  assert.deepEqual(Array.from(groups[0].entries.map((r)=>r.id)),['threadreader','fxtwitter'],
+    'the pinned group is in pin order, not preset order');
+  const seen=Array.from(groups.flatMap((g)=>g.entries.map((r)=>r.id)));
+  assert.deepEqual(Array.from(seen).sort(),['fxtwitter','threadreader','vxtwitter'],
+    'every enabled entry appears exactly once');
+  assert.deepEqual(Array.from(groups.slice(1).flatMap((g)=>g.entries.map((r)=>r.id))),['vxtwitter'],
+    'a pinned entry is not repeated under its own group');
+  // A pin whose entry is disabled is dropped, not carried through as a gap.
+  s=await a.setEnabled('threadreader',false);
+  assert.deepEqual(Array.from(a.redirectorGroups(s)[0].entries.map((r)=>r.id)),['fxtwitter']);
+  // Asking for the full list includes the disabled entry, still only once.
+  const all=Array.from(a.redirectorGroups(s,false).flatMap((g)=>g.entries.map((r)=>r.id)));
+  assert.equal(all.length,new Set(all).size,'no duplicates when disabled entries are shown');
+  assert.ok(all.includes('threadreader'));
+});
