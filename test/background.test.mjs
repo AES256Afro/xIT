@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { fakeI18n } from './helpers/i18n-stub.mjs';
 import { readFileSync } from 'node:fs';
 import { setImmediate as tick } from 'node:timers/promises';
 import vmlib from 'node:vm';
@@ -149,6 +150,11 @@ function harness(firefox = false) {
     COPY_FORMATS: REAL.COPY_FORMATS, formatCopy: REAL.formatCopy,
   }, XITStore: store, URL, Set, fetch: fakeFetch,
   AbortController, setTimeout, clearTimeout, Date });
+  // The manifest loads lib/i18n.js before background.js in both browsers, and
+  // the catalogue behind it is the real one, so a menu title asserted below is
+  // the title the shipped extension builds.
+  ctx.chrome ? (ctx.chrome.i18n = fakeI18n()) : (ctx.browser.i18n = fakeI18n());
+  vm.runInContext(readFileSync(new URL('../src/lib/i18n.js', import.meta.url),'utf8'),ctx);
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
   return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
@@ -539,4 +545,34 @@ test('an unknown command does nothing at all',async()=>{
   await h.command('not-a-command');
   assert.equal(h.opened.length,0);
   assert.equal(h.injected.length,0);
+});
+
+// The Chrome service worker loads its libraries with importScripts, and the
+// Firefox event page from background.scripts. The unit harness injects them
+// directly, so neither list is exercised by the tests above: a library this
+// file uses but never imports is a ReferenceError on the first menu build, in
+// Chrome only, at install time. This compares the lists against what the code
+// actually references.
+test('every library the background uses is in both load lists',async()=>{
+  const source=readFileSync(new URL('../src/background.js',import.meta.url),'utf8');
+  const build=readFileSync(new URL('../tools/build.mjs',import.meta.url),'utf8');
+  const imported=/importScripts\(([^)]*)\)/.exec(source);
+  assert.ok(imported,'the service worker still imports its libraries');
+  const importList=Array.from(imported[1].matchAll(/'([^']+)'/g),(m)=>m[1]);
+  const libLine=/const LIB = \[([^\]]*)\]/.exec(build);
+  assert.ok(libLine,'tools/build.mjs still declares LIB');
+  const manifestList=Array.from(libLine[1].matchAll(/'([^']+)'/g),(m)=>m[1]);
+  // What the file references, by the global each library defines.
+  const globals={ 'lib/i18n.js':'XITI18N', 'lib/redirectors.js':'XIT', 'lib/storage.js':'XITStore' };
+  for (const [file,name] of Object.entries(globals)) {
+    const used=new RegExp('\\b'+name+'\\.').test(source);
+    if (!used) continue;
+    assert.ok(importList.includes(file),
+      `background.js uses ${name} but importScripts does not load ${file}, so Chrome would throw`);
+    assert.ok(manifestList.includes(file),
+      `background.js uses ${name} but LIB does not list ${file}, so Firefox would throw`);
+  }
+  // XIT is checked for before importing, so the guard must not be the global
+  // that the first import defines or a reload would skip the rest.
+  assert.match(source,/!globalThis\.(XITI18N|XIT|XITStore)\b/,'the import is still guarded');
 });

@@ -267,15 +267,48 @@ One source tree in `src/` builds both browsers; `tools/build.mjs` generates the
 two manifests, which differ only in the background-script style and the
 Firefox add-on id.
 
+## Translating
+
+Every string a user reads comes from `src/_locales/en/messages.json`. A
+translation is one new directory, `src/_locales/<code>/messages.json`, with the
+same keys; nothing in the code changes.
+
+The English is not maintained by hand. `tools/i18n-sync.mjs` derives it from
+the markup and from `lib/redirectors.js`, so what a reader sees and what a
+translator is given cannot drift apart:
+
+```bash
+npm run i18n
+```
+
+That reports any difference, and the test suite runs the same check.
+`npm run i18n:write` regenerates the English after a change to the pages.
+Messages that cannot be derived, the generated statuses and anything with a
+substitution, are written by hand in the catalogue and only checked for
+existence.
+
+A sentence with markup inside it stays one message: `data-i18n-parts` keeps the
+element's own children and the message places them as `{1}`, `{2}` and so on,
+so a code sample or a keyboard key can be moved where the language needs it.
+
+`lib/redirectors.js` holds no browser APIs, because `tools/build.mjs` evaluates
+it in a bare context to read the host lists. Its own prose, group headings and
+redirector notes, is therefore looked up at the point of display by the entry's
+id. The failure messages it returns from `convert()` and `validateTemplate()`
+are the one part still inline English, recorded as C12 in
+[`AUDIT-LOOP.md`](AUDIT-LOOP.md).
+
 Store screenshots are rendered by headless Chrome from the *real* popup, options
 page and content script, with only the extension APIs stubbed, so they cannot
 drift from the shipped UI. See [`store/SUBMISSION.md`](store/SUBMISSION.md).
 
 ```
 src/
+  lib/i18n.js          message lookup for markup and code
   lib/redirectors.js   presets, URL parsing, templates, redirect-rule compiler
   lib/storage.js       settings, defaults, normalisation
-  background.js        context menus, redirect rules, shortcut
+  _locales/en/         the message catalogue
+  background.js        context menus, redirect rules, shortcuts
   content/inject.js    the button, dropdown, toast          (isolated world)
   content/main-world.js  wraps navigator.clipboard          (main world)
   popup/  options/     UI

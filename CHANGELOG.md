@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Finish what 1.2.0 started: the interface can now be translated. Every string a user reads, in Settings, the popup, the in-page menu on X and the right-click menu, comes from a message catalogue instead of being written into the code. Nothing looks different in English; a translation is now a single new file rather than a rewrite of the extension.
+- A sentence with a code sample or a keyboard key inside it stays one message, with the markup as a numbered placeholder a translator can move. Breaking those into one message per fragment would have been easier and would have made several languages impossible to word correctly.
+- Fix a bug this work uncovered: in Chrome the background never loaded one of its own libraries. Nothing was broken in 1.2.0, where that library was unused there, but the next thing to use it would have failed on install in Chrome only. Both load lists are now checked against what the code actually references.
+
 ## 1.2.0
 
 - Choose how a copied link is written: the bare URL, a markdown link, or the author's handle followed by the link. Applies everywhere a copy happens, including X's own "Copy link". Opening a link in a tab is unaffected.

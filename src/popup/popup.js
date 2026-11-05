@@ -51,7 +51,7 @@
     const out = XIT.convert(sourceUrl, redirector, opts());
     if (!out.ok) { status(out.reason, 'error'); return; }
     const ok = await writeClipboard(XIT.formatCopy(out.url, out.parts, settings.copyFormat));
-    status(ok ? 'Copied ' + redirector.name + ' link' : 'Clipboard write failed', ok ? 'ok' : 'error');
+    status(ok ? XITI18N.t('popupCopied', [redirector.name]) : XITI18N.t('popupCopyFailed'), ok ? 'ok' : 'error');
   }
 
   function doOpen(redirector) {
@@ -64,8 +64,8 @@
   /* ---- current tab / source ---- */
 
   function describe(parts) {
-    if (!parts) return 'Not an X/Twitter link';
-    if (parts.kind === 'status') return 'Tweet by @' + (parts.user === 'i' ? '…' : parts.user);
+    if (!parts) return XITI18N.t('popupNotATweet');
+    if (parts.kind === 'status') return XITI18N.t('popupTweetBy', [parts.user === 'i' ? '…' : parts.user]);
     if (parts.kind === 'profile') return '@' + parts.user + "'s profile";
     return 'X page: /' + parts.path;
   }
@@ -77,7 +77,7 @@
     const d = XITStore.defaultRedirector(settings);
     $('default-pill').textContent = d ? d.name : '…';
 
-    const out = parts ? XIT.convert(sourceUrl, d, opts()) : { ok: false, reason: 'Open a tweet, or paste a link below.' };
+    const out = parts ? XIT.convert(sourceUrl, d, opts()) : { ok: false, reason: XITI18N.t('popupNoSource') };
     $('preview').textContent = out.ok ? out.url : out.reason;
 
     const usable = !!out.ok;
@@ -102,7 +102,7 @@
 
       const head = document.createElement('div');
       head.className = 'item-group';
-      head.textContent = g.label;
+      head.textContent = XITI18N.of('group', g.id, g.label);
       list.appendChild(head);
 
       for (const r of inGroup) {
@@ -117,20 +117,21 @@
         b.textContent = r.name;
         const sub = document.createElement('span');
         const out = parts ? XIT.convert(sourceUrl, r, opts()) : { ok: false, reason: '' };
-        sub.textContent = out.ok ? out.url.replace(/^https:\/\//, '') : (out.reason || r.note || '');
+        sub.textContent = out.ok ? out.url.replace(/^https:\/\//, '')
+          : (out.reason || (r.note ? XITI18N.of('note', r.id, r.note) : ''));
         name.append(b, sub);
 
         const copyBtn = document.createElement('button');
         copyBtn.className = 'mini';
         copyBtn.dataset.action = 'copy';
-        copyBtn.textContent = 'Copy';
+        copyBtn.textContent = XITI18N.t('actionCopy');
         copyBtn.disabled = !out.ok;
         copyBtn.addEventListener('click', () => doCopy(r));
 
         const openBtn = document.createElement('button');
         openBtn.className = 'mini';
         openBtn.dataset.action = 'open';
-        openBtn.textContent = 'Open';
+        openBtn.textContent = XITI18N.t('actionOpen');
         openBtn.disabled = !out.ok;
         openBtn.addEventListener('click', () => doOpen(r));
 
@@ -138,12 +139,12 @@
         defBtn.className = 'mini';
         defBtn.dataset.action = 'default';
         defBtn.textContent = '★';
-        defBtn.title = 'Make ' + r.name + ' the default';
+        defBtn.title = XITI18N.t('popupMakeDefault', [r.name]);
         defBtn.setAttribute('aria-label', defBtn.title);
         defBtn.setAttribute('aria-pressed', String(r.id === settings.defaultRedirector));
         defBtn.addEventListener('click', async () => {
           settings = await XITStore.save({ defaultRedirector: r.id });
-          status(r.name + ' is now the default');
+          status(XITI18N.t('popupNowDefault', [r.name]));
           refreshPreview();
         });
 
@@ -151,8 +152,8 @@
         const pin = document.createElement('button');
         pin.className = 'mini';
         pin.dataset.action = 'pin';
-        pin.textContent = pinned ? 'Unpin' : 'Pin';
-        pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+        pin.textContent = XITI18N.t(pinned ? 'rowUnpin' : 'rowPin');
+        pin.setAttribute('aria-label', XITI18N.t(pinned ? 'popupUnpinNamed' : 'popupPinNamed', [r.name]));
         pin.setAttribute('aria-pressed', String(pinned));
         pin.addEventListener('click', () => commit(XITStore.setPinned(r.id, !pinned)));
         row.append(name, copyBtn, openBtn, pin, defBtn);
@@ -167,7 +168,7 @@
     try {
       settings = await operation;
       refreshPreview();
-    } catch (error) { status('Could not save: ' + error.message, 'error'); }
+    } catch (error) { status(XITI18N.t('errSave', [error.message]), 'error'); }
   }
 
   /* ---- host permission gate (mostly Firefox) ---- */
@@ -181,9 +182,9 @@
           const granted = await api.permissions.request({ origins: HOST_PATTERNS });
           if (granted) {
             $('perm').hidden = true;
-            status('Access granted. Reload your X tab.');
+            status(XITI18N.t('popupAccessGranted'));
           } else {
-            status('Access was not granted.', 'error');
+            status(XITI18N.t('popupAccessDenied'), 'error');
           }
         });
       }
@@ -219,9 +220,9 @@
     $('open-default').addEventListener('click', () => doOpen(XITStore.defaultRedirector(settings)));
     $('copy-clean').addEventListener('click', async () => {
       const clean = XIT.canonical(sourceUrl, opts());
-      if (!clean) { status('Not an X/Twitter link.', 'error'); return; }
+      if (!clean) { status(XITI18N.t('popupNotATweetFull'), 'error'); return; }
       const ok = await writeClipboard(clean);
-      status(ok ? 'Copied clean x.com link' : 'Clipboard write failed', ok ? 'ok' : 'error');
+      status(ok ? XITI18N.t('popupCopiedClean') : XITI18N.t('popupCopyFailed'), ok ? 'ok' : 'error');
     });
 
     $('manual').addEventListener('input', (ev) => {
@@ -239,7 +240,7 @@
     $('open-original').addEventListener('click', async () => {
       try {
         const result = await api.runtime.sendMessage({ type: 'xit:open-original', url: sourceUrl });
-        if (!result || !result.ok) throw new Error('Could not open that X link.');
+        if (!result || !result.ok) throw new Error(XITI18N.t('popupOpenFailed'));
         window.close();
       } catch (error) { status(error.message, 'error'); }
     });
@@ -248,9 +249,9 @@
       button.disabled = true;
       try {
         const result = await api.runtime.sendMessage({ type: 'xit:diagnostics' });
-        if (!result || !result.ok) throw new Error('Could not collect diagnostics. Try again.');
+        if (!result || !result.ok) throw new Error(XITI18N.t('diagFailed'));
         const ok = await writeClipboard(JSON.stringify(result.report, null, 2));
-        status(ok ? 'Diagnostics copied. No links or clipboard data included.' : 'Clipboard write failed', ok ? 'ok' : 'error');
+        status(ok ? XITI18N.t('popupDiagCopied') : XITI18N.t('popupCopyFailed'), ok ? 'ok' : 'error');
       } catch (error) { status(error.message, 'error'); }
       finally { button.disabled = false; }
     });

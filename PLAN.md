@@ -205,10 +205,34 @@ and now cover the redirector filter as well.
 
 ## Milestone 5, what Milestone 4 left
 
-- **C11.** Move the interface's own strings into the catalogue. Roughly 60 in
-  `options.html`, plus the toasts, statuses and menu labels built in
-  `inject.js`, `popup.js` and `background.js`. The mechanism exists; this is
-  the volume.
+**Status, 4 November 2026: C11 shipped as 1.3.0.** 106 unit tests pass, up
+from 98. 191 messages, none of them typed twice.
+
+- **Done.** **C11.** Move the interface's own strings into the catalogue.
+  - Static markup, about 90 strings across `options.html` and `popup.html`,
+    marked with `data-i18n`. A sentence with markup inside it uses
+    `data-i18n-parts` and keeps its child elements as numbered placeholders,
+    so a translator can reorder them. Splitting those into one message per
+    fragment would have been simpler to build and impossible to translate.
+  - Generated strings in `options.js`, `popup.js`, `inject.js`,
+    `background.js` and `storage.js` go through `XITI18N.t`. Counts use one
+    message per plural form, chosen in the code, because the browser's message
+    format has no plural rules.
+  - The library's own prose, group headings, redirector notes and copy-format
+    names, is looked up at the point of display by the entry's id.
+    `lib/redirectors.js` stays free of browser APIs because `tools/build.mjs`
+    evaluates it in a bare context to read the host lists.
+  - `tools/i18n-sync.mjs` derives the English from the markup and from the
+    library rather than having it typed into the catalogue as well, and the
+    same code backs `npm run i18n`, which the tests run. Nothing is retyped,
+    so nothing can quietly drift.
+- **Carried as C12.** The failure messages `convert()` and
+  `validateTemplate()` return, about ten of them. They are the last inline
+  English a user can read. Moving them is not a string move: `lib/redirectors.js`
+  has to stay free of browser APIs, so the functions would have to return a
+  message code plus parameters and let the display side render it. That is a
+  change to a library contract with about twenty test assertions on it, and it
+  belongs in its own change rather than at the end of this one.
 - The sweep loop. All seven categories are still at sweep 1 of 3 with a clean
   streak of 0, so fourteen sweeps are owed before any category retires. No
   milestone replaces that.

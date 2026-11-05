@@ -128,18 +128,18 @@
     // actually went on the clipboard rather than the bare URL behind it.
     const text = XIT.formatCopy(out.url, out.parts, settings.copyFormat);
     const ok = await writeClipboard(text);
-    toast(ok ? 'Copied ' + redirector.name + ': ' + shortLabel(text) : 'Could not write to the clipboard', ok ? 'ok' : 'error');
+    toast(ok ? XITI18N.t('toastCopiedWith', [redirector.name, shortLabel(text)]) : XITI18N.t('toastClipboardFailed'), ok ? 'ok' : 'error');
     return ok;
   }
 
   async function copyOriginal(sourceUrl) {
     const clean = XIT.canonical(sourceUrl, { stripTracking: settings.stripTracking, extraHosts });
     if (!clean) {
-      toast('Not an X/Twitter link.', 'error');
+      toast(XITI18N.t('popupNotATweetFull'), 'error');
       return;
     }
     const ok = await writeClipboard(clean);
-    toast(ok ? 'Copied x.com link: ' + shortLabel(clean) : 'Could not write to the clipboard', ok ? 'ok' : 'error');
+    toast(ok ? XITI18N.t('toastCopiedClean', [shortLabel(clean)]) : XITI18N.t('toastClipboardFailed'), ok ? 'ok' : 'error');
   }
 
   function openWith(redirector, sourceUrl) {
@@ -149,7 +149,7 @@
       return;
     }
     api.runtime.sendMessage({ type: 'xit:open', url: out.url }).then((result) => {
-      if (result && result.ok === false) toast(result.error || 'Could not open that link.', 'error');
+      if (result && result.ok === false) toast(result.error || XITI18N.t('toastOpenFailed'), 'error');
     }).catch(() => {
       // The background did not answer at all (asleep, or mid-update). The
       // destination came from the user's own settings, so opening it here is
@@ -243,8 +243,8 @@
         if (kind === 'original') await copyOriginal(src);
         if (kind === 'open-original') {
           api.runtime.sendMessage({ type: 'xit:open-original', url: src }).then((result) => {
-            if (!result || !result.ok) toast('Could not open that X link.', 'error');
-          }).catch(() => toast('Could not open that X link.', 'error'));
+            if (!result || !result.ok) toast(XITI18N.t('popupOpenFailed'), 'error');
+          }).catch(() => toast(XITI18N.t('popupOpenFailed'), 'error'));
         }
         if (kind === 'options') api.runtime.sendMessage({ type: 'xit:open-options' }).catch(() => {});
         return;
@@ -267,7 +267,7 @@
       }
       if (act && act.getAttribute('data-act') === 'default') {
         await XITStore.save({ defaultRedirector: redirector.id });
-        toast(redirector.name + ' is now the default', 'ok');
+        toast(XITI18N.t('popupNowDefault', [redirector.name]), 'ok');
         closeMenu();
         return;
       }
@@ -356,7 +356,7 @@
     const fragment = document.createDocumentFragment();
     for (const g of XITStore.redirectorGroups(settings)) {
       const inGroup = g.entries;
-      const groupLabel = element('div', 'xit-group-label', g.label);
+      const groupLabel = element('div', 'xit-group-label', XITI18N.of('group', g.id, g.label));
       groupLabel.setAttribute('role', 'presentation');
       fragment.appendChild(groupLabel);
       for (const r of inGroup) {
@@ -374,26 +374,26 @@
         main.setAttribute('role', 'menuitem');
         main.setAttribute('tabindex', '-1');
         main.setAttribute('data-act', 'copy');
-        main.setAttribute('aria-label', 'Copy as ' + r.name
-          + (r.id === settings.defaultRedirector ? ', the default' : ''));
+        main.setAttribute('aria-label', XITI18N.t(
+          r.id === settings.defaultRedirector ? 'menuCopyAsDefault' : 'menuCopyAs', [r.name]));
         main.appendChild(element('span', 'xit-row-dot'));
         const label = element('span', 'xit-row-label');
         label.appendChild(element('span', 'xit-row-name', r.name));
-        if (r.note) label.appendChild(element('span', 'xit-row-note', r.note));
+        if (r.note) label.appendChild(element('span', 'xit-row-note', XITI18N.of('note', r.id, r.note)));
         main.appendChild(label);
         row.appendChild(main);
 
         const pinned = settings.pinnedIds.includes(r.id);
-        const pin = element('button', 'xit-row-act xit-pin', pinned ? 'Unpin' : 'Pin');
+        const pin = element('button', 'xit-row-act xit-pin', XITI18N.t(pinned ? 'rowUnpin' : 'rowPin'));
         pin.setAttribute('role', 'menuitem');
         pin.setAttribute('tabindex', '-1');
         pin.setAttribute('data-act', 'pin');
-        pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+        pin.setAttribute('aria-label', XITI18N.t(pinned ? 'popupUnpinNamed' : 'popupPinNamed', [r.name]));
         pin.setAttribute('aria-pressed', String(pinned));
         row.appendChild(pin);
         for (const [action, title, pathData] of [
-          ['open', 'Open with ' + r.name, ICON_OPEN],
-          ['default', 'Make ' + r.name + ' the default', ICON_STAR],
+          ['open', XITI18N.t('menuOpenWith', [r.name]), ICON_OPEN],
+          ['default', XITI18N.t('popupMakeDefault', [r.name]), ICON_STAR],
         ]) {
           const button = element('button', 'xit-row-act');
           button.setAttribute('role', 'menuitem');
@@ -409,7 +409,8 @@
     }
     fragment.appendChild(element('div', 'xit-sep'));
     const foot = element('div', 'xit-foot');
-    for (const [action, text] of [['open-original', 'Open on X'], ['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
+    for (const [action, text] of [['open-original', XITI18N.t('actionOpenOriginal')],
+      ['original', XITI18N.t('menuCopyCleanLink')], ['options', XITI18N.t('settingsLabel')]]) {
       const button = element('button', '', text);
       button.setAttribute('role', 'menuitem');
       button.setAttribute('tabindex', '-1');
@@ -480,11 +481,11 @@
     caret.appendChild(icon(ICON_CARET));
     caret.setAttribute('aria-haspopup', 'menu');
     caret.setAttribute('aria-expanded', 'false');
-    caret.setAttribute('aria-label', 'Choose a redirector');
+    caret.setAttribute('aria-label', XITI18N.t('menuChooseRedirector'));
 
     function labelMain() {
       const d = XITStore.defaultRedirector(settings);
-      const t = 'Copy as ' + d.name;
+      const t = XITI18N.t('menuCopyAs', [d.name]);
       main.title = t;
       main.setAttribute('aria-label', t);
     }
@@ -669,7 +670,7 @@
       // pushConfig has already worked out the answer for itself.
       if (d.declined) mainWorldDeclined = true;
     } else if (d.__xit === 'copied' && typeof d.url === 'string') {
-      toast('Copied: ' + shortLabel(d.url), 'ok');
+      toast(XITI18N.t('toastCopied', [shortLabel(d.url)]), 'ok');
     }
   }, false);
 
@@ -682,9 +683,9 @@
 
     if (msg.type === 'xit:copy-text') {
       writeClipboard(msg.text).then((ok) => {
-        if (!ok) toast('Could not write to the clipboard', 'error');
+        if (!ok) toast(XITI18N.t('toastClipboardFailed'), 'error');
         else if (msg.note) toast(msg.note, 'warn');
-        else if (!msg.silent) toast('Copied: ' + shortLabel(msg.text), 'ok');
+        else if (!msg.silent) toast(XITI18N.t('toastCopied', [shortLabel(msg.text)]), 'ok');
         sendResponse({ ok });
       });
       return true;

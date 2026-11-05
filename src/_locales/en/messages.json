@@ -1,7 +1,490 @@
 {
+  "saved": {
+    "message": "Saved",
+    "description": "Settings: the status line after a setting is changed."
+  },
+  "errSave": {
+    "message": "Could not save: $detail$",
+    "description": "Settings: shown when writing settings fails. $detail$ is the browser's own error text, untranslated.",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "checkOk": {
+    "message": "Responds",
+    "description": "Settings: badge on a redirector whose host answered."
+  },
+  "checkFailing": {
+    "message": "Server error",
+    "description": "Settings: badge on a redirector whose host answered with a 5xx status."
+  },
+  "checkRefused": {
+    "message": "Refused",
+    "description": "Settings: badge on a redirector whose host answered with a 4xx status."
+  },
+  "checkSilent": {
+    "message": "No answer",
+    "description": "Settings: badge on a redirector whose host did not answer at all."
+  },
+  "checkDenied": {
+    "message": "Access not granted",
+    "description": "Settings: badge on a redirector that was not checked because permission was declined."
+  },
+  "checkUnknown": {
+    "message": "Cannot be checked",
+    "description": "Settings: badge on a redirector xIT does not ship, such as the user's own instance."
+  },
+  "checkUnknownWhy": {
+    "message": "Only the redirectors xIT ships can be checked, because access has to be declared in advance.",
+    "description": "Settings: tooltip explaining the \"Cannot be checked\" badge."
+  },
+  "checkedAt": {
+    "message": "Checked $when$",
+    "description": "Settings: tooltip on a reachability badge. $when$ is a date and time formatted by the browser.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "checkNoneCheckable": {
+    "message": "None of those can be checked.",
+    "description": "Settings: shown when every selected redirector is one xIT does not ship."
+  },
+  "checkNoAccess": {
+    "message": "Access was not granted, so nothing was checked.",
+    "description": "Settings: shown when the user declines the permission prompt raised by Check."
+  },
+  "checkFailed": {
+    "message": "Could not check those hosts.",
+    "description": "Settings: shown when the check itself fails."
+  },
+  "checkDone": {
+    "message": "Check complete. A response does not prove the host can display tweets.",
+    "description": "Settings: shown when a reachability check finishes."
+  },
+  "rowUnpin": {
+    "message": "Unpin",
+    "description": "Settings: button that removes a redirector from the pinned list."
+  },
+  "rowPin": {
+    "message": "Pin",
+    "description": "Settings: button that pins a redirector so it is listed first."
+  },
+  "rowMoveUp": {
+    "message": "Move up",
+    "description": "Settings: button that moves a pinned redirector earlier in the order."
+  },
+  "rowMoveDown": {
+    "message": "Move down",
+    "description": "Settings: button that moves a pinned redirector later in the order."
+  },
+  "rowEdit": {
+    "message": "Edit",
+    "description": "Settings: button that loads a redirector the user added into the form below."
+  },
+  "rowDuplicate": {
+    "message": "Duplicate",
+    "description": "Settings: button that copies a redirector the user added."
+  },
+  "rowCheck": {
+    "message": "Check",
+    "description": "Settings: button that asks one redirector's host whether it answers."
+  },
+  "rowRemove": {
+    "message": "Remove",
+    "description": "Settings: button that deletes a redirector the user added."
+  },
+  "listNoMatch": {
+    "message": "Nothing matches \"$text$\".",
+    "description": "Settings: shown when the redirector filter matches nothing. $text$ is what the user typed.",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      }
+    }
+  },
+  "panelCustomEdit": {
+    "message": "Edit custom redirector",
+    "description": "Settings: heading of the Custom redirector panel while an existing one is being edited."
+  },
+  "customSubmitSave": {
+    "message": "Save changes",
+    "description": "Settings: button that saves edits to an existing redirector."
+  },
+  "panelCustom": {
+    "message": "Custom redirector",
+    "description": "Settings, Custom redirector: text of the <h2>."
+  },
+  "customSubmitAdd": {
+    "message": "Add",
+    "description": "Settings: button that adds the redirector described in the form."
+  },
+  "undoRemoved": {
+    "message": "Removed $name$.",
+    "description": "Settings: shown after deleting a redirector, beside the Undo button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "sameServiceAs": {
+    "message": "Same service as $name$",
+    "description": "Settings: badge on a catalogue redirector that is another name for one already listed. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "pickerNeedName": {
+    "message": "Give your redirector a name, or clear both fields.",
+    "description": "Settings: shown in the first-run picker when a template is typed with no name."
+  },
+  "pickerNeedOne": {
+    "message": "Keep at least one redirector, or add your own.",
+    "description": "Settings: shown in the first-run picker when every redirector has been unticked."
+  },
+  "savedChoices": {
+    "message": "Choices saved",
+    "description": "Settings: status line after the first-run picker is saved."
+  },
+  "savedExported": {
+    "message": "Exported",
+    "description": "Settings: status line after settings are written to a file."
+  },
+  "importUnreadable": {
+    "message": "That file could not be read as settings: $detail$",
+    "description": "Settings: shown when an imported file will not parse. $detail$ is the parser's own message, untranslated.",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "importNotObject": {
+    "message": "That file is not a settings object.",
+    "description": "Settings: shown when an imported file parses but is not a settings object."
+  },
+  "importSummaryOne": {
+    "message": "That file has 1 redirector you do not have yet, out of $total$ in total.",
+    "description": "Settings: the singular form of the import summary. $total$ is a count.",
+    "placeholders": {
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "importSummaryMany": {
+    "message": "That file has $count$ redirectors you do not have yet, out of $total$ in total.",
+    "description": "Settings: the plural form of the import summary. Both are counts.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "importNothingNew": {
+    "message": "You already have every redirector in that file, so adding would change nothing.",
+    "description": "Settings: shown when an imported file holds nothing the user does not have."
+  },
+  "importNoneAtAll": {
+    "message": "That file has no redirectors of its own, so there is nothing to add.",
+    "description": "Settings: shown when an imported file holds no redirectors the user could adopt."
+  },
+  "savedImported": {
+    "message": "Imported",
+    "description": "Settings: status line after settings are replaced from a file."
+  },
+  "importAddedOne": {
+    "message": "Added 1 redirector.",
+    "description": "Settings: the singular form of the status line after merging an import."
+  },
+  "importAddedMany": {
+    "message": "Added $count$ redirectors.",
+    "description": "Settings: the plural form of the status line after merging an import. $count$ is a count.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "importNothingToAdd": {
+    "message": "Nothing to add.",
+    "description": "Settings: status line when a merge brought nothing across."
+  },
+  "checkInProgress": {
+    "message": "Checking…",
+    "description": "Settings: label on the Check button while a check is running."
+  },
+  "checkHostsButton": {
+    "message": "Check which are reachable",
+    "description": "Settings, Redirectors: text of the <button>."
+  },
+  "customNeedName": {
+    "message": "Give it a name.",
+    "description": "Settings: shown when the custom redirector form is submitted with no name."
+  },
+  "diagFailed": {
+    "message": "Could not collect diagnostics. Try again.",
+    "description": "Settings: shown when the diagnostics report cannot be built."
+  },
+  "diagCopied": {
+    "message": "Diagnostics copied.",
+    "description": "Settings: status line after the report reaches the clipboard."
+  },
+  "diagSelectManually": {
+    "message": "Select and copy the diagnostics shown below.",
+    "description": "Settings: shown when the clipboard write is refused and the report is displayed instead."
+  },
+  "savedReset": {
+    "message": "Reset",
+    "description": "Settings: status line after settings go back to their defaults."
+  },
+  "shortcutNoteFirefox": {
+    "message": "Open it, then the gear menu, then Manage Extension Shortcuts.",
+    "description": "Settings: replaces the note under the shortcuts address on Firefox. \"Manage Extension Shortcuts\" is Firefox's own wording."
+  },
+  "addressCopied": {
+    "message": "Address copied. Paste it into the address bar.",
+    "description": "Settings: status line after the browser's shortcuts address reaches the clipboard."
+  },
+  "addressCopyFailed": {
+    "message": "Could not copy. The address is selected, so copy it yourself.",
+    "description": "Settings: shown when the clipboard write is refused and the address is selected instead."
+  },
+  "errGeneric": {
+    "message": "Error: $detail$",
+    "description": "Settings: shown if the page fails to start. $detail$ is the browser's own error text, untranslated.",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupCopied": {
+    "message": "Copied $name$ link",
+    "description": "Popup: status line after a copy. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupCopyFailed": {
+    "message": "Clipboard write failed",
+    "description": "Popup: status line when the browser refuses the clipboard write."
+  },
+  "popupNotATweet": {
+    "message": "Not an X/Twitter link",
+    "description": "Popup: label describing the current tab when it holds no tweet link."
+  },
+  "popupTweetBy": {
+    "message": "Tweet by @$user$",
+    "description": "Popup: label describing the current tab. $user$ is an account handle, or an ellipsis when the link does not name one. The @ is part of the handle format and is not translated.",
+    "placeholders": {
+      "user": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupNoSource": {
+    "message": "Open a tweet, or paste a link below.",
+    "description": "Popup: shown in place of the preview when there is nothing to convert."
+  },
+  "actionCopy": {
+    "message": "Copy",
+    "description": "Popup: text of the <button>."
+  },
+  "actionOpen": {
+    "message": "Open",
+    "description": "Popup: text of the <button>."
+  },
+  "popupMakeDefault": {
+    "message": "Make $name$ the default",
+    "description": "Popup: tooltip on the star button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupNowDefault": {
+    "message": "$name$ is now the default",
+    "description": "Popup: status line after the default is changed. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupUnpinNamed": {
+    "message": "Unpin $name$",
+    "description": "Popup: accessible name for a row's unpin button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupPinNamed": {
+    "message": "Pin $name$",
+    "description": "Popup: accessible name for a row's pin button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupAccessGranted": {
+    "message": "Access granted. Reload your X tab.",
+    "description": "Popup: status line after the user grants access to x.com."
+  },
+  "popupAccessDenied": {
+    "message": "Access was not granted.",
+    "description": "Popup: status line after the user declines access to x.com."
+  },
+  "popupNotATweetFull": {
+    "message": "Not an X/Twitter link.",
+    "description": "Popup: status line when the pasted or current link is not a tweet. Same words as popupNotATweet with a full stop, because one is a label and one is a sentence."
+  },
+  "popupCopiedClean": {
+    "message": "Copied clean x.com link",
+    "description": "Popup: status line after copying the x.com link with tracking parameters removed."
+  },
+  "popupOpenFailed": {
+    "message": "Could not open that X link.",
+    "description": "Popup: status line when opening the original tweet fails."
+  },
+  "popupDiagCopied": {
+    "message": "Diagnostics copied. No links or clipboard data included.",
+    "description": "Popup: status line after the diagnostics report reaches the clipboard."
+  },
+  "toastCopiedWith": {
+    "message": "Copied $name$: $link$",
+    "description": "In-page menu on X: toast after a copy. $name$ is a redirector name, $link$ the copied text, shortened.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      },
+      "link": {
+        "content": "$2"
+      }
+    }
+  },
+  "toastClipboardFailed": {
+    "message": "Could not write to the clipboard",
+    "description": "In-page menu on X: toast when the browser refuses the clipboard write."
+  },
+  "toastCopiedClean": {
+    "message": "Copied x.com link: $link$",
+    "description": "In-page menu on X: toast after copying the x.com link with tracking parameters removed. $link$ is the copied text, shortened.",
+    "placeholders": {
+      "link": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastOpenFailed": {
+    "message": "Could not open that link.",
+    "description": "In-page menu on X: toast when a redirected link cannot be opened."
+  },
+  "menuCopyAsDefault": {
+    "message": "Copy as $name$, the default",
+    "description": "In-page menu on X: the same, for the row that is currently the default. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "menuCopyAs": {
+    "message": "Copy as $name$",
+    "description": "In-page menu on X: accessible name and tooltip for a row's own copy action. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "menuOpenWith": {
+    "message": "Open with $name$",
+    "description": "In-page menu on X: tooltip on a row's open button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "actionOpenOriginal": {
+    "message": "Open on X",
+    "description": "Popup: text of the <button>."
+  },
+  "menuCopyCleanLink": {
+    "message": "Copy clean x.com link",
+    "description": "In-page menu on X: footer button that copies the x.com link with tracking parameters removed."
+  },
+  "settingsLabel": {
+    "message": "Settings",
+    "description": "Popup: tooltip of the <button>."
+  },
+  "menuChooseRedirector": {
+    "message": "Choose a redirector",
+    "description": "In-page menu on X: accessible name for the chevron that opens the redirector list."
+  },
+  "toastCopied": {
+    "message": "Copied: $link$",
+    "description": "In-page menu on X: toast after a copy made without naming a redirector. $link$ is the copied text, shortened.",
+    "placeholders": {
+      "link": {
+        "content": "$1"
+      }
+    }
+  },
   "extensionName": {
     "message": "xIT",
     "description": "The extension's name, shown in the browser and in both stores."
+  },
+  "menuCopyPageAs": {
+    "message": "Copy this page as $name$",
+    "description": "Right-click menu: item for the page itself rather than a link on it. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "menuOpenPageWith": {
+    "message": "Open this page with $name$",
+    "description": "Right-click menu: item that opens the current page through a redirector. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "menuFellBackToClean": {
+    "message": "$reason$ Copied the clean x.com link instead.",
+    "description": "Right-click menu: toast when the chosen redirector does not apply to the link. $reason$ is a sentence from the converter saying why, already ending in a full stop.",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "bgNeedATweet": {
+    "message": "Open a tweet or paste an X link first.",
+    "description": "Shown when an action is asked for with no tweet link to work on."
+  },
+  "bgNotYourRedirector": {
+    "message": "That is not one of your redirectors.",
+    "description": "Shown when a request asks to open a destination that no configured redirector would have produced."
   },
   "extensionDescription": {
     "message": "Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.",
@@ -17,14 +500,406 @@
   },
   "optionsTitle": {
     "message": "xIT - Settings",
-    "description": "The Settings page's browser tab title."
+    "description": "Settings: text of the <title>."
   },
   "optionsTagline": {
     "message": "Copied X links go through the redirector you pick. Nothing leaves your browser.",
-    "description": "Subtitle under the heading on the Settings page."
+    "description": "Settings: text of the <p>."
   },
-  "settingsLabel": {
-    "message": "Settings",
-    "description": "Label and tooltip for the popup's gear button."
+  "pickerHeading": {
+    "message": "Choose your redirectors",
+    "description": "Settings, Choose your redirectors: text of the <h2>."
+  },
+  "pickerHint": {
+    "message": "Add your own or choose from these defaults. Change any time. Select a few to be pinned.",
+    "description": "Settings, Choose your redirectors: text of the <p>."
+  },
+  "pickerOwnLegend": {
+    "message": "Your own instance",
+    "description": "Settings, Choose your redirectors: text of the <legend>."
+  },
+  "pickerTokensHint": {
+    "message": "Optional. Tokens: {1} {2} {3} {4}. A plain mirror is usually {5}. Pin it from the list afterwards.",
+    "description": "Settings, Choose your redirectors: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "ownNameLabel": {
+    "message": "Your redirector's name",
+    "description": "Settings, Choose your redirectors: accessible name of the <input>."
+  },
+  "ownNamePlaceholder": {
+    "message": "Name, e.g. My instance",
+    "description": "Settings, Choose your redirectors: placeholder text of the <input>."
+  },
+  "ownTemplateLabel": {
+    "message": "Your redirector's URL template",
+    "description": "Settings, Choose your redirectors: accessible name of the <input>."
+  },
+  "pickerSave": {
+    "message": "Save choices",
+    "description": "Settings, Choose your redirectors: text of the <button>."
+  },
+  "pickerSkip": {
+    "message": "Skip for now",
+    "description": "Settings, Choose your redirectors: text of the <button>."
+  },
+  "importHeading": {
+    "message": "Import settings",
+    "description": "Settings, Import settings: text of the <h2>."
+  },
+  "importMerge": {
+    "message": "Add their redirectors",
+    "description": "Settings, Import settings: text of the <button>."
+  },
+  "importReplace": {
+    "message": "Replace everything",
+    "description": "Settings, Import settings: text of the <button>."
+  },
+  "importCancel": {
+    "message": "Cancel",
+    "description": "Settings, Import settings: text of the <button>."
+  },
+  "importHint": {
+    "message": "Adding keeps your default, your pins and your switches, and brings across only redirectors you do not already have. Replacing takes their whole file, including their choices.",
+    "description": "Settings, Import settings: text of the <p>."
+  },
+  "resetHeading": {
+    "message": "Reset to defaults?",
+    "description": "Settings, Reset to defaults?: text of the <h2>."
+  },
+  "resetHint": {
+    "message": "Every setting goes back to how xIT installs: three redirectors enabled, FxTwitter as the default, nothing pinned. Any redirector you added yourself is removed, and so is any catalogue entry you took. This cannot be undone.",
+    "description": "Settings, Reset to defaults?: text of the <p>."
+  },
+  "resetCancel": {
+    "message": "Keep my settings",
+    "description": "Settings, Reset to defaults?: text of the <button>."
+  },
+  "resetGo": {
+    "message": "Reset everything",
+    "description": "Settings, Reset to defaults?: text of the <button>."
+  },
+  "panelDefault": {
+    "message": "Default redirector",
+    "description": "Settings, Default redirector: text of the <h2>."
+  },
+  "panelDefaultHint": {
+    "message": "Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.",
+    "description": "Settings, Default redirector: text of the <p>."
+  },
+  "panelCopy": {
+    "message": "Copy behaviour",
+    "description": "Settings, Copy behaviour: text of the <h2>."
+  },
+  "switchButton": {
+    "message": "Show a button on every tweet",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchButtonHint": {
+    "message": "A split button in the action bar: click copies with the default, the chevron opens the full list. Right-click or long-press also opens it.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "switchHijack": {
+    "message": "Rewrite X's own “Copy link”",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchHijackHint": {
+    "message": "X's native share menu returns the redirected URL, so both routes give you the same thing.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "switchStrip": {
+    "message": "Strip tracking parameters",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchStripHint": {
+    "message": "Drops {1} and similar share telemetry.",
+    "description": "Settings, Copy behaviour: <i> whose {1}, {2}... are markup kept in place."
+  },
+  "switchToast": {
+    "message": "Confirm copies with a toast",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchToastHint": {
+    "message": "A brief banner showing exactly what landed on the clipboard.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "switchMenu": {
+    "message": "Right-click menu on tweet links",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchMenuHint": {
+    "message": "Copy or open any tweet link anywhere on the web, not just on X.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "switchMenuAll": {
+    "message": "Show every redirector in the right-click menu",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "switchMenuAllHint": {
+    "message": "Off by default, which lists your default and your pinned entries. On, it lists everything you have enabled, grouped, which can run to a couple of dozen items.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "fieldCopyFormat": {
+    "message": "Copy as",
+    "description": "Settings, Copy behaviour: text of the <b>."
+  },
+  "fieldCopyFormatHint": {
+    "message": "How the link is written out. Opening a link in a tab is not affected.",
+    "description": "Settings, Copy behaviour: text of the <i>."
+  },
+  "copyFormatExample": {
+    "message": "Example: {1}",
+    "description": "Settings, Copy behaviour: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "panelRedirectors": {
+    "message": "Redirectors",
+    "description": "Settings, Redirectors: text of the <h2>."
+  },
+  "panelRedirectorsHint": {
+    "message": "Untick any you do not want cluttering the dropdown.",
+    "description": "Settings, Redirectors: text of the <p>."
+  },
+  "listFilterPlaceholder": {
+    "message": "Filter by name, host or note",
+    "description": "Settings, Redirectors: placeholder text of the <input>."
+  },
+  "listFilterLabel": {
+    "message": "Filter the redirector list",
+    "description": "Settings, Redirectors: accessible name of the <input>."
+  },
+  "listSortLabel": {
+    "message": "Order",
+    "description": "Settings, Redirectors: text of the <span>."
+  },
+  "listSortGroup": {
+    "message": "As grouped",
+    "description": "Settings, Redirectors: text of the <option>."
+  },
+  "listSortName": {
+    "message": "By name",
+    "description": "Settings, Redirectors: text of the <option>."
+  },
+  "pinHint": {
+    "message": "Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.",
+    "description": "Settings, Redirectors: text of the <p>."
+  },
+  "morePickerHint": {
+    "message": "There are more redirectors than the ones listed here. {1}",
+    "description": "Settings, Redirectors: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "openPickerButton": {
+    "message": "Choose redirectors",
+    "description": "Settings, Redirectors: text of the <button>."
+  },
+  "checkHint": {
+    "message": "A redirector can quietly stop working. Check asks each host whether it still answers, once, when you press it. xIT makes no network request otherwise, and asks for access to a host only at that moment. A host that answers is not proof it can still display tweets. {1}",
+    "description": "Settings, Redirectors: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "undoRemove": {
+    "message": "Undo removal",
+    "description": "Settings, Redirectors: text of the <button>."
+  },
+  "customTokensHint": {
+    "message": "For a self-hosted instance or anything not listed. Tokens: {1} {2} {3} {4} {5} {6}. A plain mirror is usually {7}.",
+    "description": "Settings, Custom redirector: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "customNameLabel": {
+    "message": "Redirector name",
+    "description": "Settings, Custom redirector: accessible name of the <input>."
+  },
+  "customNamePlaceholder": {
+    "message": "Name, e.g. My instance",
+    "description": "Settings, Custom redirector: placeholder text of the <input>."
+  },
+  "customTemplateLabel": {
+    "message": "Redirector URL template",
+    "description": "Settings, Custom redirector: accessible name of the <input>."
+  },
+  "customCancel": {
+    "message": "Cancel edit",
+    "description": "Settings, Custom redirector: text of the <button>."
+  },
+  "panelShortcuts": {
+    "message": "Keyboard shortcuts",
+    "description": "Settings, Keyboard shortcuts: text of the <h2>."
+  },
+  "shortcutCopyHint": {
+    "message": "Copy the tweet under the pointer with the default redirector: {1}.",
+    "description": "Settings, Keyboard shortcuts: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "shortcutOpenHint": {
+    "message": "Open the tweet under the pointer with the default redirector: not bound. Both browsers hand out the obvious combinations already, so rather than pick one that silently loses, this one is left for you to choose.",
+    "description": "Settings, Keyboard shortcuts: text of the <p>."
+  },
+  "shortcutChangeHint": {
+    "message": "To change it, open the browser's own shortcuts page. An extension cannot open that page for you, so copy the address and paste it into the address bar.",
+    "description": "Settings, Keyboard shortcuts: text of the <p>."
+  },
+  "copyAddressButton": {
+    "message": "Copy address",
+    "description": "Settings, Keyboard shortcuts: text of the <button>."
+  },
+  "panelBackup": {
+    "message": "Backup",
+    "description": "Settings, Backup: text of the <h2>."
+  },
+  "backupExport": {
+    "message": "Export settings",
+    "description": "Settings, Backup: text of the <button>."
+  },
+  "backupImport": {
+    "message": "Import settings",
+    "description": "Settings, Backup: text of the <button>."
+  },
+  "backupReset": {
+    "message": "Reset to defaults",
+    "description": "Settings, Backup: text of the <button>."
+  },
+  "panelTrouble": {
+    "message": "Troubleshooting",
+    "description": "Settings, Troubleshooting: text of the <h2>."
+  },
+  "panelTroubleHint": {
+    "message": "Copy the extension and browser versions, access status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.",
+    "description": "Settings, Troubleshooting: text of the <p>."
+  },
+  "copyDiagnostics": {
+    "message": "Copy diagnostics",
+    "description": "Settings, Troubleshooting: text of the <button>."
+  },
+  "permText": {
+    "message": "This extension needs access to x.com before it can do anything.",
+    "description": "Popup: text of the <p>."
+  },
+  "permGrant": {
+    "message": "Grant access to x.com",
+    "description": "Popup: text of the <button>."
+  },
+  "currentChecking": {
+    "message": "Checking this tab…",
+    "description": "Popup: text of the <span>."
+  },
+  "actionCopyClean": {
+    "message": "Copy x.com link",
+    "description": "Popup: text of the <button>."
+  },
+  "manualLabel": {
+    "message": "Or paste any tweet link",
+    "description": "Popup: text of the <label>."
+  },
+  "manualHint": {
+    "message": "Paste a link, then press {1} to copy.",
+    "description": "Popup: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "copyWithLabel": {
+    "message": "Copy with",
+    "description": "Popup: text of the <div>."
+  },
+  "popupPinHint": {
+    "message": "Pin your favourites. Reorder them in Settings.",
+    "description": "Popup: text of the <p>."
+  },
+  "popupSwitchButton": {
+    "message": "Button on every tweet",
+    "description": "Popup: text of the <span>."
+  },
+  "popupSwitchHijack": {
+    "message": "Rewrite X's own “Copy link”",
+    "description": "Popup: text of the <span>."
+  },
+  "popupSwitchStrip": {
+    "message": "Strip {1} tracking",
+    "description": "Popup: <span> whose {1}, {2}... are markup kept in place."
+  },
+  "diagnosticsNote": {
+    "message": "No links or clipboard data included.",
+    "description": "Popup: text of the <span>."
+  },
+  "group_embed": {
+    "message": "Embed fixers",
+    "description": "Heading for the \"embed\" group of redirectors, in the lists and the right-click menu."
+  },
+  "group_thread": {
+    "message": "Thread tools",
+    "description": "Heading for the \"thread\" group of redirectors, in the lists and the right-click menu."
+  },
+  "group_custom": {
+    "message": "Custom",
+    "description": "Heading for the \"custom\" group of redirectors, in the lists and the right-click menu."
+  },
+  "note_fxtwitter": {
+    "message": "The usual default. Rich embeds, video, multi-image.",
+    "description": "One-line description of the FxTwitter redirector. Its name is a product name and is not translated."
+  },
+  "note_vxtwitter": {
+    "message": "A different service. Good multi-image galleries.",
+    "description": "One-line description of the vxTwitter redirector. Its name is a product name and is not translated."
+  },
+  "note_threadreader": {
+    "message": "Unrolls the whole thread. Needs a tweet link, not a profile.",
+    "description": "One-line description of the Thread Reader App redirector. Its name is a product name and is not translated."
+  },
+  "note_fixupx": {
+    "message": "FxTwitter under an x.com-shaped name. Same service, same output.",
+    "description": "One-line description of the FixupX redirector. Its name is a product name and is not translated."
+  },
+  "note_twittpr": {
+    "message": "FxTwitter again, useful when fxtwitter.com is filtered.",
+    "description": "One-line description of the Twittpr redirector. Its name is a product name and is not translated."
+  },
+  "note_fixvx": {
+    "message": "vxTwitter under another name. Same service.",
+    "description": "One-line description of the FixVX redirector. Its name is a product name and is not translated."
+  },
+  "note_fxtwitter_direct": {
+    "message": "Jumps straight to the video or image file itself.",
+    "description": "One-line description of the FxTwitter (direct media) redirector. Its name is a product name and is not translated."
+  },
+  "note_twitter_thread": {
+    "message": "A second thread unroller. Needs a tweet link, not a profile.",
+    "description": "One-line description of the twitter-thread.com redirector. Its name is a product name and is not translated."
+  },
+  "copyFormat_url": {
+    "message": "Just the link",
+    "description": "Name of the \"url\" copy format, as offered in Settings. Its example is a URL and is not translated."
+  },
+  "copyFormat_markdown": {
+    "message": "Markdown link",
+    "description": "Name of the \"markdown\" copy format, as offered in Settings. Its example is a URL and is not translated."
+  },
+  "copyFormat_author": {
+    "message": "Author then link",
+    "description": "Name of the \"author\" copy format, as offered in Settings. Its example is a URL and is not translated."
+  },
+  "errBadOperation": {
+    "message": "Invalid settings operation.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the request itself was malformed."
+  },
+  "errNotJsonObject": {
+    "message": "Settings must be a JSON object.",
+    "description": "Shown in Settings when a change to stored settings is rejected: an imported file was valid JSON but not an object."
+  },
+  "errNoSuchCustom": {
+    "message": "That custom redirector no longer exists.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the redirector being edited or removed is already gone."
+  },
+  "errNothingToRestore": {
+    "message": "There is no removed redirector to restore.",
+    "description": "Shown in Settings when a change to stored settings is rejected: Undo was used with nothing to undo."
+  },
+  "errIdTaken": {
+    "message": "That redirector ID is already in use.",
+    "description": "Shown in Settings when a change to stored settings is rejected: restoring a removed redirector would collide with an existing one."
+  },
+  "errUnknownOperation": {
+    "message": "Unknown settings operation.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the request named an operation this version does not have."
+  },
+  "errNeedName": {
+    "message": "Give the redirector a name.",
+    "description": "Shown when a redirector is added or edited with no name. Used only when the template itself was valid, so there is no more specific complaint to make."
+  },
+  "errSaveFailed": {
+    "message": "Could not save settings.",
+    "description": "Shown when the background does not answer a request to change settings."
   }
 }
