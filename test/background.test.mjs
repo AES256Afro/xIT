@@ -22,6 +22,9 @@ function harness(firefox = false) {
   let rules = [];
   let ruleUpdates = 0;
   const local = {};
+  // How many times anything was written to storage.local, so a test can say
+  // that a settings change caused no write of its own.
+  let localSets = 0;
   const rewrites = [];
   const badge = { text: 'PAUSE' };
   const sent = [];
@@ -38,6 +41,9 @@ function harness(firefox = false) {
   // What each origin answers with: a number is an HTTP status, 'throw' is no
   // answer at all (DNS gone, refused, timed out).
   let answers = {};
+  // Called inside the fake fetch, so a test can change the world while a
+  // check is in flight.
+  let fetchHook = null;
   let failCreation = false;
   function complete(cb, error) {
     runtime.lastError = error ? { message: error } : undefined;
@@ -68,7 +74,7 @@ function harness(firefox = false) {
     storage: { local: {
       get: async (keys) => Object.fromEntries([].concat(keys).filter((k) => k in local).map((k) => [k, JSON.parse(JSON.stringify(local[k]))])),
       remove: async (keys) => { for (const k of [].concat(keys)) delete local[k]; },
-      set: async (value) => { Object.assign(local, value); },
+      set: async (value) => { localSets++; Object.assign(local, value); },
     } },
     action: { setBadgeText: async ({ text }) => { badge.text = text; } },
     tabs: {
@@ -122,6 +128,22 @@ function harness(firefox = false) {
     },
     onChanged(fn) { changed = fn; },
     enabledRedirectors: (s) => [{id:'example',group:'test',name:s.name}],
+    /*
+     * Every redirector that exists, enabled or not, which is what C13's
+     * prune judges a stored result against.
+     *
+     * A function of the settings handed to it, as the real one is: removedIds
+     * stands in for a redirector no longer being in the stored list. That
+     * matters because the answer has to differ between a stale settings
+     * snapshot and a fresh read, which is the whole point of the mid-check
+     * test below. Reading the harness's current map instead made the two
+     * indistinguishable and let a reversion through.
+     */
+    allRedirectors: (s) => {
+      const gone = new Set((s && s.removedIds) || []);
+      const all = Object.keys(byId).length ? Object.values(byId) : store.enabledRedirectors(s);
+      return all.filter((r) => !gone.has(r.id));
+    },
     menuRedirectors: (s) => store.enabledRedirectors(s),
     // Stands in for the real fingerprint: enough that a change the menu does
     // depend on looks different and one it does not looks the same.
@@ -137,6 +159,7 @@ function harness(firefox = false) {
 
   async function fakeFetch(url, options) {
     fetched.push({ url, method: options && options.method });
+    if (fetchHook) fetchHook(url);
     const answer = answers[url];
     if (answer === undefined || answer === 'throw') throw new Error('network');
     return { status: answer, ok: answer < 400 };
@@ -163,6 +186,8 @@ function harness(firefox = false) {
   return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
     rewrites, badge, createCount: () => created,
     sent, opened, injected,
+    setCount() { return localSets; },
+    onFetch(fn) { fetchHook = fn; },
     setSettings(patch) { settings = { ...settings, ...patch }; },
     setRedirector(value) { redirector = value; },
     setRedirectors(map) { byId = map; },
@@ -666,4 +691,83 @@ test('no copy path reaches for a bare canonical link', async () => {
   }
   assert.equal(uses.length, 1, 'one use left, in openOriginal: ' + JSON.stringify(uses));
   assert.match(uses[0], /^src\/background\.js: const url = XIT\.canonical\(input,/);
+});
+
+test('a result is dropped once its redirector is gone', async () => {
+  /*
+   * C13. Nothing ever removed an entry from hostChecks, so a redirector the
+   * user deleted left its reachability result in storage for good: a badge
+   * for something that no longer exists, and a key that only grew.
+   *
+   * The prune is judged against every redirector that exists rather than
+   * against the enabled ones, because disabling is a choice the user can take
+   * back and the result still describes the same host.
+   */
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*', 'https://mine.example/*');
+  h.answer({ 'https://fxtwitter.com/': 200, 'https://mine.example/': 200 });
+  await h.check(['fxtwitter', 'mine']);
+  assert.deepEqual(Object.keys(h.local.hostChecks).sort(), ['fxtwitter', 'mine']);
+
+  // The custom one is removed. Any removal route ends in a settings write.
+  h.setRedirectors({
+    fxtwitter: { id: 'fxtwitter', name: 'FxTwitter', template: 'https://fxtwitter.com/{path}{query}' },
+  });
+  h.change({ name: 'after-removal' });
+  await h.settle();
+  assert.deepEqual(Object.keys(h.local.hostChecks), ['fxtwitter'],
+    'the removed redirector takes its result with it');
+});
+
+test('a disabled redirector keeps its result', async () => {
+  // The other side of the same predicate: only non-existence drops an entry.
+  // enabledRedirectors would have dropped this one, which is why the prune
+  // asks allRedirectors.
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*');
+  h.answer({ 'https://fxtwitter.com/': 200 });
+  await h.check(['fxtwitter']);
+  h.change({ enabledIds: [] });
+  await h.settle();
+  assert.deepEqual(Object.keys(h.local.hostChecks), ['fxtwitter']);
+});
+
+test('a settled check writes nothing on an ordinary settings change', async () => {
+  // The prune runs on every settings write, so it must not turn each one into
+  // a storage write of its own: that is a write the options page reacts to.
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*');
+  h.answer({ 'https://fxtwitter.com/': 200 });
+  await h.check(['fxtwitter']);
+  const before = JSON.stringify(h.local.hostChecks);
+  const writes = h.setCount();
+  h.change({ name: 'unrelated' });
+  await h.settle();
+  assert.equal(JSON.stringify(h.local.hostChecks), before, 'results untouched');
+  assert.equal(h.setCount(), writes, 'and no write at all when nothing was stale');
+});
+
+test('a result that lands after its redirector was removed is not written', async () => {
+  /*
+   * The window C13's prune cannot see. The check is as slow as the network,
+   * up to forty requests of it, so a redirector can be removed while it runs.
+   * Its own result then arrives afterwards: filtering against the settings
+   * the check began with would write that entry back in behind the prune, and
+   * nothing would clear it until the next settings write.
+   *
+   * Reusing the settings from the top of checkHosts makes this fail.
+   */
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*');
+  h.answer({ 'https://fxtwitter.com/': 200 });
+  h.onFetch(() => { h.change({ removedIds: ['fxtwitter'] }); });
+  const res = await h.check(['fxtwitter']);
+  assert.equal(res.ok, true, 'the check itself still answers the page');
+  assert.equal(res.results.fxtwitter.state, 'ok', 'and still reports what it found');
+  assert.equal(h.local.hostChecks.fxtwitter, undefined,
+    'but nothing is stored for a redirector that went away mid-check');
 });

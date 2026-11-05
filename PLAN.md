@@ -241,7 +241,7 @@ from 98. 191 messages, none of them typed twice.
 ## Milestone 6, what sweep 2 found
 
 Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
-S6 in 1.3.4, Q6 in 1.3.5, and B11 in 1.3.6**, three remain. Full text in `AUDIT-LOOP.md`. Ordered by what
+S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, and C13 in 1.3.7**, two remain. Full text in `AUDIT-LOOP.md`. Ordered by what
 goes wrong for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
@@ -302,9 +302,17 @@ goes wrong for a user, not by category.
    entry; the template is refused with a reason, since a shortened one is
    broken. The name cap was also written in the markup as `maxlength` with
    nothing keeping the two in step, so a test now does.
-8. **C13, reachability results are never cleaned up.** Reset leaves them and
-   removing a redirector leaves its result for good. Fix: clear the key on
-   reset and drop an entry with the redirector.
+8. ~~**C13, reachability results are never cleaned up.**~~ **Done in
+   1.3.7.** Not a deletion next to each removal, since there are several ways
+   a redirector can stop existing and the list grows: one predicate,
+   `liveChecks`, applied where the key is written. The prune runs on every
+   settings write, which is where every removal route ends. Reset clears the
+   key outright, since leaving nothing behind is the point of a reset.
+   Disabling keeps the result, because that is a choice the user can take
+   back. Two things came out of it that the finding did not name: a window
+   where a slow check writes its own result back in behind the prune, and
+   three harness stubs that disagreed with the APIs they stand for. Both are
+   recorded in `AUDIT-LOOP.md`.
 9. **U11, the reset dialog states the defaults in prose.** Accurate today,
    wrong the moment the bundled set changes. Fix: `$count$` and `$default$`
    placeholders, which the message format already supports.
