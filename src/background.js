@@ -168,10 +168,46 @@ async function checkHosts(ids) {
     results[redirector.id] = { ...outcome, at: Date.now() };
   }
   const stored = await api.storage.local.get('hostChecks');
+  // Settings are read again rather than reused from the top of this function.
+  // The loop above is as slow as the network, up to forty requests of it, so a
+  // redirector can be removed while it runs; filtering against the settings
+  // the check started with would write that redirector's own result back in
+  // after the prune had removed it, and nothing would clear it until the next
+  // settings write. This is the one window the prune cannot see.
+  const live = await XITStore.load();
   // Kept out of settings on purpose: these are observations, not choices, so
   // they are not exported, do not rebuild the menus, and are not worth syncing.
-  await api.storage.local.set({ hostChecks: { ...(stored && stored.hostChecks), ...results } });
+  await api.storage.local.set({
+    hostChecks: liveChecks({ ...(stored && stored.hostChecks), ...results }, live),
+  });
   return results;
+}
+
+/**
+ * The reachability results that still describe something, which is the ones
+ * whose redirector exists. Disabled counts as existing: that is a choice the
+ * user can take back, and the result is still about the same host.
+ *
+ * C13: nothing ever removed an entry, so a redirector the user deleted left
+ * its result in storage for good. The obvious fix is a delete next to the
+ * removal, but there are several ways a redirector can stop existing, and the
+ * list grows: remove, import over the top, a merge, a reset. B8 and B9 were
+ * both one rule applied at some of the places it had to hold and not others,
+ * so this is a predicate applied in the two places that write, rather than a
+ * deletion remembered at each place that removes.
+ */
+function liveChecks(checks, settings) {
+  const live = new Set(XITStore.allRedirectors(settings).map((r) => r.id));
+  return Object.fromEntries(Object.entries(checks || {}).filter(([id]) => live.has(id)));
+}
+
+/** Drop results for redirectors that no longer exist. No write if none did. */
+async function pruneHostChecks(settings) {
+  const stored = await api.storage.local.get('hostChecks');
+  const checks = (stored && stored.hostChecks) || {};
+  const kept = liveChecks(checks, settings);
+  if (Object.keys(kept).length === Object.keys(checks).length) return;
+  await api.storage.local.set({ hostChecks: kept });
 }
 
 /* -------------------------------------------------------------------- *
@@ -540,6 +576,9 @@ async function doInit(reason) {
     })(),
     clearLegacyRedirects(),
     api.storage.local.remove('lastCopyFailure'),
+    // Every route that can remove a redirector ends in a settings write, and
+    // a settings write ends here, so this is the one place that has to know.
+    pruneHostChecks(settings),
   ]);
   const failure = results.find((r) => r.status === 'rejected');
   if (failure) throw failure.reason;

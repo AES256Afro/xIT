@@ -161,6 +161,51 @@ behind it, rather than letting every string fall back to the English in the
 call. Changing one message now fails six background tests, which is the point:
 the assertions read what the shipped catalogue produces.
 
+## Three harness stubs that were lying
+
+C13 needed `XITStore.allRedirectors` in the background harness, which is a
+hand-written fake rather than the real library, and the work turned up three
+places where a stub quietly disagreed with the API it stands for. Each would
+have made a test pass while the code did nothing.
+
+The storage harness's `storage.local.remove` took a key and deleted
+`data[key]`. Both browsers accept a key **or a list of them**, and the fix for
+C13's reset passes a list, so the test for it passed before the fix was
+written. The stub now accepts both.
+
+The background harness's `allRedirectors` read the harness's current
+redirector map and ignored the settings handed to it. The real one derives
+from the settings object, and the difference is the whole point of the
+mid-check case below: a stale snapshot and a fresh read have to be able to
+disagree. They could not, and a reversion went undetected.
+
+The background harness's `XIT` was a hand-listed subset of the library's
+surface, retired in 1.3.5 for the same reason: it broke on a new export for
+reasons to do with the harness and not the change.
+
+The pattern across all three is one definition written twice. It is what B8,
+B9, S6 and Q6 were about in the source, and the test harnesses turn out to
+have the same disease. A stub is a second implementation of somebody else's
+contract, and nothing holds it to that contract. Where the real thing can be
+used, as with `XIT`, it now is.
+
+## A window the prune cannot see
+
+Worth recording because it was not in the finding and only turned up when a
+reversion failed to fail. The fix prunes stored results on every settings
+write, which covers every route by which a redirector can stop existing. But
+a check is as slow as the network, up to forty serial requests, and settings
+can change while it runs: its own result then lands *after* the prune and
+writes the removed redirector back in, with nothing to clear it until the
+next settings write.
+
+So `checkHosts` reads settings again before writing rather than reusing the
+copy it started with. Found by reverting the filter in the writer, seeing the
+suite stay green, and asking what the filter was actually for: the answer was
+nothing, as written, because it was filtering against the same stale
+settings. One of the two reasons to revert a fix is to learn the test is
+vacuous; the other is to learn the fix is.
+
 ## A test that reads the source
 
 B11 is the first fix in this sweep with no behavioural test behind it. The
@@ -185,9 +230,9 @@ position. Three separate reversions each fail it.
 ## What sweep 2 produced
 
 Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
-1.3.3, S6 in 1.3.4, Q6 in 1.3.5, and B11 in 1.3.6**; the other three are
-carried into
-Milestone 6 in `PLAN.md`: C13, U11, O5.
+1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, and C13 in 1.3.7**; the other
+two are carried into
+Milestone 6 in `PLAN.md`: U11, O5.
 
 Q6 turned on a shape worth naming, since it is the fourth finding of this
 sweep to have it. `canonical` returns a string and drops the parts it has
@@ -288,7 +333,7 @@ was used, what it printed is quoted.
 
 | id | Finding | File |
 |---|---|---|
-| C13 | **Reachability results are never cleaned up.** `hostChecks` is written per redirector id and nothing removes an entry. Reset clears `lastCopyFailure` and not `hostChecks`, so "Reset to defaults" leaves the badges behind, and removing a redirector leaves its result stored indefinitely. The key is deliberately outside settings, which is right, but that is also why neither reset nor removal touches it. | `src/background.js`, `src/lib/storage.js` |
+| C13 | **Fixed in 1.3.7.** **Reachability results are never cleaned up.** `hostChecks` is written per redirector id and nothing removes an entry. Reset clears `lastCopyFailure` and not `hostChecks`, so "Reset to defaults" leaves the badges behind, and removing a redirector leaves its result stored indefinitely. The key is deliberately outside settings, which is right, but that is also why neither reset nor removal touches it. | `src/background.js`, `src/lib/storage.js` |
 
 ### Readability, usability, visual
 

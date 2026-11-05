@@ -21,7 +21,10 @@ function harness() {
       session: {
         get(key, cb) { setImmediate(() => cb(copy(session))); },
         set(value, cb) { Object.assign(session, copy(value)); setImmediate(cb); },
-        remove(key, cb) { delete session[key]; setImmediate(cb); },
+        // Both browsers take a key or a list of them. This stub took only a
+        // key, so a call passing a list deleted nothing and said nothing: a
+        // test of one would have passed without the code working.
+        remove(key, cb) { for (const k of [].concat(key)) delete session[k]; setImmediate(cb); },
       },
       local: {
         get(key, cb) { const snapshot=copy(data); setImmediate(()=>cb(snapshot)); },
@@ -33,7 +36,7 @@ function harness() {
             cb();
           });
         },
-        remove(key,cb) { delete data[key];setImmediate(cb); },
+        remove(key,cb) { for (const k of [].concat(key)) delete data[k]; setImmediate(cb); },
       },
       onChanged:{addListener:fn=>changes.push(fn)},
     },
@@ -48,7 +51,8 @@ function harness() {
   }
   background=context();background.startWriter();
   return {background,context,get:()=>copy(data),fail:()=>{failNext=true;},
-    seed:value=>{data.settings=copy(value);}};
+    seed:value=>{data.settings=copy(value);},
+    seedLocal:(key,value)=>{data[key]=copy(value);}};
 }
 
 test('writes from separate contexts preserve unrelated changes',async()=>{
@@ -99,6 +103,21 @@ test('reset restores defaults through the same writer and rejects invalid import
   const h=harness(),a=h.context();await a.save({toast:false});await a.reset();
   assert.equal((await a.load()).toast,true);
   await assert.rejects(a.replace([]),/JSON object/);
+});
+
+test('reset takes the observations stored outside settings with it',async()=>{
+  // C13. Both of these live outside settings on purpose, which is also why
+  // neither was cleared: resetting replaces the settings key and nothing
+  // else. A reachability badge that outlives a reset reads as a fact about
+  // the extension, and carries a timestamp from before the reset.
+  //
+  // Dropping either key from the remove call makes this fail.
+  const h=harness(),a=h.context();
+  h.seedLocal('hostChecks',{fxtwitter:{state:'refused',at:1}});
+  h.seedLocal('lastCopyFailure',{text:'synthetic',at:1});
+  await a.reset();
+  assert.equal(h.get().hostChecks,undefined,'reachability results are gone');
+  assert.equal(h.get().lastCopyFailure,undefined,'and so is the copy failure');
 });
 
 test('pins have a stable shared order, survive reload, and do not change the default',async()=>{

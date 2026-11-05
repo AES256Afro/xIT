@@ -257,7 +257,12 @@
       raw = current;
     } else if (operation.type === 'reset') {
       raw = DEFAULTS;
-      await promisify((cb) => api.storage.local.remove('lastCopyFailure', cb));
+      // C13: the whole point of a reset is leaving nothing behind, and these
+      // two are the observations stored outside settings. A reachability badge
+      // that outlived the reset reads as a fact about the extension rather
+      // than about a check somebody ran weeks ago, and it carries a timestamp
+      // from before the reset to prove it.
+      await promisify((cb) => api.storage.local.remove(['lastCopyFailure', 'hostChecks'], cb));
     } else if (operation.type === 'enabled') {
       const ids = new Set(current.enabledIds);
       if (operation.enabled) ids.add(operation.id); else ids.delete(operation.id);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.7
+
+- Reachability results are tidied up after themselves. A redirector you remove now takes its Check result with it instead of leaving a badge for something that is no longer there, and Reset to defaults clears the results along with everything else. Disabling a redirector still keeps its result, since you can tick it back on and the result is about the same host either way.
+
 ## 1.3.6
 
 - Clicking Check twice while the permission prompt is up no longer starts two checks. The buttons are now disabled for as long as the prompt is open, which is the honest state: the check has begun, it is waiting on your answer.
