@@ -163,9 +163,17 @@ the assertions read what the shipped catalogue produces.
 
 ## What sweep 2 produced
 
-Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, and B7, B8 and B9 in
-1.3.3**; the other six are carried into Milestone 6 in `PLAN.md`: B11, S6,
-C13, U11, Q6, O5.
+Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
+1.3.3, and S6 in 1.3.4**; the other five are carried into Milestone 6 in
+`PLAN.md`: B11, C13, U11, Q6, O5.
+
+S6 named the name. Two more fields from the same file were unbounded for the
+same reason: the note, two lines away in the same object, and the template,
+which `validateTemplate` checked in every respect except length. A 5 KB
+template validated. Fixing only the field the finding named would have been
+the mistake B8 and B9 were: one rule applied inconsistently. The name cap is
+also written in the markup as `maxlength`, and nothing reapplied it from
+JavaScript, so a test now holds the two to the same number.
 
 B8 reached further than this sweep recorded. The same predicate, "do I
 already have this template?", was written twice: once in the merge and once
@@ -242,7 +250,7 @@ was used, what it printed is quoted.
 
 | id | Finding | File |
 |---|---|---|
-| S6 | **An imported redirector name is unbounded.** Templates from an imported or merged file go through `validateTemplate`, and ids are bounded by a pattern and by `freshId`'s 28-character slice, but the name is only `String(c.name || c.id)`. The 48-character cap is `maxlength` on the two form fields, which is a UI hint and not reached by import, merge or a hand-edited file. The name is rendered as `textContent` everywhere, so this is not injection; it is a file that can carry a 100 KB name into storage, into the list, into the popup and into context-menu titles. The sender gate itself is sound: `sender.id !== api.runtime.id` is the first statement in the message listener, ahead of every handler. | `src/lib/storage.js` |
+| S6 | **Fixed in 1.3.4.** **An imported redirector name is unbounded.** Templates from an imported or merged file go through `validateTemplate`, and ids are bounded by a pattern and by `freshId`'s 28-character slice, but the name is only `String(c.name || c.id)`. The 48-character cap is `maxlength` on the two form fields, which is a UI hint and not reached by import, merge or a hand-edited file. The name is rendered as `textContent` everywhere, so this is not injection; it is a file that can carry a 100 KB name into storage, into the list, into the popup and into context-menu titles. The sender gate itself is sound: `sender.id !== api.runtime.id` is the first statement in the message listener, ahead of every handler. | `src/lib/storage.js` |
 
 ### Code
 
@@ -294,7 +302,7 @@ this pass.
 | C9 | `AUDIT-2026-09-14.md` is 22 KB of superseded report at the repo root. **Fixed in 1.1.1:** deleted. | repo root |
 | C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. **Fixed in 1.3.0**, apart from C12. **Partly fixed in 1.2.0:** there is a catalogue, the manifest's strings come from it, and `lib/i18n.js` gives HTML and JavaScript a way in. The interface's own strings are still inline; carried as C11. | whole tree |
 | C11 | The interface's strings are still inline English: roughly 60 in `options.html`, plus the toasts, statuses and menu labels built in `inject.js`, `popup.js` and `background.js`. The mechanism to move them exists as of 1.2.0, so this is now mechanical rather than structural, and it is the last thing C10 was asking for. **Fixed in 1.3.0:** 191 messages, with the English derived from the markup and the library rather than retyped. | `src/options`, `src/popup`, `src/content`, `src/background.js` |
-| C12 | The failure messages `convert()` and `validateTemplate()` return, about ten of them, are the last inline English a user reads. They cannot move the way C11's did: `lib/redirectors.js` must stay free of browser APIs, because `tools/build.mjs` evaluates it in a bare context and the unit tests load it alone. The functions would have to return a message code plus parameters, which is a library-contract change with about twenty assertions on it. | `src/lib/redirectors.js` |
+| C12 | The failure messages `convert()` and `validateTemplate()` return, eleven of them as of 1.3.4, are the last inline English a user reads. They cannot move the way C11's did: `lib/redirectors.js` must stay free of browser APIs, because `tools/build.mjs` evaluates it in a bare context and the unit tests load it alone. The functions would have to return a message code plus parameters, which is a library-contract change with about twenty assertions on it. | `src/lib/redirectors.js` |
 
 ### Bug
 

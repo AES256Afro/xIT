@@ -240,9 +240,9 @@ from 98. 191 messages, none of them typed twice.
 
 ## Milestone 6, what sweep 2 found
 
-Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, and B7, B8 and B9 in
-1.3.3**, six remain. Full text in `AUDIT-LOOP.md`. Ordered by what goes wrong
-for a user, not by category.
+Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
+and S6 in 1.3.4**, five remain. Full text in `AUDIT-LOOP.md`. Ordered by what
+goes wrong for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
    at the root rather than at the call site: `XIT.handleOf` is now the only
@@ -285,9 +285,14 @@ for a user, not by category.
    through `formatCopy` as well. Worth deciding deliberately whether the
    x.com link should carry the author, since that is the one copy where the
    handle is already in the URL.
-7. **S6, an imported name is unbounded.** Templates and ids are bounded;
-   names are not, because the only cap is `maxlength` on two form fields.
-   Fix: cap in `normalize`, where every route meets.
+7. ~~**S6, an imported name is unbounded.**~~ **Done in 1.3.4.** Two more
+   fields were unbounded for the same reason and went with it: the note, in
+   the same object, and the template, which `validateTemplate` checked in
+   every respect except length. The name and note are truncated, since the
+   redirector still works and losing the end of a label beats losing the
+   entry; the template is refused with a reason, since a shortened one is
+   broken. The name cap was also written in the markup as `maxlength` with
+   nothing keeping the two in step, so a test now does.
 8. **C13, reachability results are never cleaned up.** Reset leaves them and
    removing a redirector leaves its result for good. Fix: clear the key on
    reset and drop an entry with the redirector.
@@ -303,8 +308,9 @@ for a user, not by category.
 
 Still carried from earlier milestones: **C12**, the failure messages
 `convert()` and `validateTemplate()` return, which needs a library-contract
-change rather than a string move; and **O2**, the popup re-running `convert`
-for every redirector on every keystroke.
+change rather than a string move, and which grew by one in 1.3.4 because the
+new template-length message had nowhere else to go; and **O2**, the popup
+re-running `convert` for every redirector on every keystroke.
 
 ## Explicitly not doing
 
