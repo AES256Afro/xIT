@@ -32,6 +32,13 @@ vm.runInContext(await readFile(path.join(SRC, 'lib/redirectors.js'), 'utf8'), ho
 const HOSTS = hostCtx.XIT.HOST_PATTERNS;
 if (!Array.isArray(HOSTS) || !HOSTS.length) throw new Error('XIT.HOST_PATTERNS is missing from src/lib/redirectors.js');
 
+// The reachability check asks for one of these at the moment the user presses
+// the button, and never before. Same rule as the X origins: one list, read
+// from the code rather than copied, so the manifest cannot offer an origin the
+// code will not ask for or ask for one the manifest never declared.
+const CHECK_ORIGINS = hostCtx.XIT.CHECK_ORIGINS.map((origin) => origin + '*');
+if (!CHECK_ORIGINS.length) throw new Error('XIT.CHECK_ORIGINS is missing from src/lib/redirectors.js');
+
 function baseManifest() {
   return {
     manifest_version: 3,
@@ -43,6 +50,10 @@ function baseManifest() {
     // gone; drop this permission once users have had time to update.
     permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
     host_permissions: HOSTS,
+    // Not granted on install. The Settings page requests one of these only
+    // when the user presses Check, and xIT makes no network request of its own
+    // at any other time.
+    optional_host_permissions: CHECK_ORIGINS,
     action: {
       default_title: 'xIT',
       default_popup: 'popup/popup.html',

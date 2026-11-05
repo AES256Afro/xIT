@@ -272,30 +272,57 @@
       await copyWith(redirector, src);
     });
 
+    // Every action is a real button now (U4), so Enter and Space are left to
+    // native activation. Up and Down step between rows, Left and Right across
+    // the actions within one row, which is how a menu of grouped items is
+    // meant to behave.
     el.addEventListener('keydown', (ev) => {
-      // Buttons inside rows and the footer keep their native activation.
-      if (ev.target.closest('button')) return;
-      const rows = Array.from(el.querySelectorAll('.xit-row'));
-      const idx = rows.findIndex((r) => r.classList.contains('xit-active'));
-      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
-        ev.preventDefault();
-        const next = ev.key === 'ArrowDown'
-          ? Math.min(rows.length - 1, idx + 1)
-          : Math.max(0, idx <= 0 ? 0 : idx - 1);
-        rows.forEach((r) => r.classList.remove('xit-active'));
-        if (rows[next]) {
-          rows[next].classList.add('xit-active');
-          rows[next].focus({ preventScroll: true });
-          rows[next].scrollIntoView({ block: 'nearest' });
-        }
-      } else if (ev.key === 'Enter' || ev.key === ' ') {
-        ev.preventDefault();
-        if (rows[idx]) rows[idx].click();
+      const key = ev.key;
+      const vertical = key === 'ArrowDown' || key === 'ArrowUp';
+      const horizontal = key === 'ArrowRight' || key === 'ArrowLeft';
+      const jump = key === 'Home' || key === 'End';
+      if (!vertical && !horizontal && !jump) return;
+      ev.preventDefault();
+
+      const stops = Array.from(el.querySelectorAll('.xit-row-main, .xit-foot [role="menuitem"]'));
+      if (!stops.length) return;
+      const row = ev.target.closest && ev.target.closest('.xit-row');
+
+      if (horizontal && row) {
+        const acts = Array.from(row.querySelectorAll('[role="menuitem"]'));
+        const at = acts.indexOf(ev.target);
+        const next = key === 'ArrowRight'
+          ? Math.min(acts.length - 1, at + 1)
+          : Math.max(0, at - 1);
+        focusStop(acts[next], row);
+        return;
       }
+      if (horizontal) return;
+
+      const here = stops.findIndex((node) => node === ev.target
+        || (row ? row.contains(node) : false));
+      const next = jump
+        ? (key === 'Home' ? 0 : stops.length - 1)
+        : key === 'ArrowDown'
+          ? Math.min(stops.length - 1, here + 1)
+          : Math.max(0, here <= 0 ? 0 : here - 1);
+      focusStop(stops[next]);
     });
 
     document.body.appendChild(el);
     return el;
+  }
+
+  /** Move focus to a menu item and keep the row highlight with it. */
+  function focusStop(node, knownRow) {
+    if (!node || !menuEl) return;
+    const row = knownRow || (node.closest && node.closest('.xit-row'));
+    for (const other of menuEl.querySelectorAll('.xit-row.xit-active')) {
+      if (other !== row) other.classList.remove('xit-active');
+    }
+    if (row) row.classList.add('xit-active');
+    node.focus({ preventScroll: true });
+    node.scrollIntoView({ block: 'nearest' });
   }
 
   function element(tag, className, text) {
@@ -326,20 +353,37 @@
     const fragment = document.createDocumentFragment();
     for (const g of XITStore.redirectorGroups(settings)) {
       const inGroup = g.entries;
-      fragment.appendChild(element('div', 'xit-group-label', g.label));
+      const groupLabel = element('div', 'xit-group-label', g.label);
+      groupLabel.setAttribute('role', 'presentation');
+      fragment.appendChild(groupLabel);
       for (const r of inGroup) {
+        // U4: the row used to be a role="menuitem" div with buttons inside it.
+        // ARIA forbids interactive descendants of menuitem, so a screen reader
+        // could not reliably reach the pin, open and default buttons. The row
+        // is a group now, and every action in it is a real menuitem button.
         const row = element('div', 'xit-row');
-        row.setAttribute('role', 'menuitem');
-        row.setAttribute('tabindex', '-1');
+        row.setAttribute('role', 'group');
+        row.setAttribute('aria-label', r.name);
         row.setAttribute('data-id', r.id);
         if (r.id === settings.defaultRedirector) row.setAttribute('data-default', '1');
-        row.appendChild(element('span', 'xit-row-dot'));
+
+        const main = element('button', 'xit-row-main');
+        main.setAttribute('role', 'menuitem');
+        main.setAttribute('tabindex', '-1');
+        main.setAttribute('data-act', 'copy');
+        main.setAttribute('aria-label', 'Copy as ' + r.name
+          + (r.id === settings.defaultRedirector ? ', the default' : ''));
+        main.appendChild(element('span', 'xit-row-dot'));
         const label = element('span', 'xit-row-label');
         label.appendChild(element('span', 'xit-row-name', r.name));
         if (r.note) label.appendChild(element('span', 'xit-row-note', r.note));
-        row.appendChild(label);
+        main.appendChild(label);
+        row.appendChild(main);
+
         const pinned = settings.pinnedIds.includes(r.id);
         const pin = element('button', 'xit-row-act xit-pin', pinned ? 'Unpin' : 'Pin');
+        pin.setAttribute('role', 'menuitem');
+        pin.setAttribute('tabindex', '-1');
         pin.setAttribute('data-act', 'pin');
         pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
         pin.setAttribute('aria-pressed', String(pinned));
@@ -349,6 +393,8 @@
           ['default', 'Make ' + r.name + ' the default', ICON_STAR],
         ]) {
           const button = element('button', 'xit-row-act');
+          button.setAttribute('role', 'menuitem');
+          button.setAttribute('tabindex', '-1');
           button.setAttribute('data-act', action);
           button.setAttribute('title', title);
           button.setAttribute('aria-label', title);
@@ -362,6 +408,8 @@
     const foot = element('div', 'xit-foot');
     for (const [action, text] of [['open-original', 'Open on X'], ['original', 'Copy clean x.com link'], ['options', 'Settings']]) {
       const button = element('button', '', text);
+      button.setAttribute('role', 'menuitem');
+      button.setAttribute('tabindex', '-1');
       button.setAttribute('data-foot', action);
       foot.appendChild(button);
     }
@@ -370,9 +418,8 @@
     if (focused) {
       const row = [...menuEl.querySelectorAll('.xit-row')].find((r) => r.getAttribute('data-id') === focusId);
       const target = focusFoot ? menuEl.querySelector('[data-foot="' + focusFoot + '"]')
-        : focusAction && row ? row.querySelector('[data-act="' + focusAction + '"]') : row;
-      if (row) row.classList.add('xit-active');
-      if (target) target.focus({ preventScroll: true });
+        : row ? (focusAction && row.querySelector('[data-act="' + focusAction + '"]')) || row.querySelector('.xit-row-main') : null;
+      if (target) focusStop(target, row);
     }
     menuEl.scrollTop = scrollTop;
   }
@@ -401,8 +448,8 @@
     menuEl.style.top = top + 'px';
     menuEl.style.left = left + 'px';
 
-    const first = menuEl.querySelector('.xit-row');
-    if (first) { first.classList.add('xit-active'); first.focus(); }
+    const first = menuEl.querySelector('.xit-row-main');
+    if (first) focusStop(first);
   }
 
   /* ---------------------------------------------------------------- *

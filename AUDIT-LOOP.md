@@ -35,9 +35,32 @@ which every script on the page can read. The channel was constrained instead
 of authenticated, which is recorded as option (a) under Milestone 1 item 3 in
 `PLAN.md`.
 
-Unit tests went from 50 to 63. The four new background tests and the four new
-content-bridge tests were each checked by reverting the fix they cover and
-confirming the matching test fails.
+## What Milestone 2 produced
+
+Fixed in 1.1.0: U3, U4, U6, O4, P4, Q5, and B2's replacement for Unroll Now.
+Nothing from Milestone 2 is still open.
+
+P4 and Q5 cost a permission. The version that needs none cannot read a status
+code, so it would have called the 503 that retired `unrollnow.com` healthy,
+which is worse than the list saying nothing. The check therefore declares
+optional host permissions for the hosts xIT ships and asks for them in the
+click handler of the Check button. Route (b) under Milestone 2 item 6 in
+`PLAN.md` records what that costs at store review.
+
+U4 has assertions at unit and Playwright level, but has not been through a
+screen reader, which the finding asks for.
+
+One thing the split turned up that no sweep had: a thread tool publishes its
+own path shape, and `parse()` knew two of them by name. Adding
+`twitter-thread.com` without touching `parse()` produced
+`fxtwitter.com/t/20` from a twitter-thread link. The shapes are now declared
+on the entries themselves, with a test that fails if an entry publishes a URL
+it cannot read back.
+
+Unit tests went from 50 to 63 over Milestone 1 and to 82 over Milestone 2.
+The four new background tests and the four new content-bridge tests were each
+checked by reverting the fix they cover and confirming the matching test
+fails, as was the path-recovery guard.
 
 ## Sweep 1, 4 November 2026
 
@@ -85,10 +108,10 @@ this pass.
 |---|---|
 | U1 | No first-run experience. On install the user gets eight redirectors all enabled and FxTwitter chosen for them, with no moment where they are asked. This is the gap the requested copy fills. |
 | U2 | Shipping all eight presets enabled is why the options page has to say "Untick any you do not want cluttering the dropdown". The default should be a small set, not an opt-out list. |
-| U3 | The context menu builds `Copy as X` and `Open with X` per redirector under the link root, plus `Open this page with X` per redirector under the page root. At eight presets that is roughly 25 items in one menu. |
-| U4 | Content-script menu rows are `role="menuitem"` containing `<button>` children. ARIA forbids interactive descendants of `menuitem`, so the pin, open and make-default buttons are not reliably reachable by a screen reader. |
+| U3 | The context menu builds `Copy as X` and `Open with X` per redirector under the link root, plus `Open this page with X` per redirector under the page root. At eight presets that is roughly 25 items in one menu. **Fixed in 1.1.0:** the menu lists the default and the pinned entries, with a setting for the full grouped list. |
+| U4 | Content-script menu rows are `role="menuitem"` containing `<button>` children. ARIA forbids interactive descendants of `menuitem`, so the pin, open and make-default buttons are not reliably reachable by a screen reader. **Fixed in 1.1.0:** the row is a `role="group"` and each action is its own `role="menuitem"` button. Not yet through a screen reader. |
 | U5 | `alert()` on a failed import and `confirm()` on reset. Blocking native dialogs in a styled options page. |
-| U6 | FxTwitter, FixupX and Twittpr are one service under three names; vxTwitter and FixVX likewise. They are presented as five peers with no indication of that, so a new user cannot tell what choosing between them means. |
+| U6 | FxTwitter, FixupX and Twittpr are one service under three names; vxTwitter and FixVX likewise. They are presented as five peers with no indication of that, so a new user cannot tell what choosing between them means. **Fixed in 1.1.0:** the five aliases moved to a catalogue, and each says which bundled service it is really an alias of. |
 | U7 | No filter or search in the redirector list, and no ordering control for anything that is not pinned. |
 | U8 | The shortcut panel asks the user to paste `chrome://extensions/shortcuts` by hand, correctly, but offers no copy button for the address. |
 | U9 | Pinning is explained in prose in two separate hints and nowhere prompted. |
@@ -101,7 +124,7 @@ this pass.
 | Q2 | Import replaces the whole settings object. No way to merge somebody else's custom entries into your own. |
 | Q3 | Undo holds only the last removed custom entry, in `storage.session`, so it ends at browser restart. |
 | Q4 | Only bare URLs. No markdown link, no "author plus link" format. |
-| Q5 | A dead host and a live host look identical in the list. `unrollnow` would have been caught by the user, not the UI. |
+| Q5 | A dead host and a live host look identical in the list. `unrollnow` would have been caught by the user, not the UI. **Fixed in 1.1.0:** Settings marks a host that answers with a server error or not at all. Reading the status is why it needs a host permission. |
 
 ### Platform features
 
@@ -110,7 +133,7 @@ this pass.
 | P1 | There is no **catalogue**: a shipped data list of suggested redirectors the user can add with one tap. This is the mechanism that turns "eight things forced on you" into "pick what you want", and it is what lets a contentious entry exist as a choice rather than a default. |
 | P2 | No first-run picker (see U1). |
 | P3 | No i18n (see C10). |
-| P4 | No reachability check. One user-initiated HEAD per host would let the UI mark an entry as unreachable instead of letting it fail silently at copy time. |
+| P4 | No reachability check. One user-initiated HEAD per host would let the UI mark an entry as unreachable instead of letting it fail silently at copy time. **Fixed in 1.1.0:** one HEAD request per host, on the button press, with optional host permissions requested at that moment. |
 
 ### Optimisation
 
@@ -119,7 +142,7 @@ this pass.
 | O1 | `syncTheme` unthrottled on body attribute mutations (same defect as B5, counted once in the fix). |
 | O2 | `renderList` in the popup re-runs `XIT.convert` for every redirector on every keystroke in the paste field. Cheap at eight entries, not cheap once a catalogue can add thirty. |
 | O3 | `redirectorGroups` does an O(n) `find` per pinned id on every render, in three separate render paths. |
-| O4 | Any settings write rebuilds the entire context menu: one `removeAllMenus` plus roughly 25 awaited `create` calls, in sequence. Toggling the toast setting pays that cost for no reason. |
+| O4 | Any settings write rebuilds the entire context menu: one `removeAllMenus` plus roughly 25 awaited `create` calls, in sequence. Toggling the toast setting pays that cost for no reason. **Fixed in 1.1.0:** the menu is rebuilt only when something it is built from changes. |
 
 ## Redirector link audit, 4 November 2026
 

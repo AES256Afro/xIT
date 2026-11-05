@@ -48,34 +48,75 @@
     { id: 'custom',  label: 'Custom',            blurb: 'Your own instances and templates.' },
   ];
 
+  // Bundled and enabled on install. Three, one per job: embeds, embeds with
+  // better galleries, threads. Everything else is in CATALOGUE below, off
+  // until the user asks for it. Eight pre-ticked presets made the choice look
+  // like a list to read rather than a decision to make, and five of them were
+  // aliases of the other three (U6).
   const PRESETS = [
-    // --- embed fixers ---------------------------------------------------
     { id: 'fxtwitter', name: 'FxTwitter', group: 'embed', host: 'fxtwitter.com',
       template: 'https://fxtwitter.com/{path}{query}',
       note: 'The usual default. Rich embeds, video, multi-image.' },
-    { id: 'fixupx', name: 'FixupX', group: 'embed', host: 'fixupx.com',
-      template: 'https://fixupx.com/{path}{query}',
-      note: 'FxTwitter under an x.com-shaped name.' },
-    { id: 'twittpr', name: 'Twittpr', group: 'embed', host: 'twittpr.com',
-      template: 'https://twittpr.com/{path}{query}',
-      note: 'FxTwitter alias, handy when fxtwitter.com is filtered.' },
     { id: 'vxtwitter', name: 'vxTwitter', group: 'embed', host: 'vxtwitter.com',
       template: 'https://vxtwitter.com/{path}{query}',
-      note: 'Alternative embed fixer. Good multi-image galleries.' },
-    { id: 'fixvx', name: 'FixVX', group: 'embed', host: 'fixvx.com',
-      template: 'https://fixvx.com/{path}{query}',
-      note: 'vxTwitter alias.' },
-    { id: 'fxtwitter-direct', name: 'FxTwitter (direct media)', group: 'embed', host: 'd.fxtwitter.com',
-      template: 'https://d.fxtwitter.com/{path}', requires: ['id'],
-      note: 'Jumps straight to the video/image file itself.' },
-
-    // --- thread tools ---------------------------------------------------
+      note: 'A different service. Good multi-image galleries.' },
     { id: 'threadreader', name: 'Thread Reader App', group: 'thread', host: 'threadreaderapp.com',
       template: 'https://threadreaderapp.com/thread/{id}.html', requires: ['id'],
+      recover: /^\/thread\/(\d+)\.html\/?$/,
       note: 'Unrolls the whole thread. Needs a tweet link, not a profile.' },
   ];
 
-  const PRESET_HOSTS = new Set(PRESETS.map((p) => p.host));
+  // Shipped as data, nothing enabled until the user picks it. `sameAs` names
+  // the bundled redirector an entry is really an alias of, so the UI can say
+  // so instead of presenting aliases as peers. Taking one of these writes an
+  // ordinary entry into the user's own list, so there is one code path for
+  // "a redirector the user chose" and no new storage shape; the definition
+  // still comes from here, so a corrected template reaches them on upgrade.
+  const CATALOGUE = [
+    { id: 'fixupx', name: 'FixupX', group: 'embed', host: 'fixupx.com', sameAs: 'fxtwitter',
+      template: 'https://fixupx.com/{path}{query}',
+      note: 'FxTwitter under an x.com-shaped name. Same service, same output.' },
+    { id: 'twittpr', name: 'Twittpr', group: 'embed', host: 'twittpr.com', sameAs: 'fxtwitter',
+      template: 'https://twittpr.com/{path}{query}',
+      note: 'FxTwitter again, useful when fxtwitter.com is filtered.' },
+    { id: 'fixvx', name: 'FixVX', group: 'embed', host: 'fixvx.com', sameAs: 'vxtwitter',
+      template: 'https://fixvx.com/{path}{query}',
+      note: 'vxTwitter under another name. Same service.' },
+    { id: 'fxtwitter-direct', name: 'FxTwitter (direct media)', group: 'embed', host: 'd.fxtwitter.com', sameAs: 'fxtwitter',
+      template: 'https://d.fxtwitter.com/{path}', requires: ['id'],
+      note: 'Jumps straight to the video or image file itself.' },
+    { id: 'twitter-thread', name: 'twitter-thread.com', group: 'thread', host: 'twitter-thread.com',
+      template: 'https://twitter-thread.com/t/{id}', requires: ['id'],
+      recover: /^\/t\/(\d+)\/?$/,
+      note: 'A second thread unroller. Needs a tweet link, not a profile.' },
+  ];
+
+  // Every host xIT itself vouches for: bundled or catalogue. isMirrorHost
+  // reads these so a link already pointing at one can be retargeted, and the
+  // main world accepts a config template only for one of them (S1).
+  const PRESET_HOSTS = new Set(PRESETS.concat(CATALOGUE).map((p) => p.host));
+
+  // Origins the reachability check may ask for. Only hosts xIT itself ships,
+  // because `permissions.request` can only ask for an origin the manifest
+  // declared as optional, and declaring a wildcard to cover templates the user
+  // typed would be a far bigger permission than the feature is worth. A custom
+  // template is therefore not checkable, and the UI says so. tools/build.mjs
+  // reads this list for optional_host_permissions.
+  const CHECK_ORIGINS = PRESETS.concat(CATALOGUE)
+    .map((p) => 'https://' + p.host + '/')
+    .filter((origin, at, all) => all.indexOf(origin) === at);
+
+  /** The origin to request before checking this template, or null. */
+  function checkOrigin(template) {
+    const host = templateHost(template);
+    if (!host) return null;
+    const origin = 'https://' + host.toLowerCase() + '/';
+    return CHECK_ORIGINS.includes(origin) ? origin : null;
+  }
+
+  function findCatalogue(id) {
+    return CATALOGUE.find((c) => c.id === String(id)) || null;
+  }
 
   // Front-ends xIT no longer offers. Links from them are still read, so a
   // pasted xcancel or Nitter URL can be converted to a supported redirector,
@@ -83,6 +124,15 @@
   // xcancel and twiiit went after a cease and desist; unrollnow.com stopped
   // answering (503) and was retired in 1.0.8.
   const WITHDRAWN_HOSTS = new Set(['xcancel.com', 'twiiit.com', 'unrollnow.com']);
+
+  // A redirector whose paths are not a plain x.com mirror has to say how to
+  // read a status ID back out of one, or a link already on it cannot be
+  // retargeted: it would be parsed as a username and converted to nonsense.
+  // Any new entry with its own path shape belongs here, via `recover`.
+  const RECOVER = new Map(PRESETS.concat(CATALOGUE)
+    .filter((p) => p.recover)
+    .map((p) => [p.host, p.recover])
+    .concat([['unrollnow.com', /^\/status\/(\d+)\/?$/]]));
 
   /* ------------------------------------------------------------------ *
    * Parsing
@@ -124,9 +174,9 @@
     // Thread tools publish their own path shapes. Recover the status ID
     // before retargeting; those paths are not valid on a plain mirror.
     const mirror = bareHost(u.hostname);
-    if (mirror === 'threadreaderapp.com' || mirror === 'unrollnow.com') {
-      const match = (mirror === 'threadreaderapp.com'
-        ? /^\/thread\/(\d+)\.html\/?$/ : /^\/status\/(\d+)\/?$/).exec(u.pathname);
+    const recover = RECOVER.get(mirror);
+    if (recover) {
+      const match = recover.exec(u.pathname);
       if (!match) return null;
       segs = ['i', 'web', 'status', match[1]];
     }
@@ -276,9 +326,9 @@
   }
 
   root.XIT = {
-    GROUPS, PRESETS, TOKENS, TRACKING_PARAMS, HOST_PATTERNS,
+    GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS,
     parse, expand, convert, canonical, stripTracking,
-    validateTemplate, templateHost, isPresetTemplate,
+    validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

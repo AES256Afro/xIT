@@ -112,6 +112,27 @@ try {
   assert.ok(!tweet.url().includes('xit_bypass'), 'no bypass parameter is added any more');
   await tweet.locator('.xit-btn-caret').first().click();
   assert.deepEqual(await tweet.locator('.xit-row').evaluateAll(rows => rows.slice(0, 2).map(r => r.dataset.id)), ['vxtwitter', 'threadreader']);
+  // U4: no role="menuitem" may contain an interactive descendant, or a screen
+  // reader cannot reliably reach the pin, open and default buttons.
+  assert.deepEqual(await tweet.evaluate(() => Array.from(document.querySelectorAll('.xit-menu [role="menuitem"]'))
+    .filter((item) => item.querySelector('button, a, input, [role="menuitem"]'))
+    .map((item) => item.className)), []);
+  assert.deepEqual(await tweet.evaluate(() => Array.from(document.querySelectorAll('.xit-menu .xit-row'))
+    .filter((row) => row.getAttribute('role') !== 'group').map((row) => row.dataset.id)), []);
+  assert.ok(await tweet.evaluate(() => {
+    const row = document.querySelector('.xit-menu .xit-row');
+    return row.querySelectorAll('[role="menuitem"]').length === 4
+      && row.querySelector('.xit-row-main').getAttribute('role') === 'menuitem';
+  }), 'each row offers copy, pin, open and default as menu items');
+  // Down then Right lands on the second row's pin, which is the point of
+  // splitting the row into separate menu items.
+  await tweet.keyboard.press('ArrowDown');
+  await tweet.keyboard.press('ArrowRight');
+  assert.equal(await tweet.evaluate(() => document.activeElement.dataset.act), 'pin');
+  await tweet.keyboard.press('ArrowLeft');
+  assert.equal(await tweet.evaluate(() => document.activeElement.dataset.act), 'copy');
+  check('The tweet menu exposes each action as its own menu item and arrow keys reach them');
+
   await openOnX(() => tweet.locator('[data-foot="open-original"]').click());
   await openOnX(() => worker.evaluate(() => handleMenuClick({ menuItemId: 'xit-link-open-original', linkUrl: 'https://x.com/jack/status/20?s=20' })));
   check('Open on X works from popup, tweet menu and context-menu handling; pinned order also reaches the tweet menu');

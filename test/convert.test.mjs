@@ -173,3 +173,79 @@ test('the redirect engine is not exported', () => {
     assert.equal(name in XIT, false, name);
   }
 });
+
+/* -------------------------------------------------------------------- *
+ * Milestone 2, the choice model
+ * -------------------------------------------------------------------- */
+
+test('three redirectors are bundled and the rest are a catalogue', () => {
+  assert.deepEqual(Array.from(XIT.PRESETS.map((p) => p.id)), ['fxtwitter', 'vxtwitter', 'threadreader']);
+  assert.deepEqual(Array.from(XIT.CATALOGUE.map((p) => p.id)),
+    ['fixupx', 'twittpr', 'fixvx', 'fxtwitter-direct', 'twitter-thread']);
+  // No ID may appear in both, or settings could not tell them apart.
+  for (const entry of XIT.CATALOGUE) assert.equal(XIT.PRESETS.some((p) => p.id === entry.id), false, entry.id);
+  // U6: an alias has to say what it is an alias of.
+  for (const entry of XIT.CATALOGUE) {
+    if (!entry.sameAs) continue;
+    assert.ok(XIT.PRESETS.some((p) => p.id === entry.sameAs), entry.id + ' points at a bundled redirector');
+  }
+  assert.equal(XIT.findCatalogue('fixupx').host, 'fixupx.com');
+  assert.equal(XIT.findCatalogue('fxtwitter'), null, 'a bundled preset is not in the catalogue');
+  assert.equal(XIT.findCatalogue('nope'), null);
+});
+
+test('twitter-thread.com replaces Unroll Now', () => {
+  const tt = XIT.findCatalogue('twitter-thread');
+  assert.equal(XIT.convert('https://x.com/jack/status/20?s=20', tt).url, 'https://twitter-thread.com/t/20');
+  assert.equal(XIT.convert('https://x.com/jack', tt).ok, false, 'it needs a tweet, not a profile');
+  // And a link already on it can be moved somewhere else.
+  assert.equal(XIT.isMirrorHost('twitter-thread.com'), true);
+  assert.equal(conv('https://twitter-thread.com/t/20', 'fxtwitter').url, 'https://fxtwitter.com/i/web/status/20');
+  assert.equal(XIT.canonical('https://twitter-thread.com/t/20'), 'https://x.com/i/web/status/20');
+});
+
+test('the main world vouches for catalogue hosts too, and nothing else', () => {
+  for (const entry of XIT.PRESETS.concat(XIT.CATALOGUE)) {
+    assert.equal(XIT.isPresetTemplate(entry.template), true, entry.id);
+  }
+  assert.equal(XIT.isPresetTemplate('https://evil.example/{path}'), false);
+  assert.equal(XIT.isPresetTemplate('https://fxtwitter.com.evil.example/{path}'), false);
+  assert.equal(XIT.isPresetTemplate('http://fxtwitter.com/{path}'), false, 'https only');
+  assert.equal(XIT.isPresetTemplate('https://unrollnow.com/{path}'), false, 'a withdrawn host is not vouched for');
+});
+
+test('every redirector with its own path shape can be read back', () => {
+  // A thread tool whose paths are not a plain x.com mirror must declare how to
+  // recover the status ID, or a link already on it converts to nonsense. This
+  // is the check that catches a new entry added without one.
+  for (const entry of XIT.PRESETS.concat(XIT.CATALOGUE)) {
+    const out = XIT.convert('https://x.com/jack/status/20', entry);
+    if (!out.ok) continue;
+    const back = XIT.canonical(out.url);
+    const plainMirror = out.url === 'https://' + entry.host + '/jack/status/20';
+    if (plainMirror) continue;
+    assert.equal(back, 'https://x.com/i/web/status/20',
+      entry.id + ' publishes ' + out.url + ' but cannot read it back');
+  }
+});
+
+test('only the hosts xIT ships can be asked about', () => {
+  // The manifest's optional_host_permissions is generated from this list, so a
+  // template the user typed has no origin to request: permissions.request can
+  // only ask for an origin declared in advance, and a wildcard covering
+  // anything typed would be a far bigger ask than the check is worth.
+  for (const entry of XIT.PRESETS.concat(XIT.CATALOGUE)) {
+    assert.equal(XIT.checkOrigin(entry.template), 'https://' + entry.host + '/', entry.id);
+  }
+  assert.equal(XIT.checkOrigin('https://mine.example/{path}'), null);
+  assert.equal(XIT.checkOrigin('https://fxtwitter.com.evil.example/{path}'), null);
+  assert.equal(XIT.checkOrigin(''), null);
+  assert.deepEqual(Array.from(XIT.CHECK_ORIGINS),
+    ['https://fxtwitter.com/', 'https://vxtwitter.com/', 'https://threadreaderapp.com/',
+      'https://fixupx.com/', 'https://twittpr.com/', 'https://fixvx.com/',
+      'https://d.fxtwitter.com/', 'https://twitter-thread.com/']);
+  // Withdrawn hosts are readable but never asked about: nothing sends a user
+  // there, so their health is not a question xIT puts to the network.
+  assert.equal(XIT.checkOrigin('https://unrollnow.com/{path}'), null);
+  assert.equal(XIT.checkOrigin('https://xcancel.com/{path}'), null);
+});

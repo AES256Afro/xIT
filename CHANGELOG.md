@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Ship three redirectors enabled, not eight. FxTwitter, vxTwitter and Thread Reader App, one per job. FixupX, Twittpr, FixVX, FxTwitter direct media and twitter-thread.com are still here as a catalogue you choose from, and each one now says what it actually is: three of the old eight were FxTwitter under other names, and two were vxTwitter, which the list gave no way of knowing.
+- Add a first-run picker. Pick what you want, pin a few, or paste your own instance, with the catalogue in front of you. It opens once, and the Redirectors panel can open it again whenever you want. Upgrading does not open it: redirectors you already chose are kept, including ones that moved to the catalogue, and a default of FixupX stays FixupX.
+- Add twitter-thread.com, replacing Unroll Now.
+- Cut the right-click menu down to your default and your pinned entries. It used to list everything enabled, roughly 25 items in one menu. There is a setting to get the full grouped list back.
+- Stop rebuilding the right-click menu on settings changes that cannot affect it. Toggling the toast used to rebuild all of it.
+- Check whether a redirector still answers, from Settings, per entry or all at once. A host that has gone away is marked in the list instead of failing when you copy. Nothing is checked until you press the button: xIT asks for access to those hosts at that moment, for those hosts only, and makes no network request of its own at any other time. A host that answers is not proof it can still display tweets, and a custom template of yours cannot be checked, because the access would have to be declared in advance and xIT will not ask for every site.
+- Make the tweet menu usable with a screen reader. Each row's copy, pin, open and default actions are now separate menu items, which ARIA requires and which the previous markup made unreachable. Left and Right move between them, Up and Down between rows.
+
 ## 1.0.8
 
 - Stop putting the wrong link on the clipboard. When a redirector does not apply to a link, for example a thread tool on a profile, the clean x.com link is copied instead of the raw target, and the toast says which redirector declined and why. Previously the raw link was copied silently, tracking parameters and all.

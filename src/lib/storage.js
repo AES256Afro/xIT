@@ -24,6 +24,12 @@
     toast: true,
     stripTracking: true,
     contextMenu: true,
+    // Right-click menu shows the default and the pinned entries only. The
+    // full list ran to roughly 25 items in one menu (U3).
+    contextMenuAll: false,
+    // The first-run picker has been through once. Set by the picker itself,
+    // not by install, so somebody who never opens it still gets it.
+    pickerDone: false,
   };
 
   function clone(v) {
@@ -52,24 +58,55 @@
     }
     s.schemaVersion = SCHEMA_VERSION;
 
+    // A redirector the user took from the catalogue lives in `custom` like any
+    // other choice they made. Settings written before 1.1.0 enabled five
+    // redirectors that are now catalogue entries, so anything still referring
+    // to one is adopted here rather than dropped: an upgrader who made FixupX
+    // their default keeps it.
+    const customIn = Array.isArray(s.custom) ? s.custom.slice() : [];
+    const held = new Set(customIn.map((c) => c && String(c.id || '')));
+    const referenced = [].concat(
+      Array.isArray(s.enabledIds) ? s.enabledIds : [],
+      Array.isArray(s.pinnedIds) ? s.pinnedIds : [],
+      [s.defaultRedirector],
+    );
+    for (const ref of referenced) {
+      const entry = XIT.findCatalogue(ref);
+      if (entry && !held.has(entry.id)) {
+        held.add(entry.id);
+        customIn.push({ id: entry.id, template: entry.template });
+      }
+    }
+
     // Drop custom entries that no longer validate, and de-duplicate ids.
     const seen = new Set(XIT.PRESETS.map((p) => p.id));
-    s.custom = (Array.isArray(s.custom) ? s.custom : []).filter((c) => {
+    s.custom = customIn.filter((c) => {
       if (!c || typeof c.template !== 'string') return false;
       if (!XIT.validateTemplate(c.template).ok) return false;
       const id = String(c.id || '');
       if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || seen.has(id)) return false;
       seen.add(id);
       return true;
-    }).map((c) => ({
-      id: String(c.id),
-      name: String(c.name || c.id),
-      group: 'custom',
-      template: String(c.template).trim(),
-      requires: /\{id\}/.test(c.template) && !/\{path\}/.test(c.template) ? ['id'] : [],
-      note: c.note ? String(c.note) : '',
-      custom: true,
-    }));
+    }).map((c) => {
+      const entry = XIT.findCatalogue(c.id);
+      // A catalogue entry keeps its own definition, so a template corrected in
+      // a later release reaches people who already took it. Only what the user
+      // typed themselves is stored verbatim.
+      if (entry) {
+        return { id: entry.id, name: entry.name, group: entry.group, template: entry.template,
+          requires: (entry.requires || []).slice(), note: entry.note || '',
+          sameAs: entry.sameAs || '', catalogue: true };
+      }
+      return {
+        id: String(c.id),
+        name: String(c.name || c.id),
+        group: 'custom',
+        template: String(c.template).trim(),
+        requires: /\{id\}/.test(c.template) && !/\{path\}/.test(c.template) ? ['id'] : [],
+        note: c.note ? String(c.note) : '',
+        custom: true,
+      };
+    });
 
     const known = new Set(XIT.PRESETS.map((p) => p.id).concat(s.custom.map((c) => c.id)));
     s.enabledIds = [...new Set((Array.isArray(s.enabledIds) ? s.enabledIds : []).filter((id) => known.has(id)))];
@@ -79,7 +116,8 @@
       s.defaultRedirector = s.enabledIds.includes('fxtwitter') ? 'fxtwitter' : (s.enabledIds[0] || DEFAULTS.defaultRedirector);
     }
 
-    for (const k of ['copyButton', 'hijackNativeCopy', 'toast', 'stripTracking', 'contextMenu']) {
+    for (const k of ['copyButton', 'hijackNativeCopy', 'toast', 'stripTracking', 'contextMenu',
+      'contextMenuAll', 'pickerDone']) {
       s[k] = !!s[k];
     }
     return s;
@@ -212,6 +250,33 @@
     return redirectorGroups(settings).flatMap((g) => g.entries).filter((r) => on.has(r.id));
   }
 
+  /**
+   * What the right-click menu should list. Everything the user enabled was
+   * roughly 25 items in a single menu (U3), so unless they ask for the full
+   * list it is the default plus whatever they pinned.
+   */
+  function menuRedirectors(settings) {
+    const enabled = enabledRedirectors(settings);
+    if (settings && settings.contextMenuAll) return enabled;
+    const wanted = [settings.defaultRedirector].concat(settings.pinnedIds || []);
+    const out = [];
+    for (const id of wanted) {
+      const entry = enabled.find((r) => r.id === id);
+      if (entry && !out.includes(entry)) out.push(entry);
+    }
+    return out;
+  }
+
+  /**
+   * A fingerprint of everything the right-click menu is built from, so a
+   * settings write that cannot change the menu does not rebuild it (O4).
+   */
+  function menuSignature(settings) {
+    if (!settings || !settings.contextMenu) return 'off';
+    return JSON.stringify([settings.contextMenuAll, defaultRedirector(settings).name,
+      menuRedirectors(settings).map((r) => [r.id, r.name, (r.requires || []).join('+')])]);
+  }
+
   function redirectorGroups(settings, enabledOnly = true) {
     const all = allRedirectors(settings).filter((r) => !enabledOnly || settings.enabledIds.includes(r.id));
     const pinned = settings.pinnedIds || [];
@@ -251,6 +316,7 @@
     load, save, replace, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
     startWriter, mutate,
     editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups,
+    menuRedirectors, menuSignature,
     allRedirectors, enabledRedirectors, findRedirector, defaultRedirector, extraHosts,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

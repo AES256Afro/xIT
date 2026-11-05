@@ -52,38 +52,122 @@ async function buildMenus(settings) {
   await removeAllMenus();
   if (!settings.contextMenu) return;
 
-  const list = XITStore.enabledRedirectors(settings);
-  if (!list.length) return;
+  // The default and the pinned entries, unless the user asked for the lot.
+  // Listing everything enabled came to roughly 25 items in one menu (U3).
+  const list = XITStore.menuRedirectors(settings);
+  const grouped = !!settings.contextMenuAll;
+  const link = { contexts: ['link'], targetUrlPatterns: LINK_PATTERNS };
+  const page = { contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS };
 
   // On a tweet link anywhere on the web.
-  await createMenu({ id: MENU_ROOT_LINK, title: 'xIT', contexts: ['link'], targetUrlPatterns: LINK_PATTERNS });
-  await createMenu({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS,
+  await createMenu({ id: MENU_ROOT_LINK, title: 'xIT', ...link });
+  await createMenu({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, ...link,
     title: 'Copy as ' + XITStore.defaultRedirector(settings).name });
-  await createMenu({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
-
-  for (const g of XIT.GROUPS) {
-    const inGroup = list.filter((r) => r.group === g.id);
-    if (!inGroup.length) continue;
-    const groupId = 'xit-link-g-' + g.id;
-    await createMenu({ id: groupId, parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: g.label });
-    for (const r of inGroup) {
-      await createMenu({ id: 'xit-link-copy:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy as ' + r.name });
-      await createMenu({ id: 'xit-link-open:' + r.id, parentId: groupId, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Open with ' + r.name });
-    }
+  if (list.length) {
+    await createMenu({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
   }
-  await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, type: 'separator' });
-  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Copy clean x.com link' });
-  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, contexts: ['link'], targetUrlPatterns: LINK_PATTERNS, title: 'Open on X' });
+
+  async function linkPair(parentId, r) {
+    await createMenu({ id: 'xit-link-copy:' + r.id, parentId, ...link, title: 'Copy as ' + r.name });
+    await createMenu({ id: 'xit-link-open:' + r.id, parentId, ...link, title: 'Open with ' + r.name });
+  }
+
+  if (grouped) {
+    for (const g of XIT.GROUPS) {
+      const inGroup = list.filter((r) => r.group === g.id);
+      if (!inGroup.length) continue;
+      const groupId = 'xit-link-g-' + g.id;
+      await createMenu({ id: groupId, parentId: MENU_ROOT_LINK, ...link, title: g.label });
+      for (const r of inGroup) await linkPair(groupId, r);
+    }
+  } else {
+    // Few enough to sit at the top level, where they take one fewer hover.
+    for (const r of list) await linkPair(MENU_ROOT_LINK, r);
+  }
+
+  await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
+  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, ...link, title: 'Copy clean x.com link' });
+  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, ...link, title: 'Open on X' });
 
   // On the page itself while browsing X.
-  await createMenu({ id: MENU_ROOT_PAGE, title: 'xIT', contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS });
-  await createMenu({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
+  await createMenu({ id: MENU_ROOT_PAGE, title: 'xIT', ...page });
+  await createMenu({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, ...page,
     title: 'Copy this page as ' + XITStore.defaultRedirector(settings).name });
-  await createMenu({ id: 'xit-page-open-original', parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS, title: 'Open on X' });
+  await createMenu({ id: 'xit-page-open-original', parentId: MENU_ROOT_PAGE, ...page, title: 'Open on X' });
   for (const r of list) {
-    await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS,
+    await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, ...page,
       title: 'Open this page with ' + r.name });
   }
+}
+
+/* -------------------------------------------------------------------- *
+ * Reachability check (P4, Q5)
+ *
+ * A dead redirector and a live one looked identical in the list: unrollnow
+ * was caught by a user, not by the UI. This answers the question honestly,
+ * which means reading the status code, which means a host permission. Those
+ * are optional and requested by the Settings page at the moment the user
+ * presses Check. Nothing here runs on a timer, on startup, or on a settings
+ * change: every request below is one the user asked for.
+ * -------------------------------------------------------------------- */
+
+const CHECK_TIMEOUT_MS = 8000;
+
+/**
+ * One HEAD request to a redirector's own origin.
+ * Returns { state, status } where state is one of:
+ *   ok        answered, and not with a server error
+ *   failing   answered with 5xx, which is what a retired service looks like
+ *   refused   answered 4xx other than 405, so the host is up but unhappy
+ *   silent    no answer at all: DNS gone, connection refused, or timed out
+ *   denied    the user has not granted access to that origin
+ *   unknown   not a host xIT ships, so there is no origin to ask for
+ */
+async function checkHost(template) {
+  const origin = XIT.checkOrigin(template);
+  if (!origin) return { state: 'unknown' };
+  let granted = false;
+  try { granted = await api.permissions.contains({ origins: [origin + '*'] }); } catch (_) { granted = false; }
+  if (!granted) return { state: 'denied' };
+
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), CHECK_TIMEOUT_MS);
+  try {
+    // With the host permission granted the response is readable, so the
+    // status is real. Without it this would be an opaque no-cors response,
+    // where a 503 is indistinguishable from a 200: that version would have
+    // called the host that retired unrollnow healthy.
+    const res = await fetch(origin, { method: 'HEAD', redirect: 'follow', cache: 'no-store', signal: control.signal });
+    const status = res.status;
+    // 405 means the host is there and simply does not take HEAD.
+    if (status === 405) return { state: 'ok', status };
+    if (status >= 500) return { state: 'failing', status };
+    if (status >= 400) return { state: 'refused', status };
+    return { state: 'ok', status };
+  } catch (_) {
+    return { state: 'silent' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkHosts(ids) {
+  const settings = await XITStore.load();
+  const wanted = (Array.isArray(ids) ? ids : []).slice(0, 40);
+  const results = {};
+  // Serial, not parallel: a handful of requests the user asked for should not
+  // arrive as a burst that looks like a scan.
+  for (const id of wanted) {
+    const redirector = XITStore.findRedirector(settings, String(id));
+    if (!redirector) continue;
+    const outcome = await checkHost(redirector.template);
+    results[redirector.id] = { ...outcome, at: Date.now() };
+  }
+  const stored = await api.storage.local.get('hostChecks');
+  // Kept out of settings on purpose: these are observations, not choices, so
+  // they are not exported, do not rebuild the menus, and are not worth syncing.
+  await api.storage.local.set({ hostChecks: { ...(stored && stored.hostChecks), ...results } });
+  return results;
 }
 
 /* -------------------------------------------------------------------- *
@@ -330,6 +414,12 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'xit:check-hosts') {
+    checkHosts(msg.ids).then((results) => sendResponse({ ok: true, results }),
+      (e) => sendResponse({ ok: false, error: String((e && e.message) || 'Could not check those hosts.') }));
+    return true;
+  }
+
   if (msg.type === 'xit:mutate-settings') {
     XITStore.mutate(msg.operation).then(
       (settings) => sendResponse({ ok: true, settings }),
@@ -345,7 +435,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'xit:settings-changed') {
     (async () => {
       try {
-        await init('settings');
+        // 'refresh', not 'settings': an explicit request rebuilds the menus
+        // even when nothing the menus depend on has moved. That is the point
+        // of asking.
+        await init('refresh');
         sendResponse({ ok: true });
       } catch (e) {
         sendResponse({ ok: false, error: String(e && e.message || e) });
@@ -379,6 +472,9 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
  * -------------------------------------------------------------------- */
 
 let initChain = Promise.resolve();
+// The signature of the menu currently installed, or null when we do not know.
+// A service worker that was torn down starts over, which costs one rebuild.
+let lastMenuSignature = null;
 
 /** All startup and settings events share one queue, including storage notifications. */
 function init(reason) {
@@ -391,16 +487,33 @@ function init(reason) {
 async function doInit(reason) {
   if (reason === 'install') {
     // Persist defaults so the options page has something concrete to show.
+    // pickerDone stays false, so Settings opens the first-run picker once.
     await XITStore.save({});
+  } else if (reason === 'update') {
+    // Somebody upgrading has already made their choices, and normalize() keeps
+    // the five redirectors that became catalogue entries in 1.1.0. Do not open
+    // a first-run picker at them.
+    const stored = await api.storage.local.get('settings');
+    if (stored && stored.settings) await XITStore.save({ pickerDone: true });
   }
   const settings = await XITStore.load();
+  // O4: a settings write used to rebuild all of it, one removeAll plus a
+  // couple of dozen awaited create calls, even when the change was the toast
+  // toggle. Rebuild only when something the menu is actually built from moved.
+  // Startup and install always rebuild, since the worker starts with no idea
+  // what is already installed.
+  const signature = XITStore.menuSignature(settings);
+  const menuIsCurrent = reason === 'settings' && signature === lastMenuSignature;
   // Menu failures must never prevent the redirect cleanup.
   const results = await Promise.allSettled([
     (async () => {
+      if (menuIsCurrent) return;
       try {
         await buildMenus(settings);
+        lastMenuSignature = signature;
         await api.storage.local.remove('menuError');
       } catch (error) {
+        lastMenuSignature = null;
         await api.storage.local.set({ menuError: String(error.message || error) });
         throw error;
       }

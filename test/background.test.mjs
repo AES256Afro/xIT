@@ -28,9 +28,15 @@ function harness(firefox = false) {
   const injected = [];
   let noContentScript = false;
   let redirector = { name: 'Example', template: 'https://example.com/{path}' };
+  let byId = {};
   const event = (name) => ({ addListener(fn) { events[name] = fn; } });
   const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup') };
   let failRemoval = false;
+  const grantedOrigins = new Set();
+  const fetched = [];
+  // What each origin answers with: a number is an HTTP status, 'throw' is no
+  // answer at all (DNS gone, refused, timed out).
+  let answers = {};
   let failCreation = false;
   function complete(cb, error) {
     runtime.lastError = error ? { message: error } : undefined;
@@ -76,7 +82,7 @@ function harness(firefox = false) {
     scripting: {
       executeScript: async ({ args }) => { injected.push(args); return [{ result: true }]; },
     },
-    permissions: { contains: async () => true },
+    permissions: { contains: async ({ origins }) => origins.every((o) => grantedOrigins.has(o)) },
     declarativeNetRequest: {
       getDynamicRules: async () => rules,
       updateDynamicRules: async ({removeRuleIds = [], addRules = []}) => {
@@ -105,25 +111,46 @@ function harness(firefox = false) {
       return { ...settings };
     },
     load: async () => ({ ...settings }),
-    save: async () => { changed({ ...settings }); },
+    // The real save merges a patch into stored settings, which install and
+    // update both rely on.
+    save: async (patch) => {
+      local.settings = { ...(local.settings || {}), ...(patch || {}) };
+      changed({ ...settings });
+    },
     onChanged(fn) { changed = fn; },
     enabledRedirectors: (s) => [{id:'example',group:'test',name:s.name}],
+    menuRedirectors: (s) => store.enabledRedirectors(s),
+    // Stands in for the real fingerprint: enough that a change the menu does
+    // depend on looks different and one it does not looks the same.
+    menuSignature: (s) => JSON.stringify([!!s.contextMenu, !!s.contextMenuAll, s.name]),
     defaultRedirector: (s) => ({name:s.name}),
-    findRedirector: () => redirector,
+    findRedirector: (s, id) => byId[id] || redirector,
     extraHosts: () => new Set(['example.com']),
   };
+  async function fakeFetch(url, options) {
+    fetched.push({ url, method: options && options.method });
+    const answer = answers[url];
+    if (answer === undefined || answer === 'throw') throw new Error('network');
+    return { status: answer, ok: answer < 400 };
+  }
   const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: {
     GROUPS: [{id:'test',label:'Test'}],
     HOST_PATTERNS: REAL.HOST_PATTERNS,
     convert: REAL.convert, canonical: REAL.canonical,
     isSourceHost: REAL.isSourceHost, bareHost: REAL.bareHost,
-  }, XITStore: store, URL, Set });
+    checkOrigin: REAL.checkOrigin,
+  }, XITStore: store, URL, Set, fetch: fakeFetch,
+  AbortController, setTimeout, clearTimeout, Date });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
   async function settle() { for (let i=0;i<150;i++) await tick(); }
   return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
     rewrites, badge, createCount: () => created,
     sent, opened, injected,
     setRedirector(value) { redirector = value; },
+    setRedirectors(map) { byId = map; },
+    grant(...origins) { for (const o of origins) grantedOrigins.add(o); },
+    answer(map) { answers = { ...answers, ...map }; },
+    fetched,
     dropContentScript() { noContentScript = true; },
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
@@ -188,7 +215,9 @@ test(`Firefox=${firefox}: install, startup, storage events and popup messages ca
   assert.deepEqual(h.errors,[]);
   assert.equal(response?.ok,true);
   assert.equal(h.menus.get('xit-link-copy-default').title,'Copy as latest');
-  assert.equal(h.menus.size,13);
+  // 12, not 13: the capped menu puts its two entries at the top level rather
+  // than inside a group submenu (U3).
+  assert.equal(h.menus.size,12);
   assert.ok(h.menus.has('xit-link-open-original'));
   assert.ok(h.menus.has('xit-page-open-original'));
   h.change({contextMenu:false});
@@ -333,4 +362,138 @@ test('a message from another extension is ignored outright', async () => {
   assert.notEqual(handled, true, 'the listener must not claim the message');
   assert.equal(answered, false, 'and must not answer it');
   assert.equal(h.opened.length, before, 'and must not open anything');
+});
+
+/* -------------------------------------------------------------------- *
+ * Milestone 2
+ * -------------------------------------------------------------------- */
+
+test('a settings write that cannot change the menu does not rebuild it', async () => {
+  // O4. Toggling the toast used to cost one removeAll plus every create call.
+  const h = harness();
+  await h.settle();
+  const before = h.createCount();
+  h.change({ toast: false });
+  await h.settle();
+  assert.equal(h.createCount(), before, 'the toast setting is not in the menu');
+  assert.ok(h.menus.size > 0, 'and the menu is still installed');
+
+  h.change({ name: 'renamed' });
+  await h.settle();
+  assert.ok(h.createCount() > before, 'a change the menu does depend on still rebuilds');
+});
+
+test('showing every redirector groups the menu, capping it does not', async () => {
+  const h = harness();
+  await h.settle();
+  const flat = h.menus.size;
+  assert.equal(h.menus.has('xit-link-g-test'), false, 'capped entries sit at the top level');
+
+  h.change({ contextMenuAll: true });
+  await h.settle();
+  assert.equal(h.menus.has('xit-link-g-test'), true, 'the full list is grouped');
+  assert.equal(h.menus.size, flat + 1);
+  assert.deepEqual(h.errors, []);
+});
+
+test('an explicit refresh rebuilds even when nothing moved', async () => {
+  const h = harness();
+  await h.settle();
+  const before = h.createCount();
+  let response;
+  h.events.message({ type: 'xit:settings-changed' }, {}, (value) => { response = value; });
+  await h.settle();
+  assert.equal(response?.ok, true);
+  assert.ok(h.createCount() > before, 'asking for a rebuild is the point of asking');
+});
+
+test('an upgrade does not open the first-run picker, a fresh install does', async () => {
+  const h = harness();
+  h.local.settings = { toast: false };
+  h.events.installed({ reason: 'update' });
+  await h.settle();
+  assert.equal(h.local.settings.pickerDone, true, 'existing choices are left alone');
+
+  const fresh = harness();
+  fresh.events.installed({ reason: 'install' });
+  await fresh.settle();
+  assert.notEqual(fresh.local.settings?.pickerDone, true, 'a new install still gets asked');
+});
+
+/* -------------------------------------------------------------------- *
+ * Reachability check (P4, Q5)
+ * -------------------------------------------------------------------- */
+
+function checkHarness() {
+  const h = harness();
+  h.setRedirectors({
+    fxtwitter: { id: 'fxtwitter', name: 'FxTwitter', template: 'https://fxtwitter.com/{path}{query}' },
+    vxtwitter: { id: 'vxtwitter', name: 'vxTwitter', template: 'https://vxtwitter.com/{path}{query}' },
+    threadreader: { id: 'threadreader', name: 'Thread Reader App', template: 'https://threadreaderapp.com/thread/{id}.html' },
+    mine: { id: 'mine', name: 'Mine', template: 'https://mine.example/{path}', custom: true },
+  });
+  const check = (ids) => new Promise((resolve) => {
+    h.events.message({ type: 'xit:check-hosts', ids }, {}, resolve);
+  });
+  return { ...h, check };
+}
+
+test('a host answering 503 is reported as failing, not healthy', async () => {
+  // Q5: unrollnow answered 503, which an opaque no-cors request cannot tell
+  // from a 200. Reading the status is the whole reason this needs a permission.
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*');
+  h.answer({ 'https://fxtwitter.com/': 503 });
+  const res = await h.check(['fxtwitter']);
+  assert.equal(res.ok, true);
+  assert.equal(res.results.fxtwitter.state, 'failing');
+  assert.equal(res.results.fxtwitter.status, 503);
+  assert.ok(res.results.fxtwitter.at > 0, 'and says when it was checked');
+  assert.deepEqual(h.fetched, [{ url: 'https://fxtwitter.com/', method: 'HEAD' }]);
+  // Observations are kept out of settings, so they are not exported as choices.
+  assert.equal(h.local.hostChecks.fxtwitter.state, 'failing');
+  assert.equal(h.local.settings?.hostChecks, undefined);
+});
+
+test('the check distinguishes answering, refusing and silent hosts', async () => {
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://fxtwitter.com/*', 'https://vxtwitter.com/*', 'https://threadreaderapp.com/*');
+  h.answer({
+    'https://fxtwitter.com/': 200,
+    // A host that is up and simply does not take HEAD still counts as up.
+    'https://vxtwitter.com/': 405,
+    'https://threadreaderapp.com/': 'throw',
+  });
+  const res = await h.check(['fxtwitter', 'vxtwitter', 'threadreader']);
+  assert.equal(res.results.fxtwitter.state, 'ok');
+  assert.equal(res.results.vxtwitter.state, 'ok');
+  assert.equal(res.results.threadreader.state, 'silent');
+  assert.equal(res.results.threadreader.status, undefined);
+});
+
+test('nothing is requested without the permission, or for a host we cannot ask about', async () => {
+  const h = checkHarness();
+  await h.settle();
+  h.answer({ 'https://fxtwitter.com/': 200, 'https://mine.example/': 200 });
+  const denied = await h.check(['fxtwitter']);
+  assert.equal(denied.results.fxtwitter.state, 'denied');
+
+  // A template the user typed is not in optional_host_permissions, so there is
+  // no origin to ask for and no request to make.
+  const custom = await h.check(['mine']);
+  assert.equal(custom.results.mine.state, 'unknown');
+  assert.deepEqual(h.fetched, [], 'no network request either way');
+});
+
+test('the check only runs when asked, never on install, startup or a settings write', async () => {
+  const h = checkHarness();
+  h.grant('https://fxtwitter.com/*');
+  h.answer({ 'https://fxtwitter.com/': 200 });
+  h.events.installed({ reason: 'install' });
+  h.events.startup();
+  h.change({ name: 'second' });
+  await h.settle();
+  assert.deepEqual(h.fetched, [], 'xIT makes no network request of its own');
 });
