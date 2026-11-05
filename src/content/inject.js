@@ -691,23 +691,32 @@
       return true;
     }
 
+    /*
+     * B10: `handled` says this tab dealt with the command, whether or not the
+     * redirector applied. The background used to fall back whenever the reply
+     * was not {ok:true}, which treats "I looked at the tweet and the
+     * redirector does not apply, and I have told the user so" the same as "I
+     * am not here". The user was shown a refusal and then handed a different
+     * link. sourceUrlFor falls back to location.href, so a content script that
+     * is running always has something to try; there is nothing for the
+     * background to add.
+     */
     if (msg.type === 'xit:copy-current') {
       const article = currentArticle();
       copyWith(XITStore.defaultRedirector(settings), sourceUrlFor(article))
-        .then((ok) => sendResponse({ ok }));
+        .then((ok) => sendResponse({ ok, handled: true }));
       return true;
     }
 
-    // Q1: openWith reports failure through a toast rather than a return value,
-    // so the reply says only that this tab handled it. The background's
-    // fallback is for a tab with no content script, not for a bad link.
+    // openWith converts, toasts the reason if the redirector does not apply,
+    // and opens otherwise. It used to be preceded by a second convert() whose
+    // only use was deciding the reply; with `handled` the reply no longer
+    // depends on the outcome, so the duplicate conversion is gone and a
+    // refusal is now explained instead of being silent.
     if (msg.type === 'xit:open-current') {
       const article = currentArticle();
-      const source = sourceUrlFor(article);
-      const d = XITStore.defaultRedirector(settings);
-      const usable = !!source && XIT.convert(source, d, { stripTracking: settings.stripTracking, extraHosts }).ok;
-      if (usable) openWith(d, source);
-      sendResponse({ ok: usable });
+      openWith(XITStore.defaultRedirector(settings), sourceUrlFor(article));
+      sendResponse({ handled: true });
       return true;
     }
 

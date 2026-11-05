@@ -576,3 +576,48 @@ test('every library the background uses is in both load lists',async()=>{
   // that the first import defines or a reload would skip the rest.
   assert.match(source,/!globalThis\.(XITI18N|XIT|XITStore)\b/,'the import is still guarded');
 });
+
+// B10: the background used to fall back whenever the reply was not {ok:true},
+// so a content script that looked at the tweet, found the redirector did not
+// apply and toasted the reason was treated exactly like a tab with no content
+// script at all. The user read a refusal and then a different link landed on
+// the clipboard, with a second toast contradicting the first.
+test('a content script that declines is not second-guessed',async()=>{
+  const h=harness();
+  await h.settle();
+  h.setRedirector({ id:'fx', name:'FxTwitter', template:'https://fxtwitter.com/{path}{query}' });
+
+  // It handled the command and refused. Nothing else may happen.
+  h.answerTab({ ok:false, handled:true });
+  await h.command('copy-current-tweet');
+  assert.equal(h.injected.length,0,'no clipboard write behind a refusal');
+  assert.equal(h.sent.filter((m)=>m.type==='xit:copy-text').length,0);
+  await h.command('open-current-tweet');
+  assert.equal(h.opened.length,0,'and no tab opened behind one either');
+
+  // It handled the command and succeeded. Also nothing more to do.
+  h.answerTab({ ok:true, handled:true });
+  await h.command('copy-current-tweet');
+  assert.equal(h.sent.filter((m)=>m.type==='xit:copy-text').length,0);
+
+  // Nobody answered at all: this is the case the fallback exists for.
+  h.dropContentScript();
+  await h.command('copy-current-tweet');
+  assert.equal(h.sent.filter((m)=>m.type==='xit:copy-text').length
+    +h.injected.length>0,true,'with no content script the background copies');
+});
+
+// A tab open across an update keeps the previous content script until it
+// reloads, and that version replies with `ok` alone. Success must still be
+// recognised, or the keyboard shortcut would copy twice in those tabs.
+test('a reply from a pre-update content script is still understood',async()=>{
+  const h=harness();
+  await h.settle();
+  h.setRedirector({ id:'fx', name:'FxTwitter', template:'https://fxtwitter.com/{path}{query}' });
+  h.answerTab({ ok:true });
+  await h.command('copy-current-tweet');
+  assert.equal(h.sent.filter((m)=>m.type==='xit:copy-text').length,0,
+    'no second copy on top of the one that tab already made');
+  await h.command('open-current-tweet');
+  assert.equal(h.opened.length,0);
+});

@@ -373,10 +373,20 @@ async function handleCommand(command, tab) {
   if (!active) return;
 
   // Let the content script pick the tweet under the cursor / in view.
+  //
+  // B10: fall back only when no content script answered. `handled` means that
+  // tab dealt with the command and has already told the user the outcome, so
+  // substituting the tab's own URL here would contradict a refusal the user
+  // just read. A thrown sendMessage is the real "nobody is there" case.
+  //
+  // `res.ok` is still accepted because a tab open across an update keeps the
+  // previous content script until it reloads, and that version replies with
+  // `ok` alone. Such a tab keeps the old behaviour on a refusal and recovers
+  // when it is reloaded.
   try {
     const res = await api.tabs.sendMessage(active.id,
       { type: open ? 'xit:open-current' : 'xit:copy-current' });
-    if (res && res.ok) return;
+    if (res && (res.handled || res.ok)) return;
   } catch (_) { /* not on X, or not injected */ }
 
   const out = XIT.convert(active.url, XITStore.defaultRedirector(settings), {
