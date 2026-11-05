@@ -161,11 +161,33 @@ behind it, rather than letting every string fall back to the English in the
 call. Changing one message now fails six background tests, which is the point:
 the assertions read what the shipped catalogue produces.
 
+## A test that reads the source
+
+B11 is the first fix in this sweep with no behavioural test behind it. The
+options page has no DOM harness, and the Playwright suite cannot reach the
+Check button either: `permissions.request` opens a prompt drawn by the browser
+rather than by the page, which is the whole reason the bug existed and also
+why nothing automatable can dismiss it. Neither test route reaches the defect.
+
+So `test/options.test.mjs` asserts on the text of `runCheck` instead: that
+`checking = true` appears before the function's first `await`, and that the
+early return on a refusal sits inside the block whose `finally` clears the
+flag. This is a weaker thing than a behavioural test, and it is recorded as
+weaker: it holds the order of two statements, not what the page does.
+
+Writing it caught its own vacuity, which is worth keeping in mind for the
+next one of these. The first version of the second assertion anchored on the
+first `try` in the function, and `runCheck` has an inline one around the
+permission request itself, so a reversion that moved the refusal out of the
+block passed. It now finds the block by its `catch (error)` rather than by
+position. Three separate reversions each fail it.
+
 ## What sweep 2 produced
 
 Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
-1.3.3, S6 in 1.3.4, and Q6 in 1.3.5**; the other four are carried into
-Milestone 6 in `PLAN.md`: B11, C13, U11, O5.
+1.3.3, S6 in 1.3.4, Q6 in 1.3.5, and B11 in 1.3.6**; the other three are
+carried into
+Milestone 6 in `PLAN.md`: C13, U11, O5.
 
 Q6 turned on a shape worth naming, since it is the fourth finding of this
 sweep to have it. `canonical` returns a string and drops the parts it has
@@ -254,7 +276,7 @@ was used, what it printed is quoted.
 | B8 | **Fixed in 1.3.3.** **A merge can add a second copy of a bundled redirector.** The merge keys "do I already have this?" on `current.custom` templates only, not on `PRESETS`. Reproduced: merging a file whose custom entry is `https://fxtwitter.com/{path}{query}` leaves the list showing FxTwitter twice, once bundled and once as the other person's entry. | `src/lib/storage.js` |
 | B9 | **Fixed in 1.3.3.** **A merge silently drops an entry whose id `normalize` rejects.** A colliding id is given a fresh one via `freshId`, but an id that is merely invalid, such as one containing a space, is passed through and then dropped by `normalize`'s id pattern. Reproduced: merging `{id:'has a space', …}` adds nothing and reports "Nothing to add." The template was valid and the entry was usable; only its id was not. | `src/lib/storage.js` |
 | B10 | **Fixed in 1.3.2.** **A content script that declines is treated as a content script that is absent.** `handleCommand` falls back to converting the tab's own URL whenever the reply is not `{ok:true}`, but the content script replies `{ok:false}` both when it is not there and when it looked at the tweet under the pointer and refused, having already toasted the reason. Reproduced in a harness: with the reply `{ok:false}` the background still sent `xit:copy-text`. The user sees a toast saying the redirector did not apply, and then a different link lands on the clipboard with a second toast. This is B1's family in a path B1's fix did not cover: the keyboard commands. | `src/background.js` |
-| B11 | **Two Check clicks can both get through.** `runCheck` returns early on `if (checking)` but sets `checking = true` only after awaiting `permissions.request`, so a second click during the permission prompt re-enters: two prompts, two runs. The per-row Check buttons are disabled by the render that follows the flag, so they are not disabled while the prompt is up. | `src/options/options.js` |
+| B11 | **Fixed in 1.3.6.** **Two Check clicks can both get through.** `runCheck` returns early on `if (checking)` but sets `checking = true` only after awaiting `permissions.request`, so a second click during the permission prompt re-enters: two prompts, two runs. The per-row Check buttons are disabled by the render that follows the flag, so they are not disabled while the prompt is up. | `src/options/options.js` |
 
 ### Security
 

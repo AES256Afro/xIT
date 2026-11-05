@@ -241,7 +241,7 @@ from 98. 191 messages, none of them typed twice.
 ## Milestone 6, what sweep 2 found
 
 Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
-S6 in 1.3.4, and Q6 in 1.3.5**, four remain. Full text in `AUDIT-LOOP.md`. Ordered by what
+S6 in 1.3.4, Q6 in 1.3.5, and B11 in 1.3.6**, three remain. Full text in `AUDIT-LOOP.md`. Ordered by what
 goes wrong for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
@@ -276,10 +276,15 @@ goes wrong for a user, not by category.
    condition in the merge, so the merge accepted ids normalize would discard.
    Both now read one shared definition: `allRedirectors` for the first,
    `ID_RE` for the second.
-5. **B11, the Check race.** `runCheck` sets its guard after awaiting the
-   permission prompt, so a second click during the prompt starts a second run.
-   Fix: set the flag before the request, and clear it in the existing
-   `finally`.
+5. ~~**B11, the Check race.**~~ **Done in 1.3.6.** The flag is claimed
+   before the request and everything after it, the refusal included, sits in
+   the try whose `finally` clears it. Setting it earlier also disables the
+   buttons while the prompt is up, which is the state the page was in
+   anyway. No behavioural test covers this: there is no DOM harness for the
+   options page, and the permission prompt is drawn by the browser, so
+   Playwright cannot dismiss it either. `test/options.test.mjs` asserts on
+   the order of the statements instead, which is weaker and recorded as
+   weaker in `AUDIT-LOOP.md`.
 6. ~~**Q6, the clean-link copies ignore the copy format.**~~ **Done in
    1.3.5.** All four go through one new `XIT.cleanCopy`, which parses once
    and formats there, rather than four calls to `formatCopy`: `canonical`

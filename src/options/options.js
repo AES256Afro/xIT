@@ -110,15 +110,29 @@
       saved(XITI18N.t('checkNoneCheckable'));
       return;
     }
-    // Asked for first, while the click is still the user's gesture, and only
-    // for the hosts this check is about.
-    let granted = false;
-    try { granted = await api.permissions.request({ origins }); } catch (_) { granted = false; }
-    if (!granted) { $('saved').textContent = XITI18N.t('checkNoAccess'); return; }
-
+    /*
+     * B11: the guard at the top of this function is only a guard if the flag
+     * is set before the first await. It used to be set after the permission
+     * request, which is the longest wait here, because the browser's own
+     * prompt sits in front of the page: a second click while that prompt was
+     * up passed the guard and started a second check. Both then asked for the
+     * same origins and sent the same message, and the later answer overwrote
+     * the earlier one in `checks`.
+     *
+     * Setting it here also disables the buttons for the length of the prompt,
+     * which is the honest state: a check has begun. Everything between the
+     * click and the request below is synchronous, so the request is still
+     * made within the user's gesture, which is what the permission API wants.
+     */
     checking = true;
     render();
     try {
+      let granted = false;
+      try { granted = await api.permissions.request({ origins }); } catch (_) { granted = false; }
+      // Returning from inside the try still runs the finally, so the flag is
+      // cleared and the buttons come back whichever way this ends.
+      if (!granted) { $('saved').textContent = XITI18N.t('checkNoAccess'); return; }
+
       const result = await api.runtime.sendMessage({ type: 'xit:check-hosts', ids });
       if (!result || !result.ok) throw new Error((result && result.error) || XITI18N.t('checkFailed'));
       checks = { ...checks, ...result.results };
