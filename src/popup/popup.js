@@ -65,8 +65,12 @@
 
   function describe(parts) {
     if (!parts) return XITI18N.t('popupNotATweet');
-    if (parts.kind === 'status') return XITI18N.t('popupTweetBy', [parts.user === 'i' ? '…' : parts.user]);
-    if (parts.kind === 'profile') return '@' + parts.user + "'s profile";
+    // B6: the sentinel check that used to be here is XIT.handleOf now, so the
+    // popup and the copy formats cannot disagree about what counts as an
+    // account again.
+    const handle = XIT.handleOf(parts);
+    if (parts.kind === 'status') return XITI18N.t(handle ? 'popupTweetBy' : 'popupTweetNoAuthor', [handle]);
+    if (parts.kind === 'profile') return XITI18N.t('popupProfileOf', [parts.user]);
     return 'X page: /' + parts.path;
   }
 

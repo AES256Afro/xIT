@@ -12,15 +12,17 @@ its items were closed. The git history holds it if it is ever wanted.
 
 | Category | Sweeps run | Clean streak | State |
 |---|---|---|---|
-| Code | 1 | 0 | active |
-| Bug | 1 | 0 | active |
-| Security | 1 | 0 | active |
-| Readability / usability / visual | 1 | 0 | active |
-| Quality of life | 1 | 0 | active |
-| Platform features | 1 | 0 | active |
-| Optimisation | 1 | 0 | active |
+| Code | 2 | 0 | active |
+| Bug | 2 | 0 | active |
+| Security | 2 | 0 | active |
+| Readability / usability / visual | 2 | 0 | active |
+| Quality of life | 2 | 0 | active |
+| Platform features | 2 | 0 | active |
+| Optimisation | 2 | 0 | active |
 
-No category is eligible to retire: every one produced findings on sweep 1.
+No category is eligible to retire: every one produced findings on sweep 2 as
+well, so every clean streak is still 0 and three consecutive clean sweeps are
+still owed by all seven.
 
 ## What sweep 1 produced
 
@@ -158,6 +160,101 @@ The harnesses were also changed to run `lib/i18n.js` with the real catalogue
 behind it, rather than letting every string fall back to the English in the
 call. Changing one message now fails six background tests, which is the point:
 the assertions read what the shipped catalogue produces.
+
+## What sweep 2 produced
+
+Eleven findings. **B6 is fixed in 1.3.1**; the other ten are carried into
+Milestone 6 in `PLAN.md`: B7, B8, B9, B10, B11, S6, C13, U11, Q6, O5.
+
+Four are in code written in the last six releases, three of those in the
+import merge and the copy formats from 1.2.0. That is worth stating plainly:
+the sweeps are not only finding old debt, they are finding the current work's
+mistakes, which is the argument for running them rather than deferring them
+again.
+
+B6 was the one to fix first, and was fixed in 1.3.1. It was wrong on every
+authorless link rather than on an edge case, it reached a release, and the
+test that was supposed to cover it asserted on a shape `parse()` cannot
+produce.
+
+It was fixed at the root rather than at the call site. `parse` still reports
+`user: 'i'`, because that is what the path says, but nothing tests
+`parts.user` directly any more: `XIT.handleOf` is the single place that knows
+the difference between a handle and a sentinel, and `expand`, `convert`,
+`formatCopy` and the popup all go through it. The duplication was the actual
+defect: the popup knew about `'i'` and `formatCopy` did not. The check is
+against `RESERVED` rather than against `'i'` alone, so any other site feature
+that lands where the account goes is excluded too.
+
+The replacement test drives `parse()` instead of hand-building a `parts`
+object, which is what let the original pass. Both halves of the fix were
+checked by reverting them: restoring the truthiness test fails it, and
+narrowing the check to `'i'` alone fails it as well.
+
+No category retires. Every one produced at least one finding, so all seven
+clean streaks are still 0 and sweep 3 is the earliest any streak can begin.
+
+## Sweep 2, 4 November 2026
+
+Baseline: 106/106 unit tests pass at 1.3.0. Browser, Firefox and QoL suites
+not run in this pass; Playwright is not installed here.
+
+Sweep 1 read 1.0.7. Six releases have landed since, so most of this sweep is
+new surface rather than a re-read: the picker, the catalogue split, the
+reachability check, the copy formats, the import merge, the list filter, the
+contrast tokens and the whole i18n layer. **Four of the eleven findings are in
+code written during those releases**, which is the honest result of auditing
+recent work rather than only old work.
+
+Every finding below was reproduced before being written down. Where a probe
+was used, what it printed is quoted.
+
+### Bug
+
+| id | Finding | File |
+|---|---|---|
+| B6 | **Fixed in 1.3.1.** **The author and markdown copy formats invent an account.** `parse()` uses `'i'` as its sentinel for "this link names no account", which `popup.js` already special-cases (`parts.user === 'i' ? '…'`). `formatCopy` tests `parts.user` for truthiness, so `'i'` passes and the output reads `@i`. Every `/i/web/status/` and `/i/status/` link is affected, and so is every link retargeted from a thread tool, because path recovery rewrites those to `/i/web/status/<id>`. Reproduced: `https://x.com/i/web/status/20` yields `[@i](…)` and `@i https://…`. The function's own comment says this case should fall back to `Tweet`, so the intent was there and the check was wrong. Introduced in 1.2.0 (Q4); the test that was meant to cover it passed `{id:'20'}` with no `user` at all, a shape `parse()` never produces. | `src/lib/redirectors.js` |
+| B7 | **A template using `{user}` is never told it needs one.** `normalize` infers `requires` from `{id}` and `{path}` only, so a user template of `https://mine.example/{user}` gets `requires: []`. `convert()` has a `requires.includes('user')` branch that would decline politely, and it is unreachable. Reproduced: that template converts `https://x.com/search?q=a` to `https://mine.example/` and `/i/web/status/20` to `https://mine.example/i`, both silently copied. | `src/lib/storage.js` |
+| B8 | **A merge can add a second copy of a bundled redirector.** The merge keys "do I already have this?" on `current.custom` templates only, not on `PRESETS`. Reproduced: merging a file whose custom entry is `https://fxtwitter.com/{path}{query}` leaves the list showing FxTwitter twice, once bundled and once as the other person's entry. | `src/lib/storage.js` |
+| B9 | **A merge silently drops an entry whose id `normalize` rejects.** A colliding id is given a fresh one via `freshId`, but an id that is merely invalid, such as one containing a space, is passed through and then dropped by `normalize`'s id pattern. Reproduced: merging `{id:'has a space', …}` adds nothing and reports "Nothing to add." The template was valid and the entry was usable; only its id was not. | `src/lib/storage.js` |
+| B10 | **A content script that declines is treated as a content script that is absent.** `handleCommand` falls back to converting the tab's own URL whenever the reply is not `{ok:true}`, but the content script replies `{ok:false}` both when it is not there and when it looked at the tweet under the pointer and refused, having already toasted the reason. Reproduced in a harness: with the reply `{ok:false}` the background still sent `xit:copy-text`. The user sees a toast saying the redirector did not apply, and then a different link lands on the clipboard with a second toast. This is B1's family in a path B1's fix did not cover: the keyboard commands. | `src/background.js` |
+| B11 | **Two Check clicks can both get through.** `runCheck` returns early on `if (checking)` but sets `checking = true` only after awaiting `permissions.request`, so a second click during the permission prompt re-enters: two prompts, two runs. The per-row Check buttons are disabled by the render that follows the flag, so they are not disabled while the prompt is up. | `src/options/options.js` |
+
+### Security
+
+| id | Finding | File |
+|---|---|---|
+| S6 | **An imported redirector name is unbounded.** Templates from an imported or merged file go through `validateTemplate`, and ids are bounded by a pattern and by `freshId`'s 28-character slice, but the name is only `String(c.name || c.id)`. The 48-character cap is `maxlength` on the two form fields, which is a UI hint and not reached by import, merge or a hand-edited file. The name is rendered as `textContent` everywhere, so this is not injection; it is a file that can carry a 100 KB name into storage, into the list, into the popup and into context-menu titles. The sender gate itself is sound: `sender.id !== api.runtime.id` is the first statement in the message listener, ahead of every handler. | `src/lib/storage.js` |
+
+### Code
+
+| id | Finding | File |
+|---|---|---|
+| C13 | **Reachability results are never cleaned up.** `hostChecks` is written per redirector id and nothing removes an entry. Reset clears `lastCopyFailure` and not `hostChecks`, so "Reset to defaults" leaves the badges behind, and removing a redirector leaves its result stored indefinitely. The key is deliberately outside settings, which is right, but that is also why neither reset nor removal touches it. | `src/background.js`, `src/lib/storage.js` |
+
+### Readability, usability, visual
+
+| id | Finding |
+|---|---|
+| U11 | **The reset dialog states the install defaults in prose.** "three redirectors enabled, FxTwitter as the default" is accurate today and duplicates `PRESETS` in a sentence, so it becomes wrong the moment the bundled set changes, with nothing to catch it. Now that the string is a catalogue message it cannot simply interpolate, but it can take `$count$` and `$default$` placeholders, which is what the message format is for. |
+
+### Quality of life
+
+| id | Finding |
+|---|---|
+| Q6 | **The clean-link copies ignore the copy format.** Every redirector copy honours `copyFormat`; the four paths that copy the plain x.com link (`inject.js` `copyOriginal`, the popup's Copy x.com link, the context-menu item, and the fallback when a redirector declines) all write a bare URL. Somebody who chose "Markdown link" gets markdown from one button and a bare URL from the one next to it. |
+
+### Platform features
+
+| id | Finding |
+|---|---|
+| P5 | **No `selection` context-menu item.** The menus offer `link`, `page` and `frame`. A tweet URL sitting in a page as plain text, which is how they arrive in a mailing-list archive, a code block or a pasted quote, cannot be converted from the right-click menu at all; the popup's paste field is the only route. `contexts: ['selection']` with the selected text as the input is the platform's own answer. |
+
+### Optimisation
+
+| id | Finding |
+|---|---|
+| O5 | **The filter rebuilds the whole list on every keystroke.** `renderList` clears `#redirector-list` and recreates every row, its buttons, its listeners and its reachability badge, so filtering an entry does the work of rendering all of them. Harmless at eight entries and the same defect as O2, which is still open: both only matter once the catalogue is large, which is the direction the list is going. |
 
 ## Sweep 1, 4 November 2026
 

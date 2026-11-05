@@ -901,5 +901,18 @@
   "errSaveFailed": {
     "message": "Could not save settings.",
     "description": "Shown when the background does not answer a request to change settings."
+  },
+  "popupTweetNoAuthor": {
+    "message": "Tweet",
+    "description": "Popup: label describing the current tab when it holds a tweet link that names no account, which is how x.com writes /i/web/status/ links."
+  },
+  "popupProfileOf": {
+    "message": "@$user$'s profile",
+    "description": "Popup: label describing the current tab when it holds a profile. $user$ is an account handle; the @ is part of the handle format and is not translated.",
+    "placeholders": {
+      "user": {
+        "content": "$1"
+      }
+    }
   }
 }

@@ -233,9 +233,69 @@ from 98. 191 messages, none of them typed twice.
   message code plus parameters and let the display side render it. That is a
   change to a library contract with about twenty test assertions on it, and it
   belongs in its own change rather than at the end of this one.
-- The sweep loop. All seven categories are still at sweep 1 of 3 with a clean
-  streak of 0, so fourteen sweeps are owed before any category retires. No
-  milestone replaces that.
+- The sweep loop. **Sweep 2 ran on 4 November 2026** and produced eleven
+  findings, so no category retired and every clean streak is still 0. All
+  seven are now at sweep 2, and three consecutive clean sweeps are still owed
+  by each. See Milestone 6.
+
+## Milestone 6, what sweep 2 found
+
+Eleven findings. **B6 is done in 1.3.1**, ten remain. Full text in
+`AUDIT-LOOP.md`. Ordered by what goes wrong for a user, not by category.
+
+1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
+   at the root rather than at the call site: `XIT.handleOf` is now the only
+   thing that knows `'i'` is a sentinel and not a handle, and `expand`,
+   `convert`, `formatCopy` and the popup all read it. The duplication was the
+   defect, since the popup knew and `formatCopy` did not. Checked against
+   `RESERVED` rather than `'i'` alone. The replacement test drives `parse()`
+   instead of hand-building a `parts` object, which is what let the original
+   pass.
+2. **B10, a refusal is followed by copying something else.** The keyboard
+   commands treat "the content script declined" and "there is no content
+   script" as the same reply, so after a toast explaining why the redirector
+   did not apply, a different link lands on the clipboard. Fix: let the reply
+   distinguish handled-and-refused from not-handled, and only fall back on the
+   latter. Same family as B1, in the path B1's fix did not reach.
+3. **B7, `{user}` is not inferred as a requirement.** A template using only
+   `{user}` silently copies a host-root URL for any link with no account.
+   Fix: infer `'user'` the way `'id'` is inferred, which makes `convert()`'s
+   existing branch reachable.
+4. **B8 and B9, the import merge.** B8 adds a second copy of a bundled
+   redirector, because "do I have this?" checks only the user's own entries.
+   B9 drops an entry whose id is invalid rather than merely taken, because
+   only a taken id gets a fresh one. Both shipped in 1.2.0. Fix: check
+   templates against `PRESETS` too, and send any unusable id through
+   `freshId`.
+5. **B11, the Check race.** `runCheck` sets its guard after awaiting the
+   permission prompt, so a second click during the prompt starts a second run.
+   Fix: set the flag before the request, and clear it in the existing
+   `finally`.
+6. **Q6, the clean-link copies ignore the copy format.** Four paths write a
+   bare URL while every redirector copy honours the setting. Fix: route them
+   through `formatCopy` as well. Worth deciding deliberately whether the
+   x.com link should carry the author, since that is the one copy where the
+   handle is already in the URL.
+7. **S6, an imported name is unbounded.** Templates and ids are bounded;
+   names are not, because the only cap is `maxlength` on two form fields.
+   Fix: cap in `normalize`, where every route meets.
+8. **C13, reachability results are never cleaned up.** Reset leaves them and
+   removing a redirector leaves its result for good. Fix: clear the key on
+   reset and drop an entry with the redirector.
+9. **U11, the reset dialog states the defaults in prose.** Accurate today,
+   wrong the moment the bundled set changes. Fix: `$count$` and `$default$`
+   placeholders, which the message format already supports.
+10. **P5, no `selection` context menu.** A tweet URL that is plain text
+    rather than a link cannot be converted from the right-click menu. Fix:
+    add `contexts: ['selection']` and convert the selected text.
+11. **O5, the filter rebuilds the whole list per keystroke.** Same defect as
+    O2, which is still open. Both only matter as the catalogue grows. Fix the
+    two together, or neither.
+
+Still carried from earlier milestones: **C12**, the failure messages
+`convert()` and `validateTemplate()` return, which needs a library-contract
+change rather than a string move; and **O2**, the popup re-running `convert`
+for every redirector on every keystroke.
 
 ## Explicitly not doing
 
