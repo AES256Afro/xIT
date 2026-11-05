@@ -240,8 +240,9 @@ from 98. 191 messages, none of them typed twice.
 
 ## Milestone 6, what sweep 2 found
 
-Eleven findings. **B6 is done in 1.3.1**, ten remain. Full text in
-`AUDIT-LOOP.md`. Ordered by what goes wrong for a user, not by category.
+Eleven findings. **B6 is done in 1.3.1 and B10 in 1.3.2**, nine remain. Full
+text in `AUDIT-LOOP.md`. Ordered by what goes wrong for a user, not by
+category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
    at the root rather than at the call site: `XIT.handleOf` is now the only
@@ -251,12 +252,16 @@ Eleven findings. **B6 is done in 1.3.1**, ten remain. Full text in
    `RESERVED` rather than `'i'` alone. The replacement test drives `parse()`
    instead of hand-building a `parts` object, which is what let the original
    pass.
-2. **B10, a refusal is followed by copying something else.** The keyboard
-   commands treat "the content script declined" and "there is no content
-   script" as the same reply, so after a toast explaining why the redirector
-   did not apply, a different link lands on the clipboard. Fix: let the reply
-   distinguish handled-and-refused from not-handled, and only fall back on the
-   latter. Same family as B1, in the path B1's fix did not reach.
+2. ~~**B10, a refusal is followed by copying something else.**~~ **Done in
+   1.3.2.** The reply now carries `handled`, meaning this tab dealt with the
+   command and has already told the user the outcome; the background falls
+   back only when `sendMessage` throws, which is the real "nobody is there"
+   case. `res.ok` is still accepted, because a tab open across an update keeps
+   the previous content script until it reloads and that version replies with
+   `ok` alone. The open path turned out to be worse than recorded: it replied
+   `{ok:false}` without toasting, so its substitution was silent. It now goes
+   through `openWith`, which explains the refusal, and the duplicate
+   `convert()` that existed only to decide the reply is gone.
 3. **B7, `{user}` is not inferred as a requirement.** A template using only
    `{user}` silently copies a host-root URL for any link with no account.
    Fix: infer `'user'` the way `'id'` is inferred, which makes `convert()`'s

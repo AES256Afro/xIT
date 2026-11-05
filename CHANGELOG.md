@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+- Stop the keyboard shortcut copying something you were just told it could not copy. If the redirector does not apply to the tweet under the pointer, for example a thread reader on a profile link, xIT said so and then copied the page's own link anyway, with a second message contradicting the first. A refusal is now the end of it.
+- The open shortcut had the same fault and was worse: it said nothing at all and opened a different tweet. It now explains why, like the copy shortcut does.
+
 ## 1.3.1
 
 - Fix the author and markdown copy formats inventing an account. A tweet link that names nobody, which is how x.com writes some of them and how every link converted from a thread reader ends up, copied as `@i`. There is no account called i: it is the path segment x.com uses when there is no author to name. Those links now copy as a plain link, and in markdown as `[Tweet](...)`.
