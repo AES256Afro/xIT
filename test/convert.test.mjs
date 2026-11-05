@@ -319,3 +319,21 @@ test('copy formats cope with awkward URLs',()=>{
   // A handle cannot contain brackets, but the escape is there if one ever does.
   assert.equal(XIT.formatCopy('https://fx.com/a',{user:'a]b'},'markdown'),'[@a\\]b](https://fx.com/a)');
 });
+
+// B7: the other half of the fix. storage.js infers requires:['user'] for a
+// template that names {user} without {path}; this is what convert() does with
+// it. Before the inference landed this branch was unreachable, and such a
+// template silently produced a link pointing at the host root.
+test('a redirector that needs an account refuses a link without one',()=>{
+  const userOnly={id:'c-u',name:'User only',template:'https://mine.example/{user}',requires:['user']};
+  const authorless=XIT.convert('https://x.com/i/web/status/20',userOnly);
+  assert.equal(authorless.ok,false,'an authorless tweet is refused, not mangled');
+  assert.match(authorless.reason,/account/);
+  assert.equal(XIT.convert('https://x.com/search?q=a',userOnly).ok,false,'nor a search page');
+  assert.equal(XIT.convert('https://x.com/home',userOnly).ok,false);
+  // A link that does name one still converts.
+  const real=XIT.convert('https://x.com/jack/status/20',userOnly);
+  assert.equal(real.ok,true);
+  assert.equal(real.url,'https://mine.example/jack');
+  assert.equal(XIT.convert('https://x.com/jack',userOnly).url,'https://mine.example/jack');
+});

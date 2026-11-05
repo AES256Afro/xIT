@@ -200,6 +200,24 @@ try {
   assert.equal(await options.evaluate(() => document.querySelector('#backup-error').getAttribute('role')), 'alert');
   assert.equal(await worker.evaluate(async () => (await XITStore.load()).defaultRedirector), chosen);
 
+  // B8: a file whose entries xIT already bundles has nothing to add, and the
+  // dialog has to agree with the merge about that or it offers an Add that
+  // does nothing.
+  await options.locator('#import-file').setInputFiles({
+    name: 'already-have.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ custom: [
+      { id: 'c-dup', name: 'Their FxTwitter', template: 'https://fxtwitter.com/{path}{query}' },
+    ] })),
+  });
+  await waitFor(options, () => document.querySelector('#confirm-import').open);
+  assert.match(await options.locator('#import-summary').textContent(), /already have every redirector/);
+  assert.equal(await options.locator('#import-merge').isDisabled(), true,
+    'Add is not offered when there is nothing to add');
+  await options.locator('#import-cancel').click();
+  await waitFor(options, () => !document.querySelector('#confirm-import').open);
+  check('An import offering nothing new says so, and does not offer to add it');
+
   // U5: reset asks in a modal dialog. Escape is a refusal, and settings survive.
   await options.locator('#reset').click();
   await waitFor(options, () => document.querySelector('#confirm-reset').open);

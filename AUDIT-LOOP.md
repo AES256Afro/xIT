@@ -163,8 +163,20 @@ the assertions read what the shipped catalogue produces.
 
 ## What sweep 2 produced
 
-Eleven findings. **B6 is fixed in 1.3.1 and B10 in 1.3.2**; the other nine are
-carried into Milestone 6 in `PLAN.md`: B7, B8, B9, B11, S6, C13, U11, Q6, O5.
+Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, and B7, B8 and B9 in
+1.3.3**; the other six are carried into Milestone 6 in `PLAN.md`: B11, S6,
+C13, U11, Q6, O5.
+
+B8 reached further than this sweep recorded. The same predicate, "do I
+already have this template?", was written twice: once in the merge and once
+in the import dialog's count of what a file would add. Fixing only the merge
+would have left the dialog offering an Add that then added nothing and
+reported "Nothing to add." Two copies of a comparison is the shape of the
+defect, not a second finding, so both moved to `allRedirectors`.
+
+B9 had the same root. The id pattern lived as a literal in `normalize` and
+the merge checked a different condition, so the merge accepted ids normalize
+would throw away. There is one `ID_RE` now and both read it.
 
 B10 was worse than this sweep recorded. The copy path at least toasted its
 refusal before the background overrode it; the open path replied `{ok:false}`
@@ -220,9 +232,9 @@ was used, what it printed is quoted.
 | id | Finding | File |
 |---|---|---|
 | B6 | **Fixed in 1.3.1.** **The author and markdown copy formats invent an account.** `parse()` uses `'i'` as its sentinel for "this link names no account", which `popup.js` already special-cases (`parts.user === 'i' ? '…'`). `formatCopy` tests `parts.user` for truthiness, so `'i'` passes and the output reads `@i`. Every `/i/web/status/` and `/i/status/` link is affected, and so is every link retargeted from a thread tool, because path recovery rewrites those to `/i/web/status/<id>`. Reproduced: `https://x.com/i/web/status/20` yields `[@i](…)` and `@i https://…`. The function's own comment says this case should fall back to `Tweet`, so the intent was there and the check was wrong. Introduced in 1.2.0 (Q4); the test that was meant to cover it passed `{id:'20'}` with no `user` at all, a shape `parse()` never produces. | `src/lib/redirectors.js` |
-| B7 | **A template using `{user}` is never told it needs one.** `normalize` infers `requires` from `{id}` and `{path}` only, so a user template of `https://mine.example/{user}` gets `requires: []`. `convert()` has a `requires.includes('user')` branch that would decline politely, and it is unreachable. Reproduced: that template converts `https://x.com/search?q=a` to `https://mine.example/` and `/i/web/status/20` to `https://mine.example/i`, both silently copied. | `src/lib/storage.js` |
-| B8 | **A merge can add a second copy of a bundled redirector.** The merge keys "do I already have this?" on `current.custom` templates only, not on `PRESETS`. Reproduced: merging a file whose custom entry is `https://fxtwitter.com/{path}{query}` leaves the list showing FxTwitter twice, once bundled and once as the other person's entry. | `src/lib/storage.js` |
-| B9 | **A merge silently drops an entry whose id `normalize` rejects.** A colliding id is given a fresh one via `freshId`, but an id that is merely invalid, such as one containing a space, is passed through and then dropped by `normalize`'s id pattern. Reproduced: merging `{id:'has a space', …}` adds nothing and reports "Nothing to add." The template was valid and the entry was usable; only its id was not. | `src/lib/storage.js` |
+| B7 | **Fixed in 1.3.1 and 1.3.3.** **A template using `{user}` is never told it needs one.** `normalize` infers `requires` from `{id}` and `{path}` only, so a user template of `https://mine.example/{user}` gets `requires: []`. `convert()` has a `requires.includes('user')` branch that would decline politely, and it is unreachable. Reproduced: that template converts `https://x.com/search?q=a` to `https://mine.example/` and `/i/web/status/20` to `https://mine.example/i`, both silently copied. | `src/lib/storage.js` |
+| B8 | **Fixed in 1.3.3.** **A merge can add a second copy of a bundled redirector.** The merge keys "do I already have this?" on `current.custom` templates only, not on `PRESETS`. Reproduced: merging a file whose custom entry is `https://fxtwitter.com/{path}{query}` leaves the list showing FxTwitter twice, once bundled and once as the other person's entry. | `src/lib/storage.js` |
+| B9 | **Fixed in 1.3.3.** **A merge silently drops an entry whose id `normalize` rejects.** A colliding id is given a fresh one via `freshId`, but an id that is merely invalid, such as one containing a space, is passed through and then dropped by `normalize`'s id pattern. Reproduced: merging `{id:'has a space', …}` adds nothing and reports "Nothing to add." The template was valid and the entry was usable; only its id was not. | `src/lib/storage.js` |
 | B10 | **Fixed in 1.3.2.** **A content script that declines is treated as a content script that is absent.** `handleCommand` falls back to converting the tab's own URL whenever the reply is not `{ok:true}`, but the content script replies `{ok:false}` both when it is not there and when it looked at the tweet under the pointer and refused, having already toasted the reason. Reproduced in a harness: with the reply `{ok:false}` the background still sent `xit:copy-text`. The user sees a toast saying the redirector did not apply, and then a different link lands on the clipboard with a second toast. This is B1's family in a path B1's fix did not cover: the keyboard commands. | `src/background.js` |
 | B11 | **Two Check clicks can both get through.** `runCheck` returns early on `if (checking)` but sets `checking = true` only after awaiting `permissions.request`, so a second click during the permission prompt re-enters: two prompts, two runs. The per-row Check buttons are disabled by the render that follows the flag, so they are not disabled while the prompt is up. | `src/options/options.js` |
 

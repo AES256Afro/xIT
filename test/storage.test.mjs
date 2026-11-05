@@ -374,3 +374,56 @@ test('an unknown copy format or sort order falls back to the default',async()=>{
   assert.equal(s.copyFormat,'markdown','a real one is kept');
   assert.equal(s.listSort,'name');
 });
+
+// B7: {path} carries the account and the status id for any link that has
+// them, so a template using it needs nothing in particular. One naming {id}
+// or {user} on its own does, and only {id} was ever inferred, which left
+// convert()'s requires-'user' branch unreachable.
+test('a template is told what it cannot do without',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.addCustom({name:'User only',template:'https://mine.example/{user}'});
+  s=await a.addCustom({name:'Id only',template:'https://mine.example/{id}'});
+  s=await a.addCustom({name:'Both',template:'https://mine.example/{user}/s/{id}'});
+  s=await a.addCustom({name:'Path',template:'https://mine.example/{path}{query}'});
+  const req=(name)=>Array.from(s.custom.find((c)=>c.name===name).requires);
+  assert.deepEqual(req('User only'),['user']);
+  assert.deepEqual(req('Id only'),['id']);
+  assert.deepEqual(req('Both'),['id','user']);
+  assert.deepEqual(req('Path'),[],'{path} needs nothing in particular');
+  // What convert() then does with that is asserted in convert.test.mjs, which
+  // is where the library under test actually lives.
+});
+
+// B8: "do I already have this?" was keyed on the user's own entries only, so
+// a file carrying FxTwitter as an entry of its own added a second one.
+test('a merge does not add a redirector xIT already bundles',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.load();
+  const before=s.custom.length;
+  s=await a.merge({custom:[
+    {id:'c-theirs',name:'Their FxTwitter',template:'https://fxtwitter.com/{path}{query}'},
+    {id:'c-thread',name:'Their thread reader',template:'https://threadreaderapp.com/thread/{id}.html'},
+    {id:'c-new',name:'Something new',template:'https://new.example/{path}'},
+  ]});
+  const templates=Array.from(s.custom.map((c)=>c.template));
+  assert.deepEqual(templates,['https://new.example/{path}'],
+    'only the one that is not already available crosses over');
+  assert.equal(s.custom.length,before+1);
+});
+
+// B9: a taken id was replaced and an invalid one was not, so an entry whose
+// id merely had a space in it was added and then dropped by normalize.
+test('a merge keeps an entry whose id would not survive normalize',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.merge({custom:[
+    {id:'has a space',name:'Spaced',template:'https://sp.example/{path}'},
+    {id:'',name:'No id at all',template:'https://noid.example/{path}'},
+    {id:'way-too-long-'.repeat(20),name:'Long id',template:'https://long.example/{path}'},
+  ]});
+  const names=Array.from(s.custom.map((c)=>c.name)).sort();
+  assert.deepEqual(names,['Long id','No id at all','Spaced'],'all three survive');
+  for (const c of s.custom) {
+    assert.match(c.id,/^[a-zA-Z0-9_-]{1,80}$/,c.name+' got a usable id: '+c.id);
+    assert.match(c.id,/^c-/,'derived from the name, like any other new entry');
+  }
+});
