@@ -353,3 +353,25 @@ test('an absurdly long template is refused with a reason',()=>{
   assert.equal(XIT.validateTemplate(fill(XIT.MAX_TEMPLATE-head)).ok,true,'exactly at the limit');
   assert.equal(XIT.validateTemplate(fill(XIT.MAX_TEMPLATE-head+1)).ok,false,'one character over');
 });
+
+test('cleanCopy writes the clean x.com link in the chosen format', () => {
+  // Q6. The format is a presentation choice about a copy, so it applies to
+  // the clean link as much as to a converted one.
+  const u = 'https://fxtwitter.com/jack/status/20?s=20';
+  assert.equal(XIT.cleanCopy(u, {}, 'url'), 'https://x.com/jack/status/20');
+  assert.equal(XIT.cleanCopy(u, {}, 'author'), '@jack https://x.com/jack/status/20');
+  assert.equal(XIT.cleanCopy(u, {}, 'markdown'), '[@jack](https://x.com/jack/status/20)');
+  // Going through formatCopy means going through handleOf, so the 'i'
+  // sentinel B6 was about cannot come back as '@i' by this route either.
+  assert.equal(XIT.cleanCopy('https://x.com/i/web/status/20', {}, 'author'),
+    'https://x.com/i/web/status/20');
+  assert.equal(XIT.cleanCopy('https://x.com/i/web/status/20', {}, 'markdown'),
+    '[Tweet](https://x.com/i/web/status/20)');
+  // Not a tweet at all: the callers show their own refusal, as they did when
+  // this was canonical.
+  assert.equal(XIT.cleanCopy('https://example.com/not-a-tweet', {}, 'url'), null);
+  // An unknown format passes the link through rather than refusing it.
+  assert.equal(XIT.cleanCopy(u, {}, 'nonsense'), 'https://x.com/jack/status/20');
+  // stripTracking: false is still honoured, since this is canonical's work.
+  assert.equal(XIT.cleanCopy(u, { stripTracking: false }, 'url'), 'https://x.com/jack/status/20?s=20');
+});

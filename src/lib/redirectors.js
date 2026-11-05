@@ -383,18 +383,47 @@
     return url;
   }
 
+  function cleanUrl(parts, o) {
+    return 'https://x.com/' + parts.path + (o.stripTracking === false ? parts.search : stripTracking(parts.search)) + parts.hash;
+  }
+
   /** Canonical x.com URL for a parsed link, tracking params dropped. */
   function canonical(raw, opts) {
     const o = opts || {};
     const parts = parse(raw, o.extraHosts);
     if (!parts) return null;
-    return 'https://x.com/' + parts.path + (o.stripTracking === false ? parts.search : stripTracking(parts.search)) + parts.hash;
+    return cleanUrl(parts, o);
+  }
+
+  /**
+   * The clean x.com link, written out in the chosen copy format. Null when
+   * the input is not a link to a tweet.
+   *
+   * Q6: four paths copy a clean link rather than a converted one, and all
+   * four wrote a bare URL while every redirector copy honoured the format.
+   * Two buttons sitting next to each other therefore disagreed about a
+   * choice the user had made. `canonical` returns a string and drops the
+   * parts it just computed, so each of the four would have had to parse a
+   * second time to format; parsing once here keeps the format decision in
+   * the one place `formatCopy` already keeps it for a converted link.
+   *
+   * No exception is made for the handle already being in an x.com path. It
+   * is in a mirror's path too, so `@jack https://fxtwitter.com/jack/status/20`
+   * has always been redundant in the same way and is what the format asks
+   * for. A clean link is not a different case, and treating it as one would
+   * be another instance of the disagreement this fixes.
+   */
+  function cleanCopy(raw, opts, format) {
+    const o = opts || {};
+    const parts = parse(raw, o.extraHosts);
+    if (!parts) return null;
+    return formatCopy(cleanUrl(parts, o), parts, format);
   }
 
   root.XIT = {
     GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
     MAX_TEMPLATE,
-    parse, expand, convert, canonical, stripTracking, formatCopy, handleOf,
+    parse, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };

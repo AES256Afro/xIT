@@ -253,7 +253,7 @@ async function handleMenuClick(info, tab) {
   }
 
   if (id === 'xit-link-copy-original') {
-    const clean = XIT.canonical(target, opts);
+    const clean = XIT.cleanCopy(target, opts, settings.copyFormat);
     if (clean && tab) await copyInTab(tab.id, clean, settings.toast);
     return;
   }
@@ -277,7 +277,7 @@ async function handleMenuClick(info, tab) {
     // canonical x.com URL, never the raw target, which still carries the
     // tracking parameters the user asked to have stripped. Say which it was:
     // a silent substitution is how somebody pastes the wrong thing.
-    const clean = XIT.canonical(target, opts);
+    const clean = XIT.cleanCopy(target, opts, settings.copyFormat);
     console.warn('[xit]', out.reason);
     if (tab && clean) {
       await copyInTab(tab.id, clean, settings.toast,

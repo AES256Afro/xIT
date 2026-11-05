@@ -241,7 +241,7 @@ from 98. 191 messages, none of them typed twice.
 ## Milestone 6, what sweep 2 found
 
 Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
-and S6 in 1.3.4**, five remain. Full text in `AUDIT-LOOP.md`. Ordered by what
+S6 in 1.3.4, and Q6 in 1.3.5**, four remain. Full text in `AUDIT-LOOP.md`. Ordered by what
 goes wrong for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
@@ -280,11 +280,15 @@ goes wrong for a user, not by category.
    permission prompt, so a second click during the prompt starts a second run.
    Fix: set the flag before the request, and clear it in the existing
    `finally`.
-6. **Q6, the clean-link copies ignore the copy format.** Four paths write a
-   bare URL while every redirector copy honours the setting. Fix: route them
-   through `formatCopy` as well. Worth deciding deliberately whether the
-   x.com link should carry the author, since that is the one copy where the
-   handle is already in the URL.
+6. ~~**Q6, the clean-link copies ignore the copy format.**~~ **Done in
+   1.3.5.** All four go through one new `XIT.cleanCopy`, which parses once
+   and formats there, rather than four calls to `formatCopy`: `canonical`
+   returns a string and drops the parts it computed, which is exactly why a
+   copy built on it ignores the format silently. The question of whether the
+   x.com link should carry the author was settled by noticing that a mirror's
+   path carries the handle too, so "Author then link" has always repeated it;
+   a clean link is not a different case, and making it one would be the same
+   disagreement in a new place.
 7. ~~**S6, an imported name is unbounded.**~~ **Done in 1.3.4.** Two more
    fields were unbounded for the same reason and went with it: the note, in
    the same object, and the template, which `validateTemplate` checked in

@@ -164,8 +164,18 @@ the assertions read what the shipped catalogue produces.
 ## What sweep 2 produced
 
 Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
-1.3.3, and S6 in 1.3.4**; the other five are carried into Milestone 6 in
-`PLAN.md`: B11, C13, U11, Q6, O5.
+1.3.3, S6 in 1.3.4, and Q6 in 1.3.5**; the other four are carried into
+Milestone 6 in `PLAN.md`: B11, C13, U11, O5.
+
+Q6 turned on a shape worth naming, since it is the fourth finding of this
+sweep to have it. `canonical` returns a string and drops the parts it has
+just computed, so a copy built on it cannot see the format and ignores it
+without saying so. Four paths were built on it. The fix is not four calls to
+`formatCopy` but one function, `cleanCopy`, that parses once and formats
+there, so a fifth clean-link copy cannot quietly disagree with the other
+four. The same reasoning retired the hand-listed `XIT` stub in the background
+harness, which was a second copy of the library's surface and broke on this
+change for no reason to do with the change.
 
 S6 named the name. Two more fields from the same file were unbounded for the
 same reason: the note, two lines away in the same object, and the template,
@@ -268,7 +278,7 @@ was used, what it printed is quoted.
 
 | id | Finding |
 |---|---|
-| Q6 | **The clean-link copies ignore the copy format.** Every redirector copy honours `copyFormat`; the four paths that copy the plain x.com link (`inject.js` `copyOriginal`, the popup's Copy x.com link, the context-menu item, and the fallback when a redirector declines) all write a bare URL. Somebody who chose "Markdown link" gets markdown from one button and a bare URL from the one next to it. |
+| Q6 | **Fixed in 1.3.5.** **The clean-link copies ignore the copy format.** Every redirector copy honours `copyFormat`; the four paths that copy the plain x.com link (`inject.js` `copyOriginal`, the popup's Copy x.com link, the context-menu item, and the fallback when a redirector declines) all write a bare URL. Somebody who chose "Markdown link" gets markdown from one button and a bare URL from the one next to it. |
 
 ### Platform features
 

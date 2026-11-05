@@ -223,7 +223,7 @@
     $('copy-default').addEventListener('click', () => doCopy(XITStore.defaultRedirector(settings)));
     $('open-default').addEventListener('click', () => doOpen(XITStore.defaultRedirector(settings)));
     $('copy-clean').addEventListener('click', async () => {
-      const clean = XIT.canonical(sourceUrl, opts());
+      const clean = XIT.cleanCopy(sourceUrl, opts(), settings.copyFormat);
       if (!clean) { status(XITI18N.t('popupNotATweetFull'), 'error'); return; }
       const ok = await writeClipboard(clean);
       status(ok ? XITI18N.t('popupCopiedClean') : XITI18N.t('popupCopyFailed'), ok ? 'ok' : 'error');
