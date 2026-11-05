@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { fakeI18n } from './helpers/i18n-stub.mjs';
 import { readFileSync } from 'node:fs';
 
 function harness() {
@@ -38,8 +39,11 @@ function harness() {
     },
   };
   function context() {
-    const ctx=vm.createContext({chrome:api,URL,URLSearchParams});
-    for(const file of ['redirectors','storage']) vm.runInContext(readFileSync(new URL('../src/lib/'+file+'.js',import.meta.url),'utf8'),ctx);
+    // i18n.js loads alongside the other libraries in every real context, with
+    // the shipped catalogue behind it, so a rejection message asserted below
+    // is the message a user would actually read.
+    const ctx=vm.createContext({chrome:{...api,i18n:fakeI18n()},URL,URLSearchParams,console:{warn(){}}});
+    for(const file of ['i18n','redirectors','storage']) vm.runInContext(readFileSync(new URL('../src/lib/'+file+'.js',import.meta.url),'utf8'),ctx);
     return ctx.XITStore;
   }
   background=context();background.startWriter();

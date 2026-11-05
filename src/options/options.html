@@ -18,36 +18,36 @@
 
   <dialog id="picker" class="picker" aria-labelledby="picker-heading">
     <form id="picker-form" method="dialog">
-      <h2 id="picker-heading">Choose your redirectors</h2>
-      <p class="hint">Add your own or choose from these defaults. Change any time.
+      <h2 id="picker-heading" data-i18n="pickerHeading">Choose your redirectors</h2>
+      <p class="hint" data-i18n="pickerHint">Add your own or choose from these defaults. Change any time.
         Select a few to be pinned.</p>
       <div id="picker-list" class="picker-list"></div>
       <fieldset class="picker-own">
-        <legend>Your own instance</legend>
-        <p class="hint">Optional. Tokens: <code>{path}</code> <code>{query}</code>
+        <legend data-i18n="pickerOwnLegend">Your own instance</legend>
+        <p class="hint" data-i18n-parts="pickerTokensHint">Optional. Tokens: <code>{path}</code> <code>{query}</code>
           <code>{user}</code> <code>{id}</code>. A plain mirror is usually
           <code>https://your.host/{path}{query}</code>. Pin it from the list afterwards.</p>
-        <input id="p-name" type="text" aria-label="Your redirector's name" placeholder="Name, e.g. My instance" maxlength="48">
-        <input id="p-template" type="text" aria-label="Your redirector's URL template" placeholder="https://links.example.com/{path}{query}" spellcheck="false">
+        <input id="p-name" type="text" aria-label="Your redirector's name" placeholder="Name, e.g. My instance" maxlength="48" data-i18n-aria-label="ownNameLabel" data-i18n-placeholder="ownNamePlaceholder">
+        <input id="p-template" type="text" aria-label="Your redirector's URL template" placeholder="https://links.example.com/{path}{query}" spellcheck="false" data-i18n-aria-label="ownTemplateLabel">
         <p id="picker-error" class="warn-text"></p>
       </fieldset>
       <div class="picker-foot">
-        <button id="picker-save" type="button" class="primary">Save choices</button>
-        <button id="picker-skip" type="button" class="ghost">Skip for now</button>
+        <button id="picker-save" type="button" class="primary" data-i18n="pickerSave">Save choices</button>
+        <button id="picker-skip" type="button" class="ghost" data-i18n="pickerSkip">Skip for now</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="confirm-import" class="ask" aria-labelledby="import-heading">
     <form method="dialog">
-      <h2 id="import-heading">Import settings</h2>
+      <h2 id="import-heading" data-i18n="importHeading">Import settings</h2>
       <p id="import-summary" class="hint"></p>
       <div class="picker-foot">
-        <button id="import-merge" type="button" class="primary" autofocus>Add their redirectors</button>
-        <button id="import-replace" type="button" class="danger">Replace everything</button>
-        <button id="import-cancel" type="button" class="ghost">Cancel</button>
+        <button id="import-merge" type="button" class="primary" autofocus data-i18n="importMerge">Add their redirectors</button>
+        <button id="import-replace" type="button" class="danger" data-i18n="importReplace">Replace everything</button>
+        <button id="import-cancel" type="button" class="ghost" data-i18n="importCancel">Cancel</button>
       </div>
-      <p class="hint">Adding keeps your default, your pins and your switches,
+      <p class="hint" data-i18n="importHint">Adding keeps your default, your pins and your switches,
         and brings across only redirectors you do not already have. Replacing
         takes their whole file, including their choices.</p>
     </form>
@@ -55,128 +55,128 @@
 
   <dialog id="confirm-reset" class="ask" aria-labelledby="reset-heading">
     <form method="dialog">
-      <h2 id="reset-heading">Reset to defaults?</h2>
-      <p class="hint">Every setting goes back to how xIT installs: three
+      <h2 id="reset-heading" data-i18n="resetHeading">Reset to defaults?</h2>
+      <p class="hint" data-i18n="resetHint">Every setting goes back to how xIT installs: three
         redirectors enabled, FxTwitter as the default, nothing pinned. Any
         redirector you added yourself is removed, and so is any catalogue entry
         you took. This cannot be undone.</p>
       <div class="picker-foot">
-        <button id="reset-cancel" type="button" class="ghost" autofocus>Keep my settings</button>
-        <button id="reset-go" type="button" class="danger">Reset everything</button>
+        <button id="reset-cancel" type="button" class="ghost" autofocus data-i18n="resetCancel">Keep my settings</button>
+        <button id="reset-go" type="button" class="danger" data-i18n="resetGo">Reset everything</button>
       </div>
     </form>
   </dialog>
 
   <section class="panel">
-    <h2>Default redirector</h2>
-    <p class="hint">Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.</p>
+    <h2 data-i18n="panelDefault">Default redirector</h2>
+    <p class="hint" data-i18n="panelDefaultHint">Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.</p>
     <select id="default-select" class="select wide"></select>
     <div id="default-preview" class="sample"></div>
   </section>
 
   <section class="panel">
-    <h2>Copy behaviour</h2>
+    <h2 data-i18n="panelCopy">Copy behaviour</h2>
     <label class="switch"><input type="checkbox" id="t-button">
-      <span><b>Show a button on every tweet</b><i>A split button in the action bar: click copies with the default, the chevron opens the full list. Right-click or long-press also opens it.</i></span></label>
+      <span><b data-i18n="switchButton">Show a button on every tweet</b><i data-i18n="switchButtonHint">A split button in the action bar: click copies with the default, the chevron opens the full list. Right-click or long-press also opens it.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-hijack">
-      <span><b>Rewrite X's own “Copy link”</b><i>X's native share menu returns the redirected URL, so both routes give you the same thing.</i></span></label>
+      <span><b data-i18n="switchHijack">Rewrite X's own “Copy link”</b><i data-i18n="switchHijackHint">X's native share menu returns the redirected URL, so both routes give you the same thing.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-strip">
-      <span><b>Strip tracking parameters</b><i>Drops <code>?s=20&amp;t=…</code> and similar share telemetry.</i></span></label>
+      <span><b data-i18n="switchStrip">Strip tracking parameters</b><i data-i18n-parts="switchStripHint">Drops <code>?s=20&amp;t=…</code> and similar share telemetry.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-toast">
-      <span><b>Confirm copies with a toast</b><i>A brief banner showing exactly what landed on the clipboard.</i></span></label>
+      <span><b data-i18n="switchToast">Confirm copies with a toast</b><i data-i18n="switchToastHint">A brief banner showing exactly what landed on the clipboard.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-menu">
-      <span><b>Right-click menu on tweet links</b><i>Copy or open any tweet link anywhere on the web, not just on X.</i></span></label>
+      <span><b data-i18n="switchMenu">Right-click menu on tweet links</b><i data-i18n="switchMenuHint">Copy or open any tweet link anywhere on the web, not just on X.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-menu-all">
-      <span><b>Show every redirector in the right-click menu</b><i>Off by default, which lists your default and your pinned entries. On, it lists everything you have enabled, grouped, which can run to a couple of dozen items.</i></span></label>
+      <span><b data-i18n="switchMenuAll">Show every redirector in the right-click menu</b><i data-i18n="switchMenuAllHint">Off by default, which lists your default and your pinned entries. On, it lists everything you have enabled, grouped, which can run to a couple of dozen items.</i></span></label>
     <label class="field">
-      <span><b>Copy as</b><i>How the link is written out. Opening a link in a tab is not affected.</i></span>
+      <span><b data-i18n="fieldCopyFormat">Copy as</b><i data-i18n="fieldCopyFormatHint">How the link is written out. Opening a link in a tab is not affected.</i></span>
       <select id="copy-format" class="select"></select>
     </label>
-    <p class="hint">Example: <code id="copy-format-sample"></code></p>
+    <p class="hint" data-i18n-parts="copyFormatExample">Example: <code id="copy-format-sample"></code></p>
   </section>
 
   <section class="panel">
-    <h2>Redirectors</h2>
-    <p class="hint">Untick any you do not want cluttering the dropdown.</p>
+    <h2 data-i18n="panelRedirectors">Redirectors</h2>
+    <p class="hint" data-i18n="panelRedirectorsHint">Untick any you do not want cluttering the dropdown.</p>
     <div class="list-tools">
-      <input id="list-filter" type="search" placeholder="Filter by name, host or note" aria-label="Filter the redirector list" autocomplete="off" spellcheck="false">
-      <label class="inline-field"><span>Order</span>
+      <input id="list-filter" type="search" placeholder="Filter by name, host or note" aria-label="Filter the redirector list" autocomplete="off" spellcheck="false" data-i18n-placeholder="listFilterPlaceholder" data-i18n-aria-label="listFilterLabel">
+      <label class="inline-field"><span data-i18n="listSortLabel">Order</span>
         <select id="list-sort" class="select">
-          <option value="group">As grouped</option>
-          <option value="name">By name</option>
+          <option value="group" data-i18n="listSortGroup">As grouped</option>
+          <option value="name" data-i18n="listSortName">By name</option>
         </select>
       </label>
     </div>
     <p id="list-empty" class="hint" role="status" hidden></p>
-    <p class="hint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
-    <p class="hint">There are more redirectors than the ones listed here.
-      <button id="open-picker" type="button" class="ghost">Choose redirectors</button></p>
-    <p class="hint">A redirector can quietly stop working. Check asks each host
+    <p class="hint" data-i18n="pinHint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
+    <p class="hint" data-i18n-parts="morePickerHint">There are more redirectors than the ones listed here.
+      <button id="open-picker" type="button" class="ghost" data-i18n="openPickerButton">Choose redirectors</button></p>
+    <p class="hint" data-i18n-parts="checkHint">A redirector can quietly stop working. Check asks each host
       whether it still answers, once, when you press it. xIT makes no network
       request otherwise, and asks for access to a host only at that moment. A
       host that answers is not proof it can still display tweets.
-      <button id="check-hosts" type="button" class="ghost">Check which are reachable</button></p>
-    <div id="undo-custom" class="undo-bar" hidden role="status"><span id="undo-text"></span><button id="undo-remove" class="row-btn">Undo removal</button></div>
+      <button id="check-hosts" type="button" class="ghost" data-i18n="checkHostsButton">Check which are reachable</button></p>
+    <div id="undo-custom" class="undo-bar" hidden role="status"><span id="undo-text"></span><button id="undo-remove" class="row-btn" data-i18n="undoRemove">Undo removal</button></div>
     <div id="redirector-list"></div>
   </section>
 
   <section class="panel">
-    <h2 id="custom-heading">Custom redirector</h2>
-    <p class="hint">For a self-hosted instance or anything not listed. Tokens:
+    <h2 id="custom-heading" data-i18n="panelCustom">Custom redirector</h2>
+    <p class="hint" data-i18n-parts="customTokensHint">For a self-hosted instance or anything not listed. Tokens:
       <code>{path}</code> <code>{query}</code> <code>{user}</code> <code>{id}</code> <code>{hash}</code> <code>{host}</code>.
       A plain mirror is usually <code>https://your.host/{path}{query}</code>.</p>
     <form id="custom-form" class="custom-form">
-      <input id="c-name" type="text" aria-label="Redirector name" placeholder="Name, e.g. My instance" required maxlength="48">
-      <input id="c-template" type="text" aria-label="Redirector URL template" placeholder="https://links.example.com/{path}{query}" required spellcheck="false">
-      <button id="custom-submit" type="submit" class="primary">Add</button>
-      <button id="custom-cancel" type="button" class="ghost" hidden>Cancel edit</button>
+      <input id="c-name" type="text" aria-label="Redirector name" placeholder="Name, e.g. My instance" required maxlength="48" data-i18n-aria-label="customNameLabel" data-i18n-placeholder="customNamePlaceholder">
+      <input id="c-template" type="text" aria-label="Redirector URL template" placeholder="https://links.example.com/{path}{query}" required spellcheck="false" data-i18n-aria-label="customTemplateLabel">
+      <button id="custom-submit" type="submit" class="primary" data-i18n="customSubmitAdd">Add</button>
+      <button id="custom-cancel" type="button" class="ghost" hidden data-i18n="customCancel">Cancel edit</button>
     </form>
     <p id="custom-error" class="warn-text"></p>
     <div id="custom-preview" class="sample"></div>
   </section>
 
   <section class="panel">
-    <h2>Keyboard shortcuts</h2>
-    <p class="hint">Copy the tweet under the pointer with the default
+    <h2 data-i18n="panelShortcuts">Keyboard shortcuts</h2>
+    <p class="hint" data-i18n-parts="shortcutCopyHint">Copy the tweet under the pointer with the default
       redirector: <kbd id="kbd">Alt+Shift+C</kbd>.</p>
-    <p class="hint">Open the tweet under the pointer with the default
+    <p class="hint" data-i18n="shortcutOpenHint">Open the tweet under the pointer with the default
       redirector: not bound. Both browsers hand out the obvious combinations
       already, so rather than pick one that silently loses, this one is left
       for you to choose.</p>
-    <p class="hint">To change it, open the browser's own shortcuts page. An
+    <p class="hint" data-i18n="shortcutChangeHint">To change it, open the browser's own shortcuts page. An
       extension cannot open that page for you, so copy the address and paste it
       into the address bar.</p>
     <div class="actions">
       <code id="shortcut-url">chrome://extensions/shortcuts</code>
-      <button id="copy-shortcut-url" class="ghost">Copy address</button>
+      <button id="copy-shortcut-url" class="ghost" data-i18n="copyAddressButton">Copy address</button>
     </div>
     <p id="shortcut-note" class="hint">On Firefox the page is <code>about:addons</code>, then the gear menu, then Manage Extension Shortcuts.</p>
   </section>
 
   <section class="panel">
-    <h2>Backup</h2>
+    <h2 data-i18n="panelBackup">Backup</h2>
     <div class="actions">
-      <button id="export" class="ghost">Export settings</button>
-      <button id="import" class="ghost">Import settings</button>
-      <button id="reset" class="ghost danger">Reset to defaults</button>
+      <button id="export" class="ghost" data-i18n="backupExport">Export settings</button>
+      <button id="import" class="ghost" data-i18n="backupImport">Import settings</button>
+      <button id="reset" class="ghost danger" data-i18n="backupReset">Reset to defaults</button>
     </div>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
     <p id="backup-error" class="warn-text" role="alert" hidden></p>
   </section>
 
   <section class="panel">
-    <h2>Troubleshooting</h2>
-    <p class="hint">Copy the extension and browser versions, access status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.</p>
-    <button id="copy-diagnostics" class="ghost">Copy diagnostics</button>
+    <h2 data-i18n="panelTrouble">Troubleshooting</h2>
+    <p class="hint" data-i18n="panelTroubleHint">Copy the extension and browser versions, access status, and whether xIT responds in an open X tab. No tweet links, clipboard contents, custom templates, or browsing history are included.</p>
+    <button id="copy-diagnostics" class="ghost" data-i18n="copyDiagnostics">Copy diagnostics</button>
     <pre id="diagnostics-preview" class="sample" hidden></pre>
   </section>
 
   <p id="saved" class="saved" role="status" aria-live="polite"></p>
 </main>
 
+<script src="../lib/i18n.js"></script>
 <script src="../lib/redirectors.js"></script>
 <script src="../lib/storage.js"></script>
-<script src="../lib/i18n.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

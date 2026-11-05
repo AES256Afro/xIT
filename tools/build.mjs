@@ -23,7 +23,7 @@ const DIST = path.join(ROOT, 'dist');
 
 const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
 
-const LIB = ['lib/redirectors.js', 'lib/storage.js', 'lib/i18n.js'];
+const LIB = ['lib/i18n.js', 'lib/redirectors.js', 'lib/storage.js'];
 
 // src/lib/redirectors.js owns the X origin list. Read it rather than keeping a
 // second copy here, so the manifest cannot drift from what the code matches.

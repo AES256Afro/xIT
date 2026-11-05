@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { fakeI18n } from './helpers/i18n-stub.mjs';
 import { setImmediate } from 'node:timers/promises';
 
 const script = (name) => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8');
@@ -54,7 +55,12 @@ async function bridge({ mainFirst = true } = {}) {
     vm.runInContext(script('content/main-world.js'), main);
   }
   async function startIsolated() {
+    isolated.chrome = { ...(isolated.chrome || {}), i18n: fakeI18n() };
+    vm.runInContext(script('lib/i18n.js'), isolated);
     vm.runInContext(script('lib/redirectors.js'), isolated);
+    // The manifest lists lib/i18n.js before content/inject.js, so this is the
+    // order the browser uses. With no chrome.i18n here every string falls back
+    // to the English the code passes, which is also what the assertions read.
     vm.runInContext(script('content/inject.js'), isolated);
     await setImmediate();
   }

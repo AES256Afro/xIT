@@ -7,8 +7,12 @@
  */
 'use strict';
 
-if (typeof importScripts === 'function' && !globalThis.XIT) {
-  importScripts('lib/redirectors.js', 'lib/storage.js');
+// Chrome's service worker gets its libraries here; Firefox's event page gets
+// them from background.scripts in the manifest. Every library this file uses
+// has to be in both lists, which test/background asserts, because a missing
+// one is not a missing string: it is a ReferenceError on the first menu build.
+if (typeof importScripts === 'function' && !globalThis.XITI18N) {
+  importScripts('lib/i18n.js', 'lib/redirectors.js', 'lib/storage.js');
 }
 
 const api = (typeof browser !== 'undefined' && browser.runtime) ? browser : chrome;
@@ -60,16 +64,16 @@ async function buildMenus(settings) {
   const page = { contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS };
 
   // On a tweet link anywhere on the web.
-  await createMenu({ id: MENU_ROOT_LINK, title: 'xIT', ...link });
+  await createMenu({ id: MENU_ROOT_LINK, title: XITI18N.t('extensionName'), ...link });
   await createMenu({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, ...link,
-    title: 'Copy as ' + XITStore.defaultRedirector(settings).name });
+    title: XITI18N.t('menuCopyAs', [XITStore.defaultRedirector(settings).name]) });
   if (list.length) {
     await createMenu({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
   }
 
   async function linkPair(parentId, r) {
-    await createMenu({ id: 'xit-link-copy:' + r.id, parentId, ...link, title: 'Copy as ' + r.name });
-    await createMenu({ id: 'xit-link-open:' + r.id, parentId, ...link, title: 'Open with ' + r.name });
+    await createMenu({ id: 'xit-link-copy:' + r.id, parentId, ...link, title: XITI18N.t('menuCopyAs', [r.name]) });
+    await createMenu({ id: 'xit-link-open:' + r.id, parentId, ...link, title: XITI18N.t('menuOpenWith', [r.name]) });
   }
 
   if (grouped) {
@@ -86,17 +90,17 @@ async function buildMenus(settings) {
   }
 
   await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
-  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, ...link, title: 'Copy clean x.com link' });
-  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, ...link, title: 'Open on X' });
+  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, ...link, title: XITI18N.t('menuCopyCleanLink') });
+  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, ...link, title: XITI18N.t('actionOpenOriginal') });
 
   // On the page itself while browsing X.
-  await createMenu({ id: MENU_ROOT_PAGE, title: 'xIT', ...page });
+  await createMenu({ id: MENU_ROOT_PAGE, title: XITI18N.t('extensionName'), ...page });
   await createMenu({ id: 'xit-page-copy-default', parentId: MENU_ROOT_PAGE, ...page,
-    title: 'Copy this page as ' + XITStore.defaultRedirector(settings).name });
-  await createMenu({ id: 'xit-page-open-original', parentId: MENU_ROOT_PAGE, ...page, title: 'Open on X' });
+    title: XITI18N.t('menuCopyPageAs', [XITStore.defaultRedirector(settings).name]) });
+  await createMenu({ id: 'xit-page-open-original', parentId: MENU_ROOT_PAGE, ...page, title: XITI18N.t('actionOpenOriginal') });
   for (const r of list) {
     await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, ...page,
-      title: 'Open this page with ' + r.name });
+      title: XITI18N.t('menuOpenPageWith', [r.name]) });
   }
 }
 
@@ -277,7 +281,7 @@ async function handleMenuClick(info, tab) {
     console.warn('[xit]', out.reason);
     if (tab && clean) {
       await copyInTab(tab.id, clean, settings.toast,
-        out.reason + ' Copied the clean x.com link instead.').catch(() => {});
+        XITI18N.t('menuFellBackToClean', [out.reason])).catch(() => {});
     }
     return;
   }
@@ -292,7 +296,7 @@ async function handleMenuClick(info, tab) {
 async function openOriginal(input, tab) {
   const settings = await XITStore.load();
   const url = XIT.canonical(input, { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) });
-  if (!url) throw new Error('Open a tweet or paste an X link first.');
+  if (!url) throw new Error(XITI18N.t('bgNeedATweet'));
   await api.tabs.create({ url, index: tab ? tab.index + 1 : undefined, active: true });
 }
 
@@ -416,13 +420,13 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'xit:open-original' || msg.type === 'xit:diagnostics') {
     const action = msg.type === 'xit:diagnostics' ? diagnostics() : openOriginal(msg.url, sender.tab);
     action.then((report) => sendResponse({ ok: true, report }),
-      () => sendResponse({ ok: false, error: msg.type === 'xit:diagnostics' ? 'Could not collect diagnostics. Try again.' : 'Could not open that X link.' }));
+      () => sendResponse({ ok: false, error: XITI18N.t(msg.type === 'xit:diagnostics' ? 'diagFailed' : 'popupOpenFailed') }));
     return true;
   }
 
   if (msg.type === 'xit:check-hosts') {
     checkHosts(msg.ids).then((results) => sendResponse({ ok: true, results }),
-      (e) => sendResponse({ ok: false, error: String((e && e.message) || 'Could not check those hosts.') }));
+      (e) => sendResponse({ ok: false, error: String((e && e.message) || XITI18N.t('checkFailed')) }));
     return true;
   }
 
@@ -462,7 +466,7 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'xit:open') {
     (async () => {
       if (!await isOwnDestination(msg.url)) {
-        sendResponse({ ok: false, error: 'That is not one of your redirectors.' });
+        sendResponse({ ok: false, error: XITI18N.t('bgNotYourRedirector') });
         return;
       }
       const tab = sender.tab;

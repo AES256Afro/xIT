@@ -13,7 +13,7 @@
   let editingId = null;
 
   function saved(text) {
-    $('saved').textContent = text || 'Saved';
+    $('saved').textContent = text || XITI18N.t('saved');
     clearTimeout(savedTimer);
     savedTimer = setTimeout(() => { $('saved').textContent = ''; }, 1800);
   }
@@ -24,7 +24,7 @@
       saved();
       render();
       return true;
-    } catch (e) { $('saved').textContent = 'Could not save: ' + e.message; return false; }
+    } catch (e) { $('saved').textContent = XITI18N.t('errSave', [e.message]); return false; }
   }
 
   function sampleFor(redirector) {
@@ -40,7 +40,7 @@
     for (const g of XITStore.redirectorGroups(settings)) {
       const inGroup = g.entries;
       const og = document.createElement('optgroup');
-      og.label = g.label;
+      og.label = XITI18N.of('group', g.id, g.label);
       for (const r of inGroup) {
         const o = document.createElement('option');
         o.value = r.id;
@@ -67,12 +67,12 @@
   let checking = false;
 
   const CHECK_LABEL = {
-    ok: 'Responds',
-    failing: 'Server error',
-    refused: 'Refused',
-    silent: 'No answer',
-    denied: 'Access not granted',
-    unknown: 'Cannot be checked',
+    ok: XITI18N.t('checkOk'),
+    failing: XITI18N.t('checkFailing'),
+    refused: XITI18N.t('checkRefused'),
+    silent: XITI18N.t('checkSilent'),
+    denied: XITI18N.t('checkDenied'),
+    unknown: XITI18N.t('checkUnknown'),
   };
 
   function checkBadge(row, r) {
@@ -87,14 +87,14 @@
       // A permission can only be asked for an origin the manifest declared,
       // and a wildcard covering anything the user might type would be a much
       // bigger ask than this feature is worth.
-      badge.title = 'Only the redirectors xIT ships can be checked, because access has to be declared in advance.';
+      badge.title = XITI18N.t('checkUnknownWhy');
       row.appendChild(badge);
       return;
     }
     badge.dataset.state = result.state;
     badge.textContent = CHECK_LABEL[result.state] || result.state;
     if (result.status) badge.textContent += ' (' + result.status + ')';
-    badge.title = 'Checked ' + new Date(result.at).toLocaleString()
+    badge.title = XITI18N.t('checkedAt', [new Date(result.at).toLocaleString()])
       + '. A response does not prove the host can still display tweets.';
     row.appendChild(badge);
   }
@@ -107,22 +107,22 @@
       .map((r) => r && XIT.checkOrigin(r.template))
       .filter(Boolean))].map((origin) => origin + '*');
     if (!origins.length) {
-      saved('None of those can be checked.');
+      saved(XITI18N.t('checkNoneCheckable'));
       return;
     }
     // Asked for first, while the click is still the user's gesture, and only
     // for the hosts this check is about.
     let granted = false;
     try { granted = await api.permissions.request({ origins }); } catch (_) { granted = false; }
-    if (!granted) { $('saved').textContent = 'Access was not granted, so nothing was checked.'; return; }
+    if (!granted) { $('saved').textContent = XITI18N.t('checkNoAccess'); return; }
 
     checking = true;
     render();
     try {
       const result = await api.runtime.sendMessage({ type: 'xit:check-hosts', ids });
-      if (!result || !result.ok) throw new Error((result && result.error) || 'Could not check those hosts.');
+      if (!result || !result.ok) throw new Error((result && result.error) || XITI18N.t('checkFailed'));
       checks = { ...checks, ...result.results };
-      saved('Check complete. A response does not prove the host can display tweets.');
+      saved(XITI18N.t('checkDone'));
     } catch (error) {
       $('saved').textContent = error.message;
     } finally {
@@ -179,7 +179,7 @@
       wrap.className = 'rgroup';
       const head = document.createElement('div');
       head.className = 'rgroup-head';
-      head.textContent = g.label;
+      head.textContent = XITI18N.of('group', g.id, g.label);
       wrap.appendChild(head);
       if (g.blurb) {
         const blurb = document.createElement('p');
@@ -204,7 +204,8 @@
         const name = document.createElement('b');
         name.textContent = r.name;
         const detail = document.createElement('span');
-        detail.textContent = r.note ? r.note + ' · ' + r.template : r.template;
+        const note = r.note ? XITI18N.of('note', r.id, r.note) : '';
+        detail.textContent = note ? note + ' · ' + r.template : r.template;
         main.append(name, detail);
         row.append(cb, main);
         if (r.id === settings.defaultRedirector) {
@@ -216,27 +217,27 @@
         const actions = document.createElement('div');
         actions.className = 'ritem-tools';
         const pinned = settings.pinnedIds.includes(r.id);
-        const pin = rowButton(actions, r.id, 'pin', pinned ? 'Unpin' : 'Pin', () => commit(XITStore.setPinned(r.id, !pinned)));
+        const pin = rowButton(actions, r.id, 'pin', XITI18N.t(pinned ? 'rowUnpin' : 'rowPin'), () => commit(XITStore.setPinned(r.id, !pinned)));
         pin.setAttribute('aria-pressed', String(pinned));
         if (pinned) {
           const index = settings.pinnedIds.indexOf(r.id);
-          rowButton(actions, r.id, 'up', 'Move up', () => commit(XITStore.movePinned(r.id, -1))).disabled = index === 0;
-          rowButton(actions, r.id, 'down', 'Move down', () => commit(XITStore.movePinned(r.id, 1))).disabled = index === settings.pinnedIds.length - 1;
+          rowButton(actions, r.id, 'up', XITI18N.t('rowMoveUp'), () => commit(XITStore.movePinned(r.id, -1))).disabled = index === 0;
+          rowButton(actions, r.id, 'down', XITI18N.t('rowMoveDown'), () => commit(XITStore.movePinned(r.id, 1))).disabled = index === settings.pinnedIds.length - 1;
         }
         // A catalogue entry lives in `custom` but its definition is ours, so it
         // can be dropped but not edited: editing the template would silently
         // make it something other than the redirector it claims to be.
         if (r.custom) {
-          rowButton(actions, r.id, 'edit', 'Edit', () => editCustom(r));
-          rowButton(actions, r.id, 'duplicate', 'Duplicate', () => commit(XITStore.duplicateCustom(r.id)));
+          rowButton(actions, r.id, 'edit', XITI18N.t('rowEdit'), () => editCustom(r));
+          rowButton(actions, r.id, 'duplicate', XITI18N.t('rowDuplicate'), () => commit(XITStore.duplicateCustom(r.id)));
         }
         const canCheck = !!XIT.checkOrigin(r.template);
         if (canCheck) {
-          const button = rowButton(actions, r.id, 'check', 'Check', () => runCheck([r.id]));
+          const button = rowButton(actions, r.id, 'check', XITI18N.t('rowCheck'), () => runCheck([r.id]));
           button.disabled = checking;
         }
         if (r.custom || r.catalogue) {
-          rowButton(actions, r.id, 'remove', 'Remove', async () => {
+          rowButton(actions, r.id, 'remove', XITI18N.t('rowRemove'), async () => {
             if (await commit(XITStore.removeCustom(r.id))) {
               if (editingId === r.id) cancelEdit();
               await renderUndo();
@@ -252,7 +253,7 @@
       // heading and blurb standing over nothing.
       if (wrap.querySelector('.ritem')) host.appendChild(wrap);
     }
-    $('list-empty').textContent = shown ? '' : 'Nothing matches "' + listFilter + '".';
+    $('list-empty').textContent = shown ? '' : XITI18N.t('listNoMatch', [listFilter]);
     $('list-empty').hidden = !!shown;
     $('list-sort').value = settings.listSort;
     if (focusRow && focusAction) {
@@ -265,10 +266,10 @@
 
   function editCustom(entry) {
     editingId = entry.id;
-    $('custom-heading').textContent = 'Edit custom redirector';
+    $('custom-heading').textContent = XITI18N.t('panelCustomEdit');
     $('c-name').value = entry.name;
     $('c-template').value = entry.template;
-    $('custom-submit').textContent = 'Save changes';
+    $('custom-submit').textContent = XITI18N.t('customSubmitSave');
     $('custom-cancel').hidden = false;
     renderCustomPreview();
     $('custom-form').scrollIntoView({ block: 'center' });
@@ -277,8 +278,8 @@
 
   function cancelEdit() {
     editingId = null;
-    $('custom-heading').textContent = 'Custom redirector';
-    $('custom-submit').textContent = 'Add';
+    $('custom-heading').textContent = XITI18N.t('panelCustom');
+    $('custom-submit').textContent = XITI18N.t('customSubmitAdd');
     $('custom-cancel').hidden = true;
     $('c-name').value = '';
     $('c-template').value = '';
@@ -288,7 +289,7 @@
   async function renderUndo() {
     const removed = await XITStore.getUndo();
     $('undo-custom').hidden = !removed;
-    $('undo-text').textContent = removed ? 'Removed ' + removed.entry.name + '.' : '';
+    $('undo-text').textContent = removed ? XITI18N.t('undoRemoved', [removed.entry.name]) : '';
   }
 
   /* ---- custom redirectors ---- */
@@ -346,7 +347,7 @@
       const name = document.createElement('b');
       name.textContent = r.name;
       const note = document.createElement('span');
-      note.textContent = r.note || r.template;
+      note.textContent = r.note ? XITI18N.of('note', r.id, r.note) : r.template;
       main.append(name, note);
       row.append(cb, main);
 
@@ -356,7 +357,7 @@
         const alias = document.createElement('span');
         alias.className = 'pick-alias';
         const of = XIT.PRESETS.find((p) => p.id === r.sameAs);
-        alias.textContent = 'Same service as ' + (of ? of.name : r.sameAs);
+        alias.textContent = XITI18N.t('sameServiceAs', [of ? of.name : r.sameAs]);
         row.appendChild(alias);
       }
 
@@ -398,7 +399,7 @@
     const template = $('p-template').value.trim();
     if (name || template) {
       const v = XIT.validateTemplate(template);
-      if (!name) { $('picker-error').textContent = 'Give your redirector a name, or clear both fields.'; return; }
+      if (!name) { $('picker-error').textContent = XITI18N.t('pickerNeedName'); return; }
       if (!v.ok) { $('picker-error').textContent = v.error; return; }
     }
     // Keep the order the entries are offered in, so the lists stay stable.
@@ -407,7 +408,7 @@
     const pinnedIds = settings.pinnedIds.filter((id) => pick.pinned.has(id))
       .concat(order.filter((id) => pick.pinned.has(id) && !settings.pinnedIds.includes(id)));
     if (!enabledIds.length && !template) {
-      $('picker-error').textContent = 'Keep at least one redirector, or add your own.';
+      $('picker-error').textContent = XITI18N.t('pickerNeedOne');
       return;
     }
     const defaultRedirector = enabledIds.includes(settings.defaultRedirector)
@@ -417,7 +418,7 @@
     if (!await commit({ enabledIds, pinnedIds, defaultRedirector, pickerDone: true })) return;
     if (template && !await commit(XITStore.addCustom({ name, template }))) return;
     $('picker').close();
-    saved('Choices saved');
+    saved(XITI18N.t('savedChoices'));
   }
 
   /* ---- import / export ---- */
@@ -429,7 +430,7 @@
     a.download = 'xit-settings.json';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    saved('Exported');
+    saved(XITI18N.t('savedExported'));
   }
 
   /**
@@ -459,11 +460,11 @@
       raw = JSON.parse(await file.text());
     } catch (e) {
       $('saved').textContent = '';
-      backupError('That file could not be read as settings: ' + (e && e.message));
+      backupError(XITI18N.t('importUnreadable', [String((e && e.message) || e)]));
       return;
     }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      backupError('That file is not a settings object.');
+      backupError(XITI18N.t('importNotObject'));
       return;
     }
     const theirs = Array.isArray(raw.custom) ? raw.custom : [];
@@ -472,18 +473,13 @@
     const fresh = usable.filter((c) => !mine.has(c.template));
     pendingImport = raw;
     $('import-summary').textContent = fresh.length
-      ? `That file has ${plural(fresh.length, 'redirector')} you do not have yet, out of ${usable.length} in total.`
+      ? XITI18N.t(fresh.length === 1 ? 'importSummaryOne' : 'importSummaryMany', [String(fresh.length), String(usable.length)])
       : usable.length
-        ? 'You already have every redirector in that file, so adding would change nothing.'
-        : 'That file has no redirectors of its own, so there is nothing to add.';
+        ? XITI18N.t('importNothingNew')
+        : XITI18N.t('importNoneAtAll');
     $('import-merge').disabled = !fresh.length;
     $('import-replace').disabled = false;
     $('confirm-import').showModal();
-  }
-
-  /** "1 redirector", "3 redirectors". */
-  function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : (many || one + 's'));
   }
 
   async function applyImport(mode) {
@@ -495,12 +491,16 @@
     try {
       settings = await (mode === 'merge' ? XITStore.merge(raw) : XITStore.replace(raw));
       render();
-      if (mode !== 'merge') { saved('Imported'); return; }
+      if (mode !== 'merge') { saved(XITI18N.t('savedImported')); return; }
       const gained = settings.custom.filter((c) => !before.has(c.id)).length;
-      saved(gained ? `Added ${plural(gained, 'redirector')}.` : 'Nothing to add.');
+      // The browser's message format has no plural rules, so the choice of
+      // message is made here and a translator gets one message per form.
+      saved(gained
+        ? XITI18N.t(gained === 1 ? 'importAddedOne' : 'importAddedMany', [String(gained)])
+        : XITI18N.t('importNothingToAdd'));
     } catch (e) {
       $('saved').textContent = '';
-      backupError('That file could not be read as settings: ' + (e && e.message));
+      backupError(XITI18N.t('importUnreadable', [String((e && e.message) || e)]));
     }
   }
 
@@ -512,7 +512,7 @@
       for (const f of XIT.COPY_FORMATS) {
         const option = document.createElement('option');
         option.value = f.id;
-        option.textContent = f.name;
+        option.textContent = XITI18N.of('copyFormat', f.id, f.name);
         select.appendChild(option);
       }
     }
@@ -533,7 +533,7 @@
     $('t-menu-all').checked = settings.contextMenuAll;
     $('t-menu-all').disabled = !settings.contextMenu;
     $('check-hosts').disabled = checking;
-    $('check-hosts').textContent = checking ? 'Checking…' : 'Check which are reachable';
+    $('check-hosts').textContent = XITI18N.t(checking ? 'checkInProgress' : 'checkHostsButton');
     renderCustomPreview();
   }
 
@@ -571,7 +571,7 @@
       const name = $('c-name').value.trim();
       const template = $('c-template').value.trim();
       const v = XIT.validateTemplate(template);
-      if (!name) { $('custom-error').textContent = 'Give it a name.'; return; }
+      if (!name) { $('custom-error').textContent = XITI18N.t('customNeedName'); return; }
       if (!v.ok) { $('custom-error').textContent = v.error; return; }
       const entry = { name, template };
       if (await commit(id ? XITStore.editCustom(id, entry) : XITStore.addCustom(entry))) cancelEdit();
@@ -582,12 +582,12 @@
       button.disabled = true;
       try {
         const result = await api.runtime.sendMessage({ type: 'xit:diagnostics' });
-        if (!result || !result.ok) throw new Error('Could not collect diagnostics. Try again.');
+        if (!result || !result.ok) throw new Error(XITI18N.t('diagFailed'));
         const text = JSON.stringify(result.report, null, 2);
         $('diagnostics-preview').textContent = text;
         $('diagnostics-preview').hidden = false;
-        try { await navigator.clipboard.writeText(text); saved('Diagnostics copied.'); }
-        catch (_) { saved('Select and copy the diagnostics shown below.'); }
+        try { await navigator.clipboard.writeText(text); saved(XITI18N.t('diagCopied')); }
+        catch (_) { saved(XITI18N.t('diagSelectManually')); }
       } catch (error) { $('saved').textContent = error.message; }
       finally { button.disabled = false; }
     });
@@ -617,7 +617,7 @@
       $('confirm-reset').close();
       settings = await XITStore.reset();
       render();
-      saved('Reset');
+      saved(XITI18N.t('savedReset'));
     });
 
     $('check-hosts').addEventListener('click', () => runCheck(
@@ -642,7 +642,7 @@
     if (firefox) {
       $('kbd').textContent = 'Alt+Shift+C';
       $('shortcut-url').textContent = 'about:addons';
-      $('shortcut-note').textContent = 'Open it, then the gear menu, then Manage Extension Shortcuts.';
+      $('shortcut-note').textContent = XITI18N.t('shortcutNoteFirefox');
     }
     $('copy-format').addEventListener('change', (ev) => commit({ copyFormat: ev.target.value }));
     $('list-filter').addEventListener('input', (ev) => {
@@ -654,7 +654,7 @@
       const address = $('shortcut-url').textContent;
       try {
         await navigator.clipboard.writeText(address);
-        saved('Address copied. Paste it into the address bar.');
+        saved(XITI18N.t('addressCopied'));
       } catch (_) {
         // A clipboard write can be refused. Select it so the user can copy by
         // hand rather than being told it worked when it did not.
@@ -663,7 +663,7 @@
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
-        saved('Could not copy. The address is selected, so copy it yourself.');
+        saved(XITI18N.t('addressCopyFailed'));
       }
       ev.currentTarget.blur();
     });
@@ -674,5 +674,5 @@
     if (!settings.pickerDone) openPicker();
   }
 
-  init().catch((e) => { $('saved').textContent = 'Error: ' + (e && e.message); });
+  init().catch((e) => { $('saved').textContent = XITI18N.t('errGeneric', [String((e && e.message) || e)]); });
 })();

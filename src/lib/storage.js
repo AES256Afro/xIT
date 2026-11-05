@@ -158,12 +158,12 @@
     const current = await load();
     let raw = current;
     let undo = null;
-    if (!operation || typeof operation !== 'object') throw new Error('Invalid settings operation.');
+    if (!operation || typeof operation !== 'object') throw new Error(XITI18N.t('errBadOperation'));
     if (operation.type === 'patch') {
       const patch = operation.patch || {};
       raw = { ...current, ...patch };
     } else if (operation.type === 'replace') {
-      if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error('Settings must be a JSON object.');
+      if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error(XITI18N.t('errNotJsonObject'));
       raw = operation.settings;
     } else if (operation.type === 'merge') {
       // Q2: import used to replace the whole object, so taking one redirector
@@ -171,7 +171,7 @@
       // merge brings across their redirectors and nothing else: which of them
       // you pin, star or turn off stays your decision.
       const incoming = operation.settings;
-      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error('Settings must be a JSON object.');
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error(XITI18N.t('errNotJsonObject'));
       const theirs = Array.isArray(incoming.custom) ? incoming.custom : [];
       const taken = new Set(allRedirectors(current).map((r) => r.id));
       const held = new Set(current.custom.map((c) => c.template));
@@ -209,14 +209,14 @@
       raw = { ...current, enabledIds: [...ids] };
     } else if (operation.type === 'remove-custom') {
       const entry = current.custom.find((c) => c.id === operation.id);
-      if (!entry) throw new Error('That custom redirector no longer exists.');
+      if (!entry) throw new Error(XITI18N.t('errNoSuchCustom'));
       raw = { ...current, custom: current.custom.filter((c) => c.id !== operation.id) };
       undo = { entry, enabled: current.enabledIds.includes(entry.id), pinIndex: current.pinnedIds.indexOf(entry.id),
         defaultBefore: current.defaultRedirector };
     } else if (operation.type === 'restore-custom') {
       const removed = await getUndo();
-      if (!removed) throw new Error('There is no removed redirector to restore.');
-      if (allRedirectors(current).some((r) => r.id === removed.entry.id)) throw new Error('That redirector ID is already in use.');
+      if (!removed) throw new Error(XITI18N.t('errNothingToRestore'));
+      if (allRedirectors(current).some((r) => r.id === removed.entry.id)) throw new Error(XITI18N.t('errIdTaken'));
       const pins = [...current.pinnedIds];
       if (removed.pinIndex >= 0) pins.splice(removed.pinIndex, 0, removed.entry.id);
       raw = { ...current, custom: [...current.custom, removed.entry], pinnedIds: pins,
@@ -234,11 +234,11 @@
       raw = { ...current, pinnedIds: pins };
     } else if (['add-custom', 'edit-custom', 'duplicate-custom'].includes(operation.type)) {
       const original = current.custom.find((c) => c.id === operation.id);
-      if (operation.type !== 'add-custom' && !original) throw new Error('That custom redirector no longer exists.');
+      if (operation.type !== 'add-custom' && !original) throw new Error(XITI18N.t('errNoSuchCustom'));
       const entry = operation.type === 'duplicate-custom' ? { ...original, name: original.name + ' copy' } : operation.entry || {};
       const name = String(entry.name || '').trim();
       const validation = XIT.validateTemplate(entry.template);
-      if (!name || !validation.ok) throw new Error(validation.error || 'Give the redirector a name.');
+      if (!name || !validation.ok) throw new Error(validation.error || XITI18N.t('errNeedName'));
       if (operation.type === 'edit-custom') {
         raw = { ...current, custom: current.custom.map((c) => c.id === original.id ? { ...c, name, template: entry.template } : c) };
       } else {
@@ -247,7 +247,7 @@
         raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
       }
     } else {
-      throw new Error('Unknown settings operation.');
+      throw new Error(XITI18N.t('errUnknownOperation'));
     }
     const next = normalize(raw);
     if (JSON.stringify(next) !== JSON.stringify(current) || operation.type === 'reset' || operation.type === 'rewrite') {
@@ -265,7 +265,7 @@
   function mutate(operation) {
     if (!writer) {
       return promisify((cb) => api.runtime.sendMessage({ type: 'xit:mutate-settings', operation }, cb)).then((result) => {
-        if (!result || !result.ok) throw new Error((result && result.error) || 'Could not save settings.');
+        if (!result || !result.ok) throw new Error((result && result.error) || XITI18N.t('errSaveFailed'));
         return normalize(result.settings);
       });
     }

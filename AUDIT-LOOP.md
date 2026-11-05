@@ -124,6 +124,41 @@ The four new background tests and the four new content-bridge tests were each
 checked by reverting the fix they cover and confirming the matching test
 fails, as was the path-recovery guard.
 
+## What Milestone 5 produced
+
+Fixed in 1.3.0: C11, and with it the rest of C10 and P3.
+Carried: C12, which is a library-contract change rather than a string move.
+
+The English is derived, not retyped. `tools/i18n-sync.mjs` reads the pages and
+`lib/redirectors.js` and works out what each message should say; the catalogue
+is generated from that, and the same code backs `npm run i18n`, which the
+tests run. Nothing says the same sentence in two files, so nothing can drift.
+The one thing a person writes is the description, which is the only context a
+translator gets.
+
+A sentence with markup inside it stays one message. `data-i18n-parts` keeps
+the element's own children and lets the message place them as {1}, {2} and so
+on, so a `<code>` sample or a `<kbd>` key can move. The easy alternative, one
+message per fragment, would have made several languages impossible to word
+correctly.
+
+Counts use one message per plural form, chosen in the code, because the
+browser's message format has no plural rules and a translator cannot add them.
+
+**This work found a real bug.** In Chrome the background loads its libraries
+with `importScripts`, and `lib/i18n.js` was not in that list. Nothing was
+broken in 1.2.0, because the background did not use it yet, but the first
+thing to use it would have thrown on install, in Chrome only. The unit
+harness injects the libraries directly, so no existing test could have caught
+it. `test/background.test.mjs` now compares both load lists, the service
+worker's and the Firefox event page's, against the globals the file actually
+references, and that assertion fails when the import is removed.
+
+The harnesses were also changed to run `lib/i18n.js` with the real catalogue
+behind it, rather than letting every string fall back to the English in the
+call. Changing one message now fails six background tests, which is the point:
+the assertions read what the shipped catalogue produces.
+
 ## Sweep 1, 4 November 2026
 
 Baseline: 50/50 unit tests pass at 1.0.7. Browser and Firefox suites not run in
@@ -142,8 +177,9 @@ this pass.
 | C7 | `clipboardPayload` dispatches an `xit:toast` CustomEvent that nothing listens for. The `showToast` argument is inert, so a copy that falls back to `scripting.executeScript` gives the user no confirmation. | `src/background.js` |
 | C8 | Nothing in the tree sends `xit:copy-via-background`. The handler is dead and widens the message surface. | `src/background.js` |
 | C9 | `AUDIT-2026-09-14.md` is 22 KB of superseded report at the repo root. **Fixed in 1.1.1:** deleted. | repo root |
-| C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. **Partly fixed in 1.2.0:** there is a catalogue, the manifest's strings come from it, and `lib/i18n.js` gives HTML and JavaScript a way in. The interface's own strings are still inline; carried as C11. | whole tree |
-| C11 | The interface's strings are still inline English: roughly 60 in `options.html`, plus the toasts, statuses and menu labels built in `inject.js`, `popup.js` and `background.js`. The mechanism to move them exists as of 1.2.0, so this is now mechanical rather than structural, and it is the last thing C10 was asking for. | `src/options`, `src/popup`, `src/content`, `src/background.js` |
+| C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. **Fixed in 1.3.0**, apart from C12. **Partly fixed in 1.2.0:** there is a catalogue, the manifest's strings come from it, and `lib/i18n.js` gives HTML and JavaScript a way in. The interface's own strings are still inline; carried as C11. | whole tree |
+| C11 | The interface's strings are still inline English: roughly 60 in `options.html`, plus the toasts, statuses and menu labels built in `inject.js`, `popup.js` and `background.js`. The mechanism to move them exists as of 1.2.0, so this is now mechanical rather than structural, and it is the last thing C10 was asking for. **Fixed in 1.3.0:** 191 messages, with the English derived from the markup and the library rather than retyped. | `src/options`, `src/popup`, `src/content`, `src/background.js` |
+| C12 | The failure messages `convert()` and `validateTemplate()` return, about ten of them, are the last inline English a user reads. They cannot move the way C11's did: `lib/redirectors.js` must stay free of browser APIs, because `tools/build.mjs` evaluates it in a bare context and the unit tests load it alone. The functions would have to return a message code plus parameters, which is a library-contract change with about twenty assertions on it. | `src/lib/redirectors.js` |
 
 ### Bug
 
@@ -196,7 +232,7 @@ this pass.
 |---|---|
 | P1 | There is no **catalogue**: a shipped data list of suggested redirectors the user can add with one tap. This is the mechanism that turns "eight things forced on you" into "pick what you want", and it is what lets a contentious entry exist as a choice rather than a default. |
 | P2 | No first-run picker (see U1). |
-| P3 | No i18n (see C10). **Partly fixed in 1.2.0**, same scope as C10. |
+| P3 | No i18n (see C10). **Partly fixed in 1.2.0** and finished in 1.3.0, same scope as C10. |
 | P4 | No reachability check. One user-initiated HEAD per host would let the UI mark an entry as unreachable instead of letting it fail silently at copy time. **Fixed in 1.1.0:** one HEAD request per host, on the button press, with optional host permissions requested at that moment. |
 
 ### Optimisation
