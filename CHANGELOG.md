@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- Put a limit on what a settings file can carry. A redirector's name and note were taken exactly as given, and its template could be any length: the 48-character limit you see in the form is enforced by the form, which an imported file, a merge and a hand-edited file all go around. A name or note that is too long is shortened; a template that is too long is refused with a reason, since a shortened template would simply be broken. Nothing was ever able to run as code this way, but a file could put a hundred kilobytes into a label in the list, the popup and the right-click menu.
+
 ## 1.3.3
 
 - A custom template that uses `{user}` but not `{path}` is now told it needs a link with an account in it, instead of quietly copying your redirector's bare address. A link to a search page or to a tweet that names no author produced `https://your.host/` and said nothing.

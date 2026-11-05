@@ -80,6 +80,26 @@
     return needs;
   }
 
+  /*
+   * S6: a redirector arriving in a file was bounded in every field but the
+   * ones a person reads. Its id has to match ID_RE and its template is capped
+   * by validateTemplate, but the name and the note were taken as given. The
+   * 48-character limit on the two form fields is `maxlength`, which is a hint
+   * to the form and is never seen by import, by a merge, or by a file edited
+   * by hand. Nothing here is an injection risk, since both are rendered as
+   * textContent; an unbounded one is a file that can put 100 KB into storage,
+   * into the redirector list, into the popup and into a context-menu title.
+   *
+   * Truncated rather than rejected: the redirector still works, and losing
+   * the end of a label is a smaller harm than losing the entry. The name cap
+   * matches the form so the two routes agree; the note is given more room,
+   * since the longest xIT ships is 64 characters.
+   */
+  const MAX_NAME = 48;
+  const MAX_NOTE = 160;
+
+  const cap = (value, limit) => String(value == null ? '' : value).slice(0, limit);
+
   // The shape a stored redirector id may have. normalize drops anything else,
   // so every route that invents or accepts an id has to agree with this: B9
   // was the merge accepting an id normalize would then throw away.
@@ -133,11 +153,11 @@
       }
       return {
         id: String(c.id),
-        name: String(c.name || c.id),
+        name: cap(c.name || c.id, MAX_NAME),
         group: 'custom',
         template: String(c.template).trim(),
         requires: inferRequires(c.template),
-        note: c.note ? String(c.note) : '',
+        note: c.note ? cap(c.note, MAX_NOTE) : '',
         custom: true,
       };
     });
@@ -217,7 +237,7 @@
         // A catalogue entry they had taken keeps our definition and our id,
         // exactly as enabling it here would. Anything else is their own.
         const catalogue = XIT.findCatalogue(entry.id);
-        const name = String(entry.name || (catalogue && catalogue.name) || '').trim();
+        const name = cap(String(entry.name || (catalogue && catalogue.name) || '').trim(), MAX_NAME);
         if (!name) continue;
         let id = catalogue ? catalogue.id : String(entry.id || '');
         // B9: a taken id was replaced and an invalid one was not, so an entry
@@ -411,7 +431,7 @@
   }
 
   root.XITStore = {
-    api, DEFAULTS, SCHEMA_VERSION,
+    api, DEFAULTS, SCHEMA_VERSION, MAX_NAME, MAX_NOTE,
     load, save, replace, merge, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
     startWriter, mutate,
     editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups,

@@ -337,3 +337,19 @@ test('a redirector that needs an account refuses a link without one',()=>{
   assert.equal(real.url,'https://mine.example/jack');
   assert.equal(XIT.convert('https://x.com/jack',userOnly).url,'https://mine.example/jack');
 });
+
+// S6: a template from a file is rejected rather than truncated, because a
+// shortened template is a broken one. The longest xIT ships is 44 characters.
+test('an absurdly long template is refused with a reason',()=>{
+  const long='https://e.example/'+'a'.repeat(5000)+'/{path}';
+  const out=XIT.validateTemplate(long);
+  assert.equal(out.ok,false);
+  assert.match(out.error,/too long/);
+  assert.ok(XIT.MAX_TEMPLATE>Math.max(...XIT.PRESETS.concat(XIT.CATALOGUE).map((r)=>r.template.length))*4,
+    'with plenty of room for a real one');
+  // At the limit it is still accepted, one past it is not.
+  const fill=(n)=>'https://e.example/'+'a'.repeat(n)+'/{path}';
+  const head='https://e.example/'.length+'/{path}'.length;
+  assert.equal(XIT.validateTemplate(fill(XIT.MAX_TEMPLATE-head)).ok,true,'exactly at the limit');
+  assert.equal(XIT.validateTemplate(fill(XIT.MAX_TEMPLATE-head+1)).ok,false,'one character over');
+});

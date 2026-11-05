@@ -427,3 +427,36 @@ test('a merge keeps an entry whose id would not survive normalize',async()=>{
     assert.match(c.id,/^c-/,'derived from the name, like any other new entry');
   }
 });
+
+// S6: a redirector from a file was bounded in every field but the ones a
+// person reads. Nothing here is injection, since both are rendered as
+// textContent; an unbounded one is a file that puts 100 KB into storage, into
+// the list, into the popup and into a context-menu title.
+test('a redirector from a file cannot carry an unbounded name or note',async()=>{
+  const h=harness(),a=h.context();
+  const long='x'.repeat(5000);
+  // The route a hand-edited or shared file takes.
+  let s=await a.replace({custom:[{id:'c-long',name:long,note:long,template:'https://long.example/{path}'}],
+    enabledIds:['c-long'],defaultRedirector:'c-long'});
+  const entry=s.custom.find((c)=>c.id==='c-long');
+  assert.equal(entry.name.length,a.MAX_NAME,'the name is capped');
+  assert.equal(entry.note.length,a.MAX_NOTE,'and so is the note');
+  assert.ok(a.MAX_NAME<100&&a.MAX_NOTE<400,'to something a label can actually be');
+  // And the merge route, which reads the name before normalize ever sees it.
+  const g=harness(),b=g.context();
+  let t=await b.merge({custom:[{id:'c-m',name:long,template:'https://m.example/{path}'}]});
+  assert.equal(t.custom.find((c)=>c.template==='https://m.example/{path}').name.length,b.MAX_NAME);
+  // A name that fits is untouched.
+  let u=await b.addCustom({name:'My instance',template:'https://ok.example/{path}'});
+  assert.equal(u.custom.find((c)=>c.template==='https://ok.example/{path}').name,'My instance');
+});
+
+// The same limit is written in the markup as maxlength. JavaScript does not
+// reapply it, so only this keeps the two in step.
+test('the form agrees with the stored name limit',()=>{
+  const h=harness(),a=h.context();
+  const html=readFileSync(new URL('../src/options/options.html',import.meta.url),'utf8');
+  const caps=Array.from(html.matchAll(/maxlength="(\d+)"/g),(m)=>Number(m[1]));
+  assert.ok(caps.length>=2,'both name fields still declare one');
+  for (const cap of caps) assert.equal(cap,a.MAX_NAME,'maxlength matches XITStore.MAX_NAME');
+});

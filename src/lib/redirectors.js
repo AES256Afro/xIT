@@ -245,6 +245,14 @@
 
   const TOKENS = ['user', 'id', 'path', 'query', 'hash', 'host'];
 
+  // S6: a template arrives from a file as often as from the form, and the
+  // form's own maxlength is a hint the file never sees. The longest template
+  // xIT ships is 44 characters, so this is far more room than a real one
+  // needs and still a bound. Rejected rather than truncated: a shortened
+  // template is a broken template, and this function already has a way to
+  // say why.
+  const MAX_TEMPLATE = 400;
+
   function expand(template, parts, opts) {
     const o = opts || {};
     const search = o.stripTracking === false ? parts.search : stripTracking(parts.search);
@@ -265,6 +273,7 @@
   function validateTemplate(template) {
     const t = String(template || '').trim();
     if (!t) return { ok: false, error: 'Template is empty.' };
+    if (t.length > MAX_TEMPLATE) return { ok: false, error: 'Template is too long: ' + MAX_TEMPLATE + ' characters at most.' };
     if (!/^https:\/\//i.test(t)) return { ok: false, error: 'Must start with https://' };
     if (/[\\\u0000-\u0020]/.test(t)) return { ok: false, error: 'Use URL encoding for spaces; backslashes and control characters are not allowed.' };
     const used = [];
@@ -384,6 +393,7 @@
 
   root.XIT = {
     GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
+    MAX_TEMPLATE,
     parse, expand, convert, canonical, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
