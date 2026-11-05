@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.6
+
+- Clicking Check twice while the permission prompt is up no longer starts two checks. The buttons are now disabled for as long as the prompt is open, which is the honest state: the check has begun, it is waiting on your answer.
+
 ## 1.3.5
 
 - The copy format now applies to the x.com link as well. If you had chosen "Markdown link" or "Author then link", "Copy as FxTwitter" honoured it and "Copy x.com link" sitting next to it did not, and nor did the right-click menu's x.com item or the link you are given when a redirector does not apply to what you right-clicked. All four write the format you chose. The handle is already in an x.com path, as it is in a mirror's, so "Author then link" repeats it there in the same way it always has.
