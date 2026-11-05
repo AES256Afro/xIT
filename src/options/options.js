@@ -59,6 +59,85 @@
     prev.append(document.createTextNode('x.com/jack/status/20 becomes '), b);
   }
 
+  /* ---- reachability check (P4, Q5) ---- */
+
+  // Observations, not settings: they live in storage.local under their own
+  // key, so they are not exported with the user's choices.
+  let checks = {};
+  let checking = false;
+
+  const CHECK_LABEL = {
+    ok: 'Responds',
+    failing: 'Server error',
+    refused: 'Refused',
+    silent: 'No answer',
+    denied: 'Access not granted',
+    unknown: 'Cannot be checked',
+  };
+
+  function checkBadge(row, r) {
+    const result = checks[r.id];
+    const checkable = !!XIT.checkOrigin(r.template);
+    if (!result && checkable) return;
+    const badge = document.createElement('span');
+    badge.className = 'ritem-badge badge-check';
+    if (!checkable) {
+      badge.dataset.state = 'unknown';
+      badge.textContent = CHECK_LABEL.unknown;
+      // A permission can only be asked for an origin the manifest declared,
+      // and a wildcard covering anything the user might type would be a much
+      // bigger ask than this feature is worth.
+      badge.title = 'Only the redirectors xIT ships can be checked, because access has to be declared in advance.';
+      row.appendChild(badge);
+      return;
+    }
+    badge.dataset.state = result.state;
+    badge.textContent = CHECK_LABEL[result.state] || result.state;
+    if (result.status) badge.textContent += ' (' + result.status + ')';
+    badge.title = 'Checked ' + new Date(result.at).toLocaleString()
+      + '. A response does not prove the host can still display tweets.';
+    row.appendChild(badge);
+  }
+
+  async function runCheck(ids) {
+    if (checking || !ids.length) return;
+    const all = XITStore.allRedirectors(settings);
+    const origins = [...new Set(ids
+      .map((id) => all.find((r) => r.id === id))
+      .map((r) => r && XIT.checkOrigin(r.template))
+      .filter(Boolean))].map((origin) => origin + '*');
+    if (!origins.length) {
+      saved('None of those can be checked.');
+      return;
+    }
+    // Asked for first, while the click is still the user's gesture, and only
+    // for the hosts this check is about.
+    let granted = false;
+    try { granted = await api.permissions.request({ origins }); } catch (_) { granted = false; }
+    if (!granted) { $('saved').textContent = 'Access was not granted, so nothing was checked.'; return; }
+
+    checking = true;
+    render();
+    try {
+      const result = await api.runtime.sendMessage({ type: 'xit:check-hosts', ids });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Could not check those hosts.');
+      checks = { ...checks, ...result.results };
+      saved('Check complete. A response does not prove the host can display tweets.');
+    } catch (error) {
+      $('saved').textContent = error.message;
+    } finally {
+      checking = false;
+      render();
+    }
+  }
+
+  async function loadChecks() {
+    try {
+      const got = await api.storage.local.get('hostChecks');
+      checks = (got && got.hostChecks) || {};
+    } catch (_) { checks = {}; }
+  }
+
   /* ---- redirector list ---- */
 
   function rowButton(row, id, action, text, handler) {
@@ -125,9 +204,19 @@
           rowButton(actions, r.id, 'up', 'Move up', () => commit(XITStore.movePinned(r.id, -1))).disabled = index === 0;
           rowButton(actions, r.id, 'down', 'Move down', () => commit(XITStore.movePinned(r.id, 1))).disabled = index === settings.pinnedIds.length - 1;
         }
+        // A catalogue entry lives in `custom` but its definition is ours, so it
+        // can be dropped but not edited: editing the template would silently
+        // make it something other than the redirector it claims to be.
         if (r.custom) {
           rowButton(actions, r.id, 'edit', 'Edit', () => editCustom(r));
           rowButton(actions, r.id, 'duplicate', 'Duplicate', () => commit(XITStore.duplicateCustom(r.id)));
+        }
+        const canCheck = !!XIT.checkOrigin(r.template);
+        if (canCheck) {
+          const button = rowButton(actions, r.id, 'check', 'Check', () => runCheck([r.id]));
+          button.disabled = checking;
+        }
+        if (r.custom || r.catalogue) {
           rowButton(actions, r.id, 'remove', 'Remove', async () => {
             if (await commit(XITStore.removeCustom(r.id))) {
               if (editingId === r.id) cancelEdit();
@@ -136,6 +225,7 @@
             }
           }).classList.add('danger');
         }
+        checkBadge(row, r);
         row.appendChild(actions);
         wrap.appendChild(row);
       }
@@ -193,6 +283,119 @@
     box.append(document.createTextNode('x.com/jack/status/20 becomes '), b);
   }
 
+  /* ---- first-run picker ---- *
+   * Opens itself once, then only when asked for. It is the one place a
+   * catalogue entry is taken, which is why it has to be re-openable: a
+   * one-shot would hide five redirectors behind an install moment.
+   */
+
+  // What the picker currently has ticked and pinned, which is not the saved
+  // settings until the user presses Save.
+  let pick = null;
+
+  function pickerEntries() {
+    return XIT.PRESETS.map((r) => ({ ...r, bundled: true }))
+      .concat(XIT.CATALOGUE.map((r) => ({ ...r, bundled: false })));
+  }
+
+  function renderPicker() {
+    const host = $('picker-list');
+    host.textContent = '';
+    for (const r of pickerEntries()) {
+      const row = document.createElement('div');
+      row.className = 'ritem';
+      row.dataset.id = r.id;
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = 'pick-' + r.id;
+      cb.checked = pick.enabled.has(r.id);
+      cb.addEventListener('change', () => {
+        if (cb.checked) pick.enabled.add(r.id);
+        else { pick.enabled.delete(r.id); pick.pinned.delete(r.id); }
+        renderPicker();
+      });
+
+      const main = document.createElement('label');
+      main.className = 'ritem-main';
+      main.setAttribute('for', cb.id);
+      const name = document.createElement('b');
+      name.textContent = r.name;
+      const note = document.createElement('span');
+      note.textContent = r.note || r.template;
+      main.append(name, note);
+      row.append(cb, main);
+
+      // U6: aliases were presented as peers, so a new user could not tell
+      // that three of the five embed fixers were one service.
+      if (r.sameAs) {
+        const alias = document.createElement('span');
+        alias.className = 'pick-alias';
+        const of = XIT.PRESETS.find((p) => p.id === r.sameAs);
+        alias.textContent = 'Same service as ' + (of ? of.name : r.sameAs);
+        row.appendChild(alias);
+      }
+
+      const tools = document.createElement('div');
+      tools.className = 'ritem-tools';
+      const pinned = pick.pinned.has(r.id);
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = 'row-btn';
+      pin.textContent = pinned ? 'Unpin' : 'Pin';
+      pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+      pin.setAttribute('aria-pressed', String(pinned));
+      pin.disabled = !pick.enabled.has(r.id);
+      pin.addEventListener('click', () => {
+        if (pinned) pick.pinned.delete(r.id);
+        else pick.pinned.add(r.id);
+        renderPicker();
+      });
+      tools.appendChild(pin);
+      row.appendChild(tools);
+      host.appendChild(row);
+    }
+  }
+
+  function openPicker() {
+    pick = {
+      enabled: new Set(settings.enabledIds),
+      pinned: new Set(settings.pinnedIds),
+    };
+    $('p-name').value = '';
+    $('p-template').value = '';
+    $('picker-error').textContent = '';
+    renderPicker();
+    $('picker').showModal();
+  }
+
+  async function savePicker() {
+    const name = $('p-name').value.trim();
+    const template = $('p-template').value.trim();
+    if (name || template) {
+      const v = XIT.validateTemplate(template);
+      if (!name) { $('picker-error').textContent = 'Give your redirector a name, or clear both fields.'; return; }
+      if (!v.ok) { $('picker-error').textContent = v.error; return; }
+    }
+    // Keep the order the entries are offered in, so the lists stay stable.
+    const order = pickerEntries().map((r) => r.id);
+    const enabledIds = order.filter((id) => pick.enabled.has(id));
+    const pinnedIds = settings.pinnedIds.filter((id) => pick.pinned.has(id))
+      .concat(order.filter((id) => pick.pinned.has(id) && !settings.pinnedIds.includes(id)));
+    if (!enabledIds.length && !template) {
+      $('picker-error').textContent = 'Keep at least one redirector, or add your own.';
+      return;
+    }
+    const defaultRedirector = enabledIds.includes(settings.defaultRedirector)
+      ? settings.defaultRedirector : (enabledIds[0] || settings.defaultRedirector);
+    // Enabling a catalogue ID is what adopts it, so this one write covers the
+    // ticks, the pins and the default together.
+    if (!await commit({ enabledIds, pinnedIds, defaultRedirector, pickerDone: true })) return;
+    if (template && !await commit(XITStore.addCustom({ name, template }))) return;
+    $('picker').close();
+    saved('Choices saved');
+  }
+
   /* ---- import / export ---- */
 
   function exportSettings() {
@@ -227,22 +430,33 @@
     $('t-strip').checked = settings.stripTracking;
     $('t-toast').checked = settings.toast;
     $('t-menu').checked = settings.contextMenu;
+    $('t-menu-all').checked = settings.contextMenuAll;
+    $('t-menu-all').disabled = !settings.contextMenu;
+    $('check-hosts').disabled = checking;
+    $('check-hosts').textContent = checking ? 'Checking…' : 'Check which are reachable';
     renderCustomPreview();
   }
 
   async function init() {
     settings = await XITStore.load();
+    await loadChecks();
     render();
     XITStore.onChanged((next) => { settings = next; render(); });
     await renderUndo();
     api.storage.onChanged.addListener((changes, area) => { if (area === 'session' && changes.removedCustom) renderUndo(); });
+    api.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local' || !changes.hostChecks) return;
+      checks = changes.hostChecks.newValue || {};
+      renderList();
+    });
     $('undo-remove').addEventListener('click', async () => { await commit(XITStore.restoreCustom()); await renderUndo(); });
     $('custom-cancel').addEventListener('click', cancelEdit);
 
     $('default-select').addEventListener('change', (ev) => commit({ defaultRedirector: ev.target.value }));
 
     for (const [id, key] of [['t-button', 'copyButton'], ['t-hijack', 'hijackNativeCopy'],
-      ['t-strip', 'stripTracking'], ['t-toast', 'toast'], ['t-menu', 'contextMenu']]) {
+      ['t-strip', 'stripTracking'], ['t-toast', 'toast'], ['t-menu', 'contextMenu'],
+      ['t-menu-all', 'contextMenuAll']]) {
       $(id).addEventListener('change', (ev) => commit({ [key]: ev.target.checked }));
     }
 
@@ -288,7 +502,27 @@
       saved('Reset');
     });
 
+    $('check-hosts').addEventListener('click', () => runCheck(
+      XITStore.enabledRedirectors(settings).map((r) => r.id)));
+    $('open-picker').addEventListener('click', openPicker);
+    $('picker-save').addEventListener('click', savePicker);
+    $('picker-skip').addEventListener('click', () => $('picker').close());
+    // Enter in the template field saves rather than dismissing the dialog,
+    // which is what method="dialog" would otherwise do with the form.
+    $('picker-form').addEventListener('submit', (ev) => { ev.preventDefault(); savePicker(); });
+    // Covers Skip, Escape and the backdrop alike: having been asked once is
+    // what counts, so it does not reappear on every visit to Settings.
+    $('picker').addEventListener('close', () => {
+      if (!settings.pickerDone) commit({ pickerDone: true });
+    });
+    $('p-template').addEventListener('input', () => { $('picker-error').textContent = ''; });
+
     if (navigator.userAgent.includes('Firefox')) $('kbd').textContent = 'Alt+Shift+C';
+
+    // First run. Opened from here rather than on install, so somebody who
+    // never opens Settings is not handed a dialog out of nowhere, and anybody
+    // upgrading with choices already made is left alone.
+    if (!settings.pickerDone) openPicker();
   }
 
   init().catch((e) => { $('saved').textContent = 'Error: ' + (e && e.message); });

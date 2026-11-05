@@ -83,6 +83,16 @@ suites is done.
 
 The substance of this plan. Ships as 1.1.0.
 
+**Status, 4 November 2026: shipped as 1.1.0. Complete.** 82 unit tests pass,
+up from 63. Item 6 was settled on route (b), optional host permissions
+requested on the button press; the record of why is kept below. The Chrome and
+Firefox browser suites have **not** been run: Playwright is not installed here,
+so `npm run test:browser`, `npm run test:firefox` and `npm run test:qol` must
+run on the host. The ARIA work in item 5 has unit-level and Playwright-level
+assertions but has **not** been through a screen reader, which the item asks
+for and which cannot be done here. The store listings now carry a permission
+justification for the optional hosts, which is new text a reviewer will read.
+
 1. **Split presets into a bundled set and a catalogue.**
    - Bundled and enabled on install: **FxTwitter** (default), **vxTwitter**,
      **Thread Reader App**. Three, one per job: embeds, embeds with better
@@ -110,9 +120,29 @@ The substance of this plan. Ships as 1.1.0.
 5. **Fix the menu ARIA** (U4). Rows become `role="group"` with a
    `role="menuitem"` button for the primary action, or the buttons move out of
    the row. Verify with a screen reader, not by inspection.
-6. **Reachability check** (P4, Q5). A user-initiated button per entry, or one
-   "check all" pass, marking entries that do not answer. No automatic network
-   traffic, and say so in `PRIVACY.md`.
+6. **Reachability check** (P4, Q5). **Done in 1.1.0, by route (b) below.**
+   Reading
+   an HTTP status from a redirector host needs a host permission for that
+   host, and 1.0.7 deliberately dropped every optional host permission. The
+   two routes:
+   - **(a) No permissions.** `fetch(url, { mode: 'no-cors' })` and treat a
+     rejection as "no answer". Catches a host that no longer resolves or
+     refuses the connection. It cannot read a status code, so a host answering
+     503 looks healthy. `unrollnow.com`, the entry Q5 is about, answered 503,
+     so this version would have missed it and told the user it was fine, which
+     is worse than the list saying nothing.
+   - **(b) `optional_host_permissions` for the redirector hosts**, requested
+     when the user presses the button and never before. Chosen. Real status
+     codes, so 503 is caught. The list is generated from `XIT.CHECK_ORIGINS`
+     the way the X origins are, so the manifest cannot offer an origin the
+     code will not ask for. A custom template is not checkable and the UI says
+     why, rather than declaring a wildcard to cover it. Accepted cost: the
+     optional host permissions 1.0.7 removed are back, which is a store-review
+     question and a permission prompt, for a feature that marks a list entry.
+
+   User-initiated only, no automatic network traffic, and `PRIVACY.md`, the
+   README and both store listings now say so in those words. A test asserts
+   that install, startup and a settings write send nothing.
 
 ## Milestone 3, retirement and cleanup
 

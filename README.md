@@ -53,11 +53,18 @@ default, while real parameters are left alone.
 
 ### What's built in
 
-| Group | Redirectors | For |
+Three are enabled when you install, one per job. The rest are a catalogue you
+pick from, in the first-run picker or from **Choose redirectors** in Settings.
+
+| | Redirectors | For |
 |---|---|---|
-| Embed fixers | fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter | Tweets that unfurl properly in Discord, Slack and Signal |
-| Thread tools | Thread Reader App, Unroll Now | Unrolling a long thread into one page |
+| Enabled on install | FxTwitter, vxTwitter, Thread Reader App | Embeds, embeds with better galleries, threads |
+| Catalogue | FixupX, Twittpr, FixVX, FxTwitter direct media, twitter-thread.com | Aliases, direct media, a second unroller |
 | Custom | yours | Self-hosted instances, anything not listed |
+
+FixupX and Twittpr are FxTwitter under other names, and FixVX is vxTwitter
+under another name. The catalogue says so on each entry, which the old flat
+list of eight did not.
 
 ## Install
 
@@ -111,7 +118,9 @@ Where the logs are:
 The service worker going idle is normal, not a fault; it wakes on demand.
 
 **Public services come and go.** If your default stops working, switch it, or
-add your own instance under **Custom redirector**.
+add your own instance under **Custom redirector**. Unroll Now was dropped in
+1.0.8 after it stopped answering; twitter-thread.com replaced it in the
+catalogue in 1.1.0.
 
 xIT shipped a group of Nitter-based privacy front-ends (xcancel, twiiit and
 three Nitter instances) up to 1.0.6. They were withdrawn in 1.0.7 after those
@@ -139,6 +148,10 @@ broken URL.
 
 ## Everyday controls
 
+- **Check** whether a redirector still answers, from Settings. One request per
+  host, when you press the button, so a service that has quietly gone away says
+  so in the list instead of failing at copy time. A host that answers is not
+  proof it can still display tweets.
 - **Pin** a redirector in Settings, the popup, or the tweet dropdown to put it
   first. **Move up** and **Move down** in Settings order the pinned entries.
   Pins share one order across both copy lists; the star still selects a default.
@@ -171,12 +184,16 @@ page link to those addresses, so paste them in yourself.
 | `storage` | Your settings. Local only. |
 | `contextMenus` | The right-click menu. |
 | `activeTab` + `scripting` | Writing to the clipboard when you use the right-click menu on a page where the content script is not running. Granted per click, not standing. |
-| `declarativeNetRequest` | Kept for 1.0.7 only, so the extension can remove page-redirect rules that earlier versions installed. It installs none. |
+| `declarativeNetRequest` | Kept so the extension can remove page-redirect rules that earlier versions installed. It installs none. Cannot be dropped until a release carrying that cleanup has actually been published, and the live Store version is still 1.0.3. |
 | `clipboardWrite` | Copying. |
 | Host access to x.com / twitter.com | The button, and reading the tweet permalink. |
+| **Optional** access to the redirector hosts | The reachability check, and nothing else. Not granted on install. Settings asks for it when you press **Check**, for the hosts being checked only, and you can decline or withdraw it afterwards. |
 
-No analytics, no network requests of its own, no remote code. The only outbound
-request it makes is nothing at all: xIT has no network access of its own.
+No analytics, no remote code, and no network request xIT makes on its own
+initiative. The reachability check is the only request it ever sends, it goes
+to the redirector's own front page, it carries nothing about you or your links,
+and it happens only when you press the button. See
+[PRIVACY.md](PRIVACY.md#network-requests-xit-makes).
 
 ## Development
 

@@ -16,6 +16,28 @@
     </div>
   </header>
 
+  <dialog id="picker" class="picker" aria-labelledby="picker-heading">
+    <form id="picker-form" method="dialog">
+      <h2 id="picker-heading">Choose your redirectors</h2>
+      <p class="hint">Add your own or choose from these defaults. Change any time.
+        Select a few to be pinned.</p>
+      <div id="picker-list" class="picker-list"></div>
+      <fieldset class="picker-own">
+        <legend>Your own instance</legend>
+        <p class="hint">Optional. Tokens: <code>{path}</code> <code>{query}</code>
+          <code>{user}</code> <code>{id}</code>. A plain mirror is usually
+          <code>https://your.host/{path}{query}</code>. Pin it from the list afterwards.</p>
+        <input id="p-name" type="text" aria-label="Your redirector's name" placeholder="Name, e.g. My instance" maxlength="48">
+        <input id="p-template" type="text" aria-label="Your redirector's URL template" placeholder="https://links.example.com/{path}{query}" spellcheck="false">
+        <p id="picker-error" class="warn-text"></p>
+      </fieldset>
+      <div class="picker-foot">
+        <button id="picker-save" type="button" class="primary">Save choices</button>
+        <button id="picker-skip" type="button" class="ghost">Skip for now</button>
+      </div>
+    </form>
+  </dialog>
+
   <section class="panel">
     <h2>Default redirector</h2>
     <p class="hint">Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.</p>
@@ -35,12 +57,21 @@
       <span><b>Confirm copies with a toast</b><i>A brief banner showing exactly what landed on the clipboard.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-menu">
       <span><b>Right-click menu on tweet links</b><i>Copy or open any tweet link anywhere on the web, not just on X.</i></span></label>
+    <label class="switch"><input type="checkbox" id="t-menu-all">
+      <span><b>Show every redirector in the right-click menu</b><i>Off by default, which lists your default and your pinned entries. On, it lists everything you have enabled, grouped, which can run to a couple of dozen items.</i></span></label>
   </section>
 
   <section class="panel">
     <h2>Redirectors</h2>
     <p class="hint">Untick any you do not want cluttering the dropdown.</p>
     <p class="hint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
+    <p class="hint">There are more redirectors than the ones listed here.
+      <button id="open-picker" type="button" class="ghost">Choose redirectors</button></p>
+    <p class="hint">A redirector can quietly stop working. Check asks each host
+      whether it still answers, once, when you press it. xIT makes no network
+      request otherwise, and asks for access to a host only at that moment. A
+      host that answers is not proof it can still display tweets.
+      <button id="check-hosts" type="button" class="ghost">Check which are reachable</button></p>
     <div id="undo-custom" class="undo-bar" hidden role="status"><span id="undo-text"></span><button id="undo-remove" class="row-btn">Undo removal</button></div>
     <div id="redirector-list"></div>
   </section>

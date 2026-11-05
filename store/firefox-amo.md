@@ -67,7 +67,7 @@ Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a
 
 PRIVACY
 
-No analytics, no telemetry, no accounts, no remote code, and no network requests of its own at all. Settings stay on your device.
+No analytics, no telemetry, no accounts and no remote code. Settings stay on your device. The one request xIT ever sends is the reachability check, when you press Check in Settings: one HEAD request to the redirector's own front page, carrying nothing about you or your links.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
@@ -91,7 +91,9 @@ Implementation details for reviewers:
 
 1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone X/Twitter status URL. Prose, plain text and unrelated URLs are passed through untouched. The user can turn it off in Settings.
 
-2. declarativeNetRequest is declared but installs no rules. Page redirecting was removed in 1.0.7, and this permission is retained for one release so the background can delete rules that earlier versions installed: dynamic rules survive extension updates, so without it a user who had redirecting enabled would keep being sent to a front-end that is no longer offered. It is never used to observe, block or receive browsing. The permission is dropped in the next release. There are no optional host permissions.
+2. declarativeNetRequest is declared but installs no rules. Page redirecting was removed in 1.0.7, and this permission is retained so the background can delete rules that earlier versions installed: dynamic rules survive extension updates, so without it a user who had redirecting enabled would keep being sent to a front-end that is no longer offered. It is never used to observe, block or receive browsing. It can be dropped once a release carrying that cleanup has actually been published; the live listing is still 1.0.3, so it stays for now.
+
+2a. Optional host permissions are declared for the redirector hosts only (fxtwitter.com, vxtwitter.com, threadreaderapp.com, fixupx.com, twittpr.com, fixvx.com, d.fxtwitter.com, twitter-thread.com). None is granted on install. They exist for one feature: the reachability check in Settings, which sends a single HEAD request to a redirector's own front page so a host that has stopped working is marked in the list rather than failing silently at copy time. The permission is requested in the click handler of the Check button, for the hosts being checked only, and no request is made to them at any other time. The permission is required because reading the status code needs it: without host access the response is opaque, and a host answering 503 cannot be told apart from a healthy one. No content script runs on these hosts.
 
 3. storage.session keeps the last removed custom entry for Undo; it is cleared on browser restart. Diagnostics are generated and copied only on request, exclude user URLs and templates, and are never sent by the extension.
 

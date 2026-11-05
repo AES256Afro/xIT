@@ -168,3 +168,100 @@ test('settings saved by 1.0.3 drop page redirecting and fall back from withdrawn
   for(const key of ['browseRedirect','browseRedirectorId','browseScope','browsePausedUntil']) assert.equal(key in stored,false,key);
   assert.equal(JSON.stringify(stored).match(/xcancel|nitter|twiiit/),null,'no withdrawn front-end left in storage');
 });
+
+/* -------------------------------------------------------------------- *
+ * Milestone 2, the choice model
+ * -------------------------------------------------------------------- */
+
+test('install enables three redirectors, not eight',async()=>{
+  const h=harness(),a=h.context();
+  const s=await a.load();
+  assert.deepEqual(Array.from(s.enabledIds),['fxtwitter','vxtwitter','threadreader']);
+  assert.equal(s.defaultRedirector,'fxtwitter');
+  assert.deepEqual(Array.from(s.custom),[]);
+  // The rest are shipped as data, chosen rather than pre-ticked.
+  const catalogue=['fixupx','twittpr','fixvx','fxtwitter-direct','twitter-thread'];
+  for(const id of catalogue) assert.equal(s.enabledIds.includes(id),false,id);
+  // Each one is still a redirector the user can take, by name.
+  for(const id of catalogue){
+    const taken=await a.setEnabled(id,true);
+    assert.ok(taken.custom.some((c)=>c.id===id&&c.catalogue===true),id);
+    await a.removeCustom(id);
+  }
+});
+
+test('an upgrader keeps the catalogue redirectors they had chosen',async()=>{
+  // Five presets became catalogue entries in 1.1.0. Dropping them would have
+  // silently moved anybody whose default was FixupX back to FxTwitter.
+  const h=harness(),a=h.context();
+  h.seed({
+    defaultRedirector:'fixupx',
+    enabledIds:['fxtwitter','fixupx','twittpr','threadreader'],
+    pinnedIds:['fxtwitter-direct'],
+    toast:false,
+  });
+  const s=await a.load();
+  assert.equal(s.defaultRedirector,'fixupx','their default survives');
+  assert.deepEqual(Array.from(s.custom.map((c)=>c.id)),['fixupx','twittpr','fxtwitter-direct']);
+  assert.deepEqual(Array.from(s.enabledIds),['fxtwitter','fixupx','twittpr','threadreader']);
+  assert.deepEqual(Array.from(s.pinnedIds),['fxtwitter-direct']);
+  assert.equal(s.toast,false);
+  for(const entry of s.custom){
+    assert.equal(entry.catalogue,true,entry.id);
+    assert.equal(entry.custom,undefined,'a catalogue entry is not something the user typed');
+  }
+  // It keeps the catalogue's own definition, so a corrected template reaches
+  // somebody who already took it.
+  assert.equal(s.custom[0].template,'https://fixupx.com/{path}{query}');
+  assert.equal(s.custom[0].group,'embed','and stays with its own kind, not under Custom');
+  assert.equal(s.custom[0].sameAs,'fxtwitter','and says what it is really an alias of');
+});
+
+test('a catalogue entry is taken by enabling it, and can be dropped again',async()=>{
+  const h=harness(),a=h.context();
+  const added=await a.setEnabled('twitter-thread',true);
+  assert.ok(added.enabledIds.includes('twitter-thread'));
+  assert.deepEqual(Array.from(added.custom.map((c)=>c.id)),['twitter-thread']);
+  assert.equal(added.custom[0].requires.includes('id'),true);
+  // Unticking leaves it in the list, the way an unticked preset stays.
+  const off=await a.setEnabled('twitter-thread',false);
+  assert.equal(off.enabledIds.includes('twitter-thread'),false);
+  assert.deepEqual(Array.from(off.custom.map((c)=>c.id)),['twitter-thread']);
+  const gone=await a.removeCustom('twitter-thread');
+  assert.deepEqual(Array.from(gone.custom),[]);
+});
+
+test('a template the user typed is stored verbatim, a catalogue one is not',async()=>{
+  const h=harness(),a=h.context();
+  const s=await a.addCustom({name:'My instance',template:'https://mine.example/{path}'});
+  const own=s.custom.find((c)=>c.template==='https://mine.example/{path}');
+  assert.equal(own.custom,true);
+  assert.equal(own.group,'custom');
+  assert.equal(own.name,'My instance');
+});
+
+test('the right-click menu is capped at the default and the pins',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.load();
+  assert.deepEqual(Array.from(a.menuRedirectors(s).map((r)=>r.id)),['fxtwitter'],
+    'the default alone, until something is pinned');
+  s=await a.setPinned('threadreader',true);
+  assert.deepEqual(Array.from(a.menuRedirectors(s).map((r)=>r.id)),['fxtwitter','threadreader']);
+  // A pin that is not enabled is not offered.
+  s=await a.setEnabled('threadreader',false);
+  assert.deepEqual(Array.from(a.menuRedirectors(s).map((r)=>r.id)),['fxtwitter']);
+  s=await a.save({enabledIds:['fxtwitter','vxtwitter','threadreader'],contextMenuAll:true});
+  assert.deepEqual(Array.from(a.menuRedirectors(s).map((r)=>r.id)),
+    ['threadreader','fxtwitter','vxtwitter'],'asking for everything gets everything');
+});
+
+test('only a change the menu is built from changes its signature',async()=>{
+  const h=harness(),a=h.context();
+  const base=await a.load();
+  const sig=(s)=>a.menuSignature(s);
+  assert.equal(sig(await a.save({toast:false})),sig(base),'the toast is not in the menu');
+  assert.equal(sig(await a.save({stripTracking:false})),sig(base));
+  assert.notEqual(sig(await a.setPinned('vxtwitter',true)),sig(base),'a pin is');
+  assert.notEqual(sig(await a.save({contextMenuAll:true})),sig(base));
+  assert.equal(sig(await a.save({contextMenu:false})),'off');
+});

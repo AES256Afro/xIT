@@ -60,7 +60,7 @@ Pin your favourite redirectors and reorder them in Settings. Edit or duplicate a
 
 PRIVACY
 
-No analytics. No telemetry. No accounts. No remote code. xIT makes no network requests of its own at all. Settings stay in your browser. Rewriting a link is local text manipulation.
+No analytics. No telemetry. No accounts. No remote code. Rewriting a link is local text manipulation, and settings stay in your browser. The one request xIT ever sends is the reachability check, when you press Check in Settings: one HEAD request to the redirector's own front page, carrying nothing about you or your links.
 
 Open source, MIT licensed: https://github.com/AES256Afro/xIT
 
@@ -86,9 +86,10 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 | `contextMenus` | Adds the right-click menu that lets the user copy or open a tweet link through a chosen redirector. |
 | `activeTab` | When the user picks an item from the right-click menu, the rewritten URL must be written to the clipboard in the page they clicked in. activeTab grants that access for that click only, rather than standing access to every site. |
 | `scripting` | Used solely with activeTab to run a short clipboard-write function in the tab the user just invoked the context menu in. No code is injected at any other time, and no remote code is ever executed. |
-| `declarativeNetRequest` | Retained in 1.0.7 only to remove rules that earlier versions installed. Page redirecting was removed in this version, and the extension now installs no rules: on every start it deletes any dynamic rule still present, so a user who had redirecting enabled is not left being redirected to a service that is no longer offered. Dynamic rules survive extension updates, which is why the permission cannot be dropped in the same release that removes the feature. It is never used to observe, block or receive the user's browsing. |
+| `declarativeNetRequest` | Retained to remove rules that earlier versions installed. Page redirecting was removed in this version, and the extension now installs no rules: on every start it deletes any dynamic rule still present, so a user who had redirecting enabled is not left being redirected to a service that is no longer offered. Dynamic rules survive extension updates, which is why the permission cannot be dropped in the same release that removes the feature. It is never used to observe, block or receive the user's browsing. |
 | `clipboardWrite` | The extension's entire purpose is putting a rewritten link on the clipboard. |
 | Host permissions for `x.com` / `twitter.com` | Needed to place the copy button in the tweet action bar, read the tweet's permalink, and rewrite the link X's own "Copy link" produces. These are the only sites the extension's content scripts run on. |
+| Optional host permissions for the redirector hosts | Used only by the reachability check in Settings, which sends one HEAD request to a redirector's own front page so a service that has stopped working says so in the list instead of failing at copy time. None of these is granted on install. The Settings page requests them in the click handler of the Check button, for the hosts being checked only, and the extension makes no request to them at any other time: not on startup, not on a timer, not when settings change, and not when a link is copied. Reading the status code is why the permission is needed at all: without it the response is opaque and a host answering 503 is indistinguishable from a healthy one, which is how a retired service previously went unnoticed. No content script runs on these hosts, and nothing about the user or their links is sent. |
 
 **Are you using remote code?** Select **No**. The dashboard still requires a
 written justification, and blocks submission without one. Paste:

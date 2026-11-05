@@ -1,6 +1,6 @@
 # xIT Privacy Policy
 
-**Last updated: 14 September 2026**
+**Last updated: 4 November 2026**
 
 xIT has no analytics or telemetry and does not sell personal information.
 
@@ -25,6 +25,10 @@ Undo removal keeps the most recently removed custom entry and its selections
 in the browser's in-memory `storage.session` area. It is cleared by undo, the
 next removal, import, reset, or browser restart.
 
+Reachability results, if you ever press Check, are kept under their own key:
+each checked host, what it answered and when. No URLs and nothing about what
+you copied.
+
 Version 1.0.5 removes the old failed-copy recovery record on startup and reset.
 Failed copies no longer retain a URL or timestamp. Version 1.0.7 removes the
 page-redirect settings and status, including the name of any chosen
@@ -34,10 +38,35 @@ Uninstalling the extension deletes them.
 
 ## Network requests xIT makes
 
-xIT makes no network requests of any kind. It has no author-operated service
-and no telemetry endpoint, and since 1.0.7 it no longer has the reachability
-check that earlier versions could send at your request. There is no remote
-code: everything that runs is in the package you installed.
+xIT has no author-operated service and no telemetry endpoint, and there is no
+remote code: everything that runs is in the package you installed.
+
+It makes exactly one kind of network request, and only when you ask for it. If
+you press **Check** or **Check which are reachable** in Settings, xIT sends one
+`HEAD` request to the front page of each redirector host being checked, to see
+whether it still answers. That is it: nothing on a timer, nothing on startup,
+nothing when settings change, and nothing when you copy a link.
+
+The request carries no information about you, the link you were looking at, or
+what you copied. It goes to the redirector's own origin, for example
+`https://fxtwitter.com/`, and nowhere else.
+
+Reading the answer requires permission to access that host, so xIT asks for it
+at the moment you press the button, for those hosts only, and the browser shows
+you the prompt. Access is not granted on install. If you decline, nothing is
+checked. You can withdraw it afterwards in your browser's extension settings.
+
+Only the redirectors xIT ships can be checked. A custom template of yours
+cannot, because the permission would have to be declared in advance, and xIT
+will not ask for access to every site in order to offer this.
+
+The result, which host was checked, what it answered and when, is stored
+locally under its own key alongside your settings. It is not exported with
+your settings and never leaves your device.
+
+Versions 1.0.7 and 1.0.8 made no network requests at all. Version 1.0.6 had
+a check that could not read status codes, so a host returning a server error
+was reported as healthy.
 
 ## What happens when you copy a link
 
