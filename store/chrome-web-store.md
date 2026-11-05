@@ -40,7 +40,7 @@ TWO WAYS TO COPY, SAME RESULT
 • A button on every tweet. Click it to copy with your default. Click the chevron (or right-click, or long-press) to pick a different one just for that copy.
 • X's own "Copy link". xIT patches it so the native share menu hands you the rewritten URL too. The menu looks and behaves exactly as before, so your muscle memory still works.
 
-Also: a right-click menu on any tweet link anywhere on the web, and Alt+Shift+C for the tweet under your pointer.
+Also: a right-click menu on any tweet link anywhere on the web, Alt+Shift+C for the tweet under your pointer, and a second shortcut you can bind to open it instead. Copy as a bare link, a markdown link, or the author's handle plus the link.
 
 WHAT'S BUILT IN
 
@@ -95,7 +95,7 @@ xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an al
 written justification, and blocks submission without one. Paste:
 
 ```
-xIT does not use remote code. Everything that executes ships inside the package: there are no externally hosted scripts, no CDN or remote module imports, no eval() or new Function(), and no string-based code execution anywhere in the extension. The service worker's importScripts() call loads only two files contained in this package (lib/redirectors.js and lib/storage.js). The single main-world content script (content/main-world.js) is likewise a static file in the package, declared in the manifest. The extension makes no outbound requests at all: the reachability check earlier versions offered was removed in 1.0.7 along with page redirecting.
+xIT does not use remote code. Everything that executes ships inside the package: there are no externally hosted scripts, no CDN or remote module imports, no eval() or new Function(), and no string-based code execution anywhere in the extension. The service worker's importScripts() call loads only files contained in this package (lib/redirectors.js, lib/storage.js and lib/i18n.js). The single main-world content script (content/main-world.js) is likewise a static file in the package, declared in the manifest. The only outbound request the extension makes is the reachability check described under the optional host permissions above: one HEAD request per redirector host, sent when the user presses Check in Settings and at no other time. Nothing is requested on install, on startup, on a settings change or when a link is copied.
 ```
 
 **Data usage**: tick nothing. Then certify:

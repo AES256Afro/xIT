@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>xIT - Settings</title>
+<title data-i18n="optionsTitle">xIT - Settings</title>
 <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
   <header class="page-head">
     <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4.5 21 11l-6.5 6.5V13H10a4.5 4.5 0 0 0-4.5 4.5V20H3v-2.5A7 7 0 0 1 10 10.5h4.5V4.5Z"/></svg>
     <div>
-      <h1>xIT</h1>
-      <p class="sub">Copied X links go through the redirector you pick. Nothing leaves your browser.</p>
+      <h1 data-i18n="extensionName">xIT</h1>
+      <p class="sub" data-i18n="optionsTagline">Copied X links go through the redirector you pick. Nothing leaves your browser.</p>
     </div>
   </header>
 
@@ -35,6 +35,21 @@
         <button id="picker-save" type="button" class="primary">Save choices</button>
         <button id="picker-skip" type="button" class="ghost">Skip for now</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-import" class="ask" aria-labelledby="import-heading">
+    <form method="dialog">
+      <h2 id="import-heading">Import settings</h2>
+      <p id="import-summary" class="hint"></p>
+      <div class="picker-foot">
+        <button id="import-merge" type="button" class="primary" autofocus>Add their redirectors</button>
+        <button id="import-replace" type="button" class="danger">Replace everything</button>
+        <button id="import-cancel" type="button" class="ghost">Cancel</button>
+      </div>
+      <p class="hint">Adding keeps your default, your pins and your switches,
+        and brings across only redirectors you do not already have. Replacing
+        takes their whole file, including their choices.</p>
     </form>
   </dialog>
 
@@ -73,11 +88,26 @@
       <span><b>Right-click menu on tweet links</b><i>Copy or open any tweet link anywhere on the web, not just on X.</i></span></label>
     <label class="switch"><input type="checkbox" id="t-menu-all">
       <span><b>Show every redirector in the right-click menu</b><i>Off by default, which lists your default and your pinned entries. On, it lists everything you have enabled, grouped, which can run to a couple of dozen items.</i></span></label>
+    <label class="field">
+      <span><b>Copy as</b><i>How the link is written out. Opening a link in a tab is not affected.</i></span>
+      <select id="copy-format" class="select"></select>
+    </label>
+    <p class="hint">Example: <code id="copy-format-sample"></code></p>
   </section>
 
   <section class="panel">
     <h2>Redirectors</h2>
     <p class="hint">Untick any you do not want cluttering the dropdown.</p>
+    <div class="list-tools">
+      <input id="list-filter" type="search" placeholder="Filter by name, host or note" aria-label="Filter the redirector list" autocomplete="off" spellcheck="false">
+      <label class="inline-field"><span>Order</span>
+        <select id="list-sort" class="select">
+          <option value="group">As grouped</option>
+          <option value="name">By name</option>
+        </select>
+      </label>
+    </div>
+    <p id="list-empty" class="hint" role="status" hidden></p>
     <p class="hint">Pin your favourites to keep them first. Use Move up and Move down to order pinned entries. The star still selects your default.</p>
     <p class="hint">There are more redirectors than the ones listed here.
       <button id="open-picker" type="button" class="ghost">Choose redirectors</button></p>
@@ -106,10 +136,21 @@
   </section>
 
   <section class="panel">
-    <h2>Keyboard shortcut</h2>
-    <p class="hint">Copy the tweet under the pointer with the default redirector.
-      Default <kbd id="kbd">Alt+Shift+C</kbd>.</p>
-    <p class="hint">To change it: Chrome <code>chrome://extensions/shortcuts</code> · Firefox <code>about:addons</code> → gear → Manage Extension Shortcuts. Those pages cannot be opened from here, so paste the address in yourself.</p>
+    <h2>Keyboard shortcuts</h2>
+    <p class="hint">Copy the tweet under the pointer with the default
+      redirector: <kbd id="kbd">Alt+Shift+C</kbd>.</p>
+    <p class="hint">Open the tweet under the pointer with the default
+      redirector: not bound. Both browsers hand out the obvious combinations
+      already, so rather than pick one that silently loses, this one is left
+      for you to choose.</p>
+    <p class="hint">To change it, open the browser's own shortcuts page. An
+      extension cannot open that page for you, so copy the address and paste it
+      into the address bar.</p>
+    <div class="actions">
+      <code id="shortcut-url">chrome://extensions/shortcuts</code>
+      <button id="copy-shortcut-url" class="ghost">Copy address</button>
+    </div>
+    <p id="shortcut-note" class="hint">On Firefox the page is <code>about:addons</code>, then the gear menu, then Manage Extension Shortcuts.</p>
   </section>
 
   <section class="panel">
@@ -135,6 +176,7 @@
 
 <script src="../lib/redirectors.js"></script>
 <script src="../lib/storage.js"></script>
+<script src="../lib/i18n.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

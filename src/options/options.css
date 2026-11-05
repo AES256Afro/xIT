@@ -6,12 +6,25 @@
   --accent: #1d9bf0;
   --card: #f7f9f9;
   --danger: #f4212e;
-  /* --danger is a text and border colour against --bg or --card. White text on
-     it is 4.11:1, under the 4.5:1 AA floor for 13px bold, so the one control
-     that fills with it uses this darker shade instead, at 5.72:1. Both themes
-     share it, because the button is white-on-red either way. */
-  --danger-fill: #c81e27;
   --ok: #00ba7c;
+  /* U10: the three brand colours above are fills, checkbox accents and the
+     logo. As text they fail WCAG AA: on the light card they measure 2.84:1
+     (accent), 2.39:1 (ok) and 3.89:1 (danger) against a 4.5:1 floor. These
+     are the text and border forms, solved per theme and verified against the
+     card, the page background and, for accent, the 16% tint behind
+     .badge-default, which is the worst case. All land above 5:1. */
+  --accent-text: #13659c;
+  --ok-text: #007b52;
+  --danger-text: #d21c28;
+  /* The filled buttons. White on brand blue is 3.00:1 and white on brand red
+     is 4.11:1, both under the floor, so each filled control gets a shade that
+     carries its own foreground. In dark mode the blue stays bright and the
+     text goes dark instead, which keeps the button's edge visible against the
+     card. */
+  --accent-fill: #1676b6;
+  --accent-fill-fg: #fff;
+  --danger-fill: #c81e27;
+  --danger-fill-fg: #fff;
   color-scheme: light dark;
 }
 
@@ -22,6 +35,17 @@
     --muted: #8b98a5;
     --line: #2f3336;
     --card: #1b2936;
+    /* On the dark card the brand green already passes at 5.87:1, so it is
+       left alone. Blue and red are lightened instead of darkened. */
+    --accent-text: #53b3f4;
+    --ok-text: #00ba7c;
+    --danger-text: #f7666f;
+    --accent-fill: #1d9bf0;
+    --accent-fill-fg: #0f1419;
+    /* Darkening the red far enough for white text left the button's edge at
+       2.59:1 against the dark card, so dark mode goes the other way too. */
+    --danger-fill: #f7666f;
+    --danger-fill-fg: #0f1419;
   }
 }
 
@@ -54,7 +78,7 @@ code, kbd {
 }
 kbd { border: 1px solid var(--line); }
 
-.select, input[type=text] {
+.select, input[type=text], input[type=search] {
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -84,6 +108,19 @@ kbd { border: 1px solid var(--line); }
 .switch b { display: block; font-weight: 600; font-size: 13.5px; }
 .switch i { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-style: normal; }
 
+/* Q4: a setting with a value rather than a switch, so it shares the switch's
+   label layout but puts its control at the end of the row. */
+.field { display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; padding: 8px 0; cursor: pointer; }
+.field b { display: block; font-weight: 600; font-size: 13.5px; }
+.field i { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-style: normal; }
+.field .select { flex: 0 0 auto; }
+
+/* U7: the filter and the ordering sit together above the list. */
+.list-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 2px; }
+.list-tools input[type=search] { flex: 1 1 220px; min-width: 0; }
+.inline-field { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; font-size: 12px; color: var(--muted); }
+
 .rgroup { margin-top: 12px; }
 .rgroup-head { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .rgroup-blurb { margin: 1px 0 6px; color: var(--muted); font-size: 12px; }
@@ -92,7 +129,7 @@ kbd { border: 1px solid var(--line); }
 .ritem { flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-block: 12px; }
 .ritem-tools { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; padding-left: 26px; align-items: center; }
 .ritem-tools .ritem-badge { font-weight: 500; white-space: normal; }
-.row-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.row-btn[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent-text); }
 .undo-bar { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: 10px; border: 1px solid var(--accent); border-radius: 8px; }
 .ritem:hover { background: rgba(29, 155, 240, 0.07); }
 .ritem input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
@@ -100,7 +137,7 @@ kbd { border: 1px solid var(--line); }
 .ritem-main b { font-weight: 600; font-size: 13px; }
 .ritem-main span { display: block; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 .ritem-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 9999px; white-space: nowrap; }
-.badge-default { background: rgba(29, 155, 240, .16); color: var(--accent); }
+.badge-default { background: rgba(29, 155, 240, .16); color: var(--accent-text); }
 
 .custom-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .custom-form input { flex: 1 1 190px; min-width: 0; }
@@ -115,15 +152,15 @@ button.primary, button.ghost, button.danger {
   font-weight: 700;
   text-align: center;
 }
-button.primary { background: var(--accent); color: #fff; }
+button.primary { background: var(--accent-fill); color: var(--accent-fill-fg); }
 button.primary:hover { filter: brightness(1.08); }
 button.ghost { border: 1px solid var(--line); }
-button.ghost:hover { border-color: var(--accent); color: var(--accent); }
-button.ghost.danger:hover { border-color: var(--danger); color: var(--danger); }
+button.ghost:hover { border-color: var(--accent-text); color: var(--accent-text); }
+button.ghost.danger:hover { border-color: var(--danger-text); color: var(--danger-text); }
 /* The filled form is for the button that actually performs the destruction,
    inside the dialog that asks. `:not(.ghost)` keeps the panel's own
    "Reset to defaults" button, which only opens that dialog, as an outline. */
-button.danger:not(.ghost) { background: var(--danger-fill); color: #fff; }
+button.danger:not(.ghost) { background: var(--danger-fill); color: var(--danger-fill-fg); }
 button.danger:not(.ghost):hover { filter: brightness(1.08); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
@@ -136,18 +173,22 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   font-size: 11.5px;
   color: var(--muted);
 }
-.row-btn:hover { border-color: var(--accent); color: var(--accent); }
-.row-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+.row-btn:hover { border-color: var(--accent-text); color: var(--accent-text); }
+.row-btn.danger:hover { border-color: var(--danger-text); color: var(--danger-text); }
 button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 [hidden] { display: none !important; }
 #diagnostics-preview { white-space: pre-wrap; }
 
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-.warn-text { margin: 6px 0 0; color: var(--danger); font-size: 12.5px; min-height: 1px; }
+/* U8: the address sits beside its copy button, so it reads as the thing the
+   button acts on rather than as part of the sentence above. */
+#shortcut-url { padding: 7px 10px; font-size: 12px; overflow-wrap: anywhere; }
+
+.warn-text { margin: 6px 0 0; color: var(--danger-text); font-size: 12.5px; min-height: 1px; }
 .warn-text:empty { display: none; }
 
-.saved { position: sticky; bottom: 0; margin: 0; padding: 8px 2px; color: var(--ok); font-size: 12.5px; font-weight: 600; }
+.saved { position: sticky; bottom: 0; margin: 0; padding: 8px 2px; color: var(--ok-text); font-size: 12.5px; font-weight: 600; }
 
 /* ---- first-run picker ---------------------------------------------- *
  * A <dialog>, so Escape and the focus trap come from the browser rather
@@ -214,6 +255,6 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 /* ---- reachability badges ------------------------------------------- */
 
 .badge-check { border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
-.badge-check[data-state="ok"] { border-color: var(--ok); color: var(--ok); }
+.badge-check[data-state="ok"] { border-color: var(--ok-text); color: var(--ok-text); }
 .badge-check[data-state="failing"],
-.badge-check[data-state="silent"] { border-color: var(--danger); color: var(--danger); }
+.badge-check[data-state="silent"] { border-color: var(--danger-text); color: var(--danger-text); }

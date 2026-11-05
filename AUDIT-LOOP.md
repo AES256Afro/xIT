@@ -78,6 +78,40 @@ all fail as text against the card in at least one theme. That is a change to
 every surface in two stylesheets and is left for Milestone 4 rather than
 widened into this one.
 
+## What Milestone 4 produced
+
+Fixed in 1.2.0: U7, U8, U10, Q2, Q4. Partly fixed, with the remainder recorded:
+C10, P3 and Q1.
+Nothing from Milestone 4 is silently open.
+
+Q4 is the only one that touches the main world, so its format crosses the
+`postMessage` bridge and is constrained there the way the template is (S1).
+The worst a hostile page script can do with it is pick a different one of three
+renderings of a link the user was going to copy anyway.
+
+U10 grew while being fixed. The finding named three colours used as text; the
+work found that the translucent tints behind several of them cut the contrast
+further, that the two filled buttons put white text on 3.00:1 and 4.11:1
+grounds, and that the in-page menu on X fails only in light mode. The fix is
+per-theme text and fill tokens with their own foregrounds, and
+`test/contrast.test.mjs` now measures every pair, including over the tints, so
+the next person to reach for a brand hex has to answer to a number. Reverting
+one token reproduces the original 2.84:1 exactly.
+
+C10 is the one item not carried to completion. The catalogue, the manifest
+strings and the runtime mechanism are in, which is what makes both stores stop
+reporting a single locale and gives later strings a home, and that is what
+Milestone 4 asked for. Converting the interface's own strings is a separate,
+larger, mechanical job and is recorded as C11 rather than left implied. The
+build throws on a manifest placeholder with no key, because that failure mode
+is an extension the browser refuses to install.
+
+Q1 asked for two things and got one. A command per pinned redirector would
+need a `commands` block that varies with the user's settings, which the
+manifest cannot do, so that half is closed as not possible rather than left
+open.
+
+
 One thing the split turned up that no sweep had: a thread tool publishes its
 own path shape, and `parse()` knew two of them by name. Adding
 `twitter-thread.com` without touching `parse()` produced
@@ -108,7 +142,8 @@ this pass.
 | C7 | `clipboardPayload` dispatches an `xit:toast` CustomEvent that nothing listens for. The `showToast` argument is inert, so a copy that falls back to `scripting.executeScript` gives the user no confirmation. | `src/background.js` |
 | C8 | Nothing in the tree sends `xit:copy-via-background`. The handler is dead and widens the message surface. | `src/background.js` |
 | C9 | `AUDIT-2026-09-14.md` is 22 KB of superseded report at the repo root. **Fixed in 1.1.1:** deleted. | repo root |
-| C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. | whole tree |
+| C10 | No `_locales`. Every string is inline English, so the extension cannot be localised and both stores show it as single-locale. **Partly fixed in 1.2.0:** there is a catalogue, the manifest's strings come from it, and `lib/i18n.js` gives HTML and JavaScript a way in. The interface's own strings are still inline; carried as C11. | whole tree |
+| C11 | The interface's strings are still inline English: roughly 60 in `options.html`, plus the toasts, statuses and menu labels built in `inject.js`, `popup.js` and `background.js`. The mechanism to move them exists as of 1.2.0, so this is now mechanical rather than structural, and it is the last thing C10 was asking for. | `src/options`, `src/popup`, `src/content`, `src/background.js` |
 
 ### Bug
 
@@ -140,19 +175,19 @@ this pass.
 | U4 | Content-script menu rows are `role="menuitem"` containing `<button>` children. ARIA forbids interactive descendants of `menuitem`, so the pin, open and make-default buttons are not reliably reachable by a screen reader. **Fixed in 1.1.0:** the row is a `role="group"` and each action is its own `role="menuitem"` button. Not yet through a screen reader. |
 | U5 | `alert()` on a failed import and `confirm()` on reset. Blocking native dialogs in a styled options page. **Fixed in 1.1.1:** the import error is an in-page `role="alert"`, and reset asks in a modal `<dialog>` that says what is lost. |
 | U6 | FxTwitter, FixupX and Twittpr are one service under three names; vxTwitter and FixVX likewise. They are presented as five peers with no indication of that, so a new user cannot tell what choosing between them means. **Fixed in 1.1.0:** the five aliases moved to a catalogue, and each says which bundled service it is really an alias of. |
-| U7 | No filter or search in the redirector list, and no ordering control for anything that is not pinned. |
-| U8 | The shortcut panel asks the user to paste `chrome://extensions/shortcuts` by hand, correctly, but offers no copy button for the address. |
+| U7 | No filter or search in the redirector list, and no ordering control for anything that is not pinned. **Fixed in 1.2.0:** a filter over name, host, template and note, and an alphabetical order for unpinned entries. |
+| U8 | The shortcut panel asks the user to paste `chrome://extensions/shortcuts` by hand, correctly, but offers no copy button for the address. **Fixed in 1.2.0.** |
 | U9 | Pinning is explained in prose in two separate hints and nowhere prompted. |
-| U10 | The status colours fail WCAG AA as text. `--ok` `#00ba7c` is 2.39:1 on the light card, `--accent` `#1d9bf0` is 2.84:1, and `--danger` `#f4212e` is 3.89:1 on light and 3.60:1 on dark, all against the 4.5:1 floor. They carry meaning in `.saved`, `.warn-text`, the reachability badges and every ghost-button hover, in both the options page and the popup. Found while fixing U5 in 1.1.1; the filled button added there uses a separate `--danger-fill` at 5.72:1, which is a patch over one control, not the palette. |
+| U10 | **Fixed in 1.2.0.** The status colours fail WCAG AA as text. `--ok` `#00ba7c` is 2.39:1 on the light card, `--accent` `#1d9bf0` is 2.84:1, and `--danger` `#f4212e` is 3.89:1 on light and 3.60:1 on dark, all against the 4.5:1 floor. They carry meaning in `.saved`, `.warn-text`, the reachability badges and every ghost-button hover, in both the options page and the popup. Found while fixing U5 in 1.1.1; the filled button added there uses a separate `--danger-fill` at 5.72:1, which is a patch over one control, not the palette. |
 
 ### Quality of life
 
 | id | Finding |
 |---|---|
-| Q1 | One keyboard command (`copy-current-tweet`). No "open with default", and no way to bind a pinned redirector. |
-| Q2 | Import replaces the whole settings object. No way to merge somebody else's custom entries into your own. |
+| Q1 | One keyboard command (`copy-current-tweet`). No "open with default", and no way to bind a pinned redirector. **Partly fixed in 1.2.0:** `open-current-tweet` added, unbound. Binding a specific redirector is not done and is not planned: a command per redirector would mean a manifest that changes with the user's settings, which is not something an extension can do. |
+| Q2 | Import replaces the whole settings object. No way to merge somebody else's custom entries into your own. **Fixed in 1.2.0:** import asks, and merging takes their redirectors without their choices. |
 | Q3 | Undo holds only the last removed custom entry, in `storage.session`, so it ends at browser restart. |
-| Q4 | Only bare URLs. No markdown link, no "author plus link" format. |
+| Q4 | Only bare URLs. No markdown link, no "author plus link" format. **Fixed in 1.2.0.** |
 | Q5 | A dead host and a live host look identical in the list. `unrollnow` would have been caught by the user, not the UI. **Fixed in 1.1.0:** Settings marks a host that answers with a server error or not at all. Reading the status is why it needs a host permission. |
 
 ### Platform features
@@ -161,7 +196,7 @@ this pass.
 |---|---|
 | P1 | There is no **catalogue**: a shipped data list of suggested redirectors the user can add with one tap. This is the mechanism that turns "eight things forced on you" into "pick what you want", and it is what lets a contentious entry exist as a choice rather than a default. |
 | P2 | No first-run picker (see U1). |
-| P3 | No i18n (see C10). |
+| P3 | No i18n (see C10). **Partly fixed in 1.2.0**, same scope as C10. |
 | P4 | No reachability check. One user-initiated HEAD per host would let the UI mark an entry as unreachable instead of letting it fail silently at copy time. **Fixed in 1.1.0:** one HEAD request per host, on the button press, with optional host permissions requested at that moment. |
 
 ### Optimisation

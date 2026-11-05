@@ -163,6 +163,30 @@ try {
   await popup.setViewportSize({ width: 400, height: 850 });
   await popup.screenshot({ path: path.join(root, '.harness/qol-popup.png'), fullPage: true });
   await options.locator('#redirector-list').screenshot({ path: path.join(root, '.harness/qol-redirectors.png') });
+  // U7: the filter narrows the list and is view state, not a setting.
+  const rows = () => options.evaluate(() => document.querySelectorAll('#redirector-list .ritem').length);
+  const before = await rows();
+  assert.ok(before > 1, 'there is a list to filter');
+  await options.locator('#list-filter').fill('thread');
+  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem').length < n, before);
+  assert.ok(await options.evaluate(() => {
+    const names = Array.from(document.querySelectorAll('#redirector-list .ritem b')).map((b) => b.textContent);
+    return names.length > 0 && names.every((n) => /thread/i.test(n));
+  }), 'only matching rows remain');
+  // A group left with no rows must not leave its heading standing.
+  assert.equal(await options.evaluate(() =>
+    Array.from(document.querySelectorAll('#redirector-list .rgroup'))
+      .filter((g) => !g.querySelector('.ritem')).length), 0, 'no empty group headings');
+  await options.locator('#list-filter').fill('zzzznothing');
+  await options.waitForSelector('#list-empty:not([hidden])');
+  await options.locator('#list-filter').fill('');
+  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem').length === n, before);
+  await options.reload();
+  await options.waitForSelector('#en-fxtwitter');
+  assert.equal(await options.locator('#list-filter').inputValue(), '', 'the filter does not persist');
+  assert.equal(await rows(), before, 'and the whole list is back');
+  check('The redirector filter narrows the list, reports no matches and does not persist');
+
   // U5: a bad import reports in the page and leaves settings alone. The
   // default is read rather than named, so this does not depend on which
   // redirector the sections above left selected.

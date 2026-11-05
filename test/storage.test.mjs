@@ -291,3 +291,82 @@ test('grouping follows pinned order and never lists an entry twice',async()=>{
   assert.equal(all.length,new Set(all).size,'no duplicates when disabled entries are shown');
   assert.ok(all.includes('threadreader'));
 });
+
+// Q2: a merge takes their redirectors and leaves their choices behind.
+test('import can merge somebody else\'s redirectors without their choices',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.addCustom({name:'Mine',template:'https://mine.example/{path}'});
+  s=await a.save({defaultRedirector:'vxtwitter'});
+  s=await a.setPinned('vxtwitter',true);
+  s=await a.merge({
+    defaultRedirector:'threadreader',
+    pinnedIds:['threadreader'],
+    stripTracking:false,
+    custom:[
+      {id:'c-theirs',name:'Theirs',template:'https://theirs.example/{path}'},
+      {id:'c-mine',name:'Mine renamed',template:'https://mine.example/{path}'},
+      {id:'c-broken',name:'Broken',template:'not a url'},
+    ],
+  });
+  assert.equal(s.defaultRedirector,'vxtwitter','their default does not cross over');
+  assert.deepEqual(Array.from(s.pinnedIds),['vxtwitter'],'nor their pins');
+  assert.equal(s.stripTracking,true,'nor their switches');
+  const templates=Array.from(s.custom.map((c)=>c.template));
+  assert.deepEqual(templates,['https://mine.example/{path}','https://theirs.example/{path}'],
+    'the one I already have is not duplicated, and the invalid one is skipped');
+  assert.ok(Array.from(s.enabledIds).includes('c-theirs'),'what arrives is usable straight away');
+});
+
+test('a merge gives a colliding id a fresh one and keeps catalogue entries ours',async()=>{
+  const h=harness(),a=h.context();
+  // Same id, different redirector: mine must survive untouched.
+  let s=await a.addCustom({name:'Shared name',template:'https://first.example/{path}'});
+  const mineId=Array.from(s.custom.map((c)=>c.id))[0];
+  s=await a.merge({custom:[
+    {id:mineId,name:'Shared name',template:'https://second.example/{path}'},
+    // A catalogue entry they had taken, sent with a name they invented.
+    {id:'fixupx',name:'Their silly label',template:'https://fixupx.com/{path}{query}'},
+  ]});
+  assert.equal(s.custom.length,3);
+  const byId=new Map(Array.from(s.custom.map((c)=>[c.id,c])));
+  assert.equal(byId.get(mineId).template,'https://first.example/{path}','mine is not overwritten');
+  assert.ok(Array.from(byId.keys()).some((id)=>id!==mineId&&id.startsWith('c-shared-name')),
+    'theirs lands on a derived id');
+  assert.ok(byId.has('fixupx'),'a catalogue id is kept, not renamed');
+  // normalize() fills a catalogue id in from our own CATALOGUE, so the name
+  // that comes back is ours and their label is discarded.
+  assert.equal(byId.get('fixupx').name,'FixupX','our definition wins, not their label');
+  assert.equal(byId.get('fixupx').catalogue,true,'and it is still a catalogue entry, not a custom one');
+});
+
+// U7: ordering applies to unpinned entries only, in every list.
+test('list ordering sorts the unpinned entries and leaves pins alone',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.save({enabledIds:['fxtwitter','vxtwitter','threadreader']});
+  // Pins in deliberate reverse-alphabetical order, to prove they survive it.
+  s=await a.setPinned('vxtwitter',true);
+  s=await a.setPinned('fxtwitter',true);
+  const names=(st)=>a.redirectorGroups(st,false).map((g)=>Array.from(g.entries.map((r)=>r.name)));
+  const asGrouped=names(s);
+  s=await a.save({listSort:'name'});
+  const byName=names(s);
+  assert.deepEqual(asGrouped[0],['vxTwitter','FxTwitter'],'pin order is the order they were pinned');
+  assert.deepEqual(byName[0],['vxTwitter','FxTwitter'],'and sorting does not touch it');
+  // Every unpinned group is alphabetical once sorted.
+  for (const group of byName.slice(1)) {
+    assert.deepEqual(group,Array.from(group).slice().sort((x,y)=>x.localeCompare(y)),
+      'unpinned entries are alphabetical: '+group.join(', '));
+  }
+  // And the same set of entries either way, just reordered.
+  assert.deepEqual(asGrouped.flat().slice().sort(),byName.flat().slice().sort());
+});
+
+test('an unknown copy format or sort order falls back to the default',async()=>{
+  const h=harness(),a=h.context();
+  let s=await a.save({copyFormat:'telepathy',listSort:'vibes'});
+  assert.equal(s.copyFormat,'url');
+  assert.equal(s.listSort,'group');
+  s=await a.save({copyFormat:'markdown',listSort:'name'});
+  assert.equal(s.copyFormat,'markdown','a real one is kept');
+  assert.equal(s.listSort,'name');
+});

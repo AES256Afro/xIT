@@ -169,17 +169,49 @@ with the browser suites still owed from 1.1.0.
 
 ## Milestone 4, polish
 
-- i18n scaffolding and `_locales/en` (C10, P3). Nothing new in the UI, but it
-  stops every later string from adding to the debt.
-- Second keyboard command, "open the tweet in view with the default" (Q1).
-- Import offers merge as well as replace (Q2).
-- Copy formats: markdown link, and author plus link (Q4).
-- Filter field in the redirector list, and ordering for unpinned entries (U7).
-- Copy button for the browser shortcut address (U8).
-- Bring the status colours up to WCAG AA as text (U10). `--ok`, `--accent` and
-  `--danger` are all under 4.5:1 against the card in at least one theme, in
-  both `options.css` and `popup.css`. Found while fixing U5; one control got a
-  darker `--danger-fill` there, which is a patch, not the palette.
+**Status, 4 November 2026: shipped as 1.2.0.** 98 unit tests pass, up from 83.
+Five items are complete, three are partly done with the remainder recorded as
+findings rather than left implied. The Playwright suites still need a host run,
+and now cover the redirector filter as well.
+
+- **Partly done.** i18n scaffolding and `_locales/en` (C10, P3). The catalogue,
+  the manifest strings and `src/lib/i18n.js` are in, which is what stops both
+  stores reporting a single locale and gives later strings a home. The
+  interface's own strings are still inline English and are carried as **C11**:
+  mechanical work now rather than structural. The build throws on a `__MSG_`
+  placeholder with no key, since that failure mode is an extension the browser
+  will not install.
+- **Partly done.** Second keyboard command, "open the tweet in view with the
+  default" (Q1). Added as `open-current-tweet`, deliberately unbound. The other
+  half of Q1, binding a specific pinned redirector, is closed as not possible:
+  it would need a `commands` block that varies with the user's settings.
+- **Done.** Import offers merge as well as replace (Q2). Merging takes their
+  redirectors and none of their choices, matching on the template so a
+  redirector you already have under another name is not duplicated.
+- **Done.** Copy formats: markdown link, and author plus link (Q4). Applied at
+  every copy path including the main world, where the format is constrained the
+  way the template is (S1). The markdown destination handles parentheses and
+  angle brackets, which would otherwise end the link early.
+- **Done.** Filter field in the redirector list, and ordering for unpinned
+  entries (U7). The filter is view state, not a setting; the ordering is a
+  setting and applies to every list. Pinned order is never touched.
+- **Done.** Copy button for the browser shortcut address (U8).
+- **Done, and larger than written.** Bring the status colours up to WCAG AA as
+  text (U10). The finding named three colours; the work also found the
+  translucent tints behind several of them cutting contrast further, both
+  filled buttons putting white text on 3.00:1 and 4.11:1 grounds, and the
+  in-page menu on X failing in light mode only. Per-theme text and fill tokens
+  with their own foregrounds, and `test/contrast.test.mjs` measures every pair.
+
+## Milestone 5, what Milestone 4 left
+
+- **C11.** Move the interface's own strings into the catalogue. Roughly 60 in
+  `options.html`, plus the toasts, statuses and menu labels built in
+  `inject.js`, `popup.js` and `background.js`. The mechanism exists; this is
+  the volume.
+- The sweep loop. All seven categories are still at sweep 1 of 3 with a clean
+  streak of 0, so fourteen sweeps are owed before any category retires. No
+  milestone replaces that.
 
 ## Explicitly not doing
 
