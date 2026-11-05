@@ -249,3 +249,34 @@ test('only the hosts xIT ships can be asked about', () => {
   assert.equal(XIT.checkOrigin('https://unrollnow.com/{path}'), null);
   assert.equal(XIT.checkOrigin('https://xcancel.com/{path}'), null);
 });
+
+// Q4: formats are a presentation layer over a converted link. The markdown
+// one has to survive characters that would otherwise break the link.
+test('copy formats render a link three ways',()=>{
+  const parts={user:'jack',id:'20'};
+  const url='https://fxtwitter.com/jack/status/20';
+  assert.equal(XIT.formatCopy(url,parts,'url'),url);
+  assert.equal(XIT.formatCopy(url,parts,'author'),'@jack '+url);
+  assert.equal(XIT.formatCopy(url,parts,'markdown'),'[@jack]('+url+')');
+  // An unknown format is a bare link rather than a thrown error, because it
+  // reaches here from stored settings.
+  assert.equal(XIT.formatCopy(url,parts,'nonsense'),url);
+  assert.equal(XIT.formatCopy(url,parts,undefined),url);
+});
+
+test('copy formats cope with a missing handle and awkward URLs',()=>{
+  // /i/web/status/20 carries no account, so there is no handle to use.
+  const noUser={id:'20'};
+  assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',noUser,'markdown'),
+    '[Tweet](https://fx.com/i/web/status/20)');
+  assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',noUser,'author'),
+    'https://fx.com/i/web/status/20','no handle means no empty prefix');
+  // Parentheses would close the markdown destination early.
+  const parts={user:'jack'};
+  assert.equal(XIT.formatCopy('https://fx.com/a?q=(x)',parts,'markdown'),'[@jack](<https://fx.com/a?q=(x)>)');
+  // Angle brackets would close the angle-bracket form early, so percent-encode.
+  assert.equal(XIT.formatCopy('https://fx.com/a?q=(x)>y',parts,'markdown'),
+    '[@jack](https://fx.com/a?q=%28x%29>y)');
+  // A handle cannot contain brackets, but the escape is there if one ever does.
+  assert.equal(XIT.formatCopy('https://fx.com/a',{user:'a]b'},'markdown'),'[@a\\]b](https://fx.com/a)');
+});

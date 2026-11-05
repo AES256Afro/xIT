@@ -16,8 +16,11 @@ Both copy routes give you the same rewritten link:
 - **X's own "Copy link".** The native share menu is patched so it returns the
   redirected URL too, with no change to how the menu looks or behaves.
 
-Plus a right-click menu on any tweet link anywhere on the web, and a keyboard
-shortcut.
+Plus a right-click menu on any tweet link anywhere on the web, and keyboard
+shortcuts for copying or opening the tweet in view.
+
+A copied link can be written out as the bare URL, as a markdown link, or as the
+author's handle followed by the link. Opening a link in a tab is unaffected.
 
 ![Copying a tweet through a chosen front-end, with the redirector list open](store/assets/screenshot-1-copy-any-tweet.png)
 
@@ -160,6 +163,12 @@ broken URL.
   restores the last deleted custom entry, including its selections, unless you
   changed those selections after deleting it. Undo survives closing Settings
   but is cleared by browser restart, reset, import, or the next removal.
+
+Importing offers a choice: **replace** takes the whole file, including their
+default, pins and switches, while **add** brings across only redirectors you do
+not already have and leaves every choice of yours alone. A redirector you
+already have under another name is matched on its template, so it is not
+duplicated.
 - Paste a link in the popup and press **Enter** to copy the previewed URL. The
   paste field receives focus when the current tab has no usable X link.
 - **Open on X** in the popup, tweet dropdown, or right-click menu opens the
@@ -170,12 +179,18 @@ broken URL.
   raw errors, and browsing history. Settings also displays the report for
   inspection or manual copying.
 
-## Keyboard shortcut
+## Keyboard shortcuts
 
 `Alt+Shift+C` copies the tweet under the pointer (or the one in view) with the
-default redirector. Rebind it at `chrome://extensions/shortcuts`, or in Firefox
-at `about:addons` → gear → *Manage Extension Shortcuts*. Browsers do not let a
-page link to those addresses, so paste them in yourself.
+default redirector. There is a second command that **opens** that tweet with
+the default instead, left unbound: both browsers already use the obvious
+combinations, and a suggested key that clashes is dropped at install without
+telling anybody, so you pick this one.
+
+Bind or rebind either at `chrome://extensions/shortcuts`, or in Firefox at
+`about:addons` → gear → *Manage Extension Shortcuts*. Browsers do not let a
+page link to those addresses, so Settings gives you a copy button for the
+address instead.
 
 ## Permissions, and why
 

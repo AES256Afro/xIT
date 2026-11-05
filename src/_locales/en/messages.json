@@ -1,0 +1,30 @@
+{
+  "extensionName": {
+    "message": "xIT",
+    "description": "The extension's name, shown in the browser and in both stores."
+  },
+  "extensionDescription": {
+    "message": "Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.",
+    "description": "The store and browser description. Both stores cap this at 132 characters."
+  },
+  "commandCopyCurrent": {
+    "message": "Copy the tweet in view with the default redirector",
+    "description": "Shown beside the shortcut on the browser's own extension shortcuts page."
+  },
+  "commandOpenCurrent": {
+    "message": "Open the tweet in view with the default redirector",
+    "description": "Shown beside the shortcut on the browser's own extension shortcuts page."
+  },
+  "optionsTitle": {
+    "message": "xIT - Settings",
+    "description": "The Settings page's browser tab title."
+  },
+  "optionsTagline": {
+    "message": "Copied X links go through the redirector you pick. Nothing leaves your browser.",
+    "description": "Subtitle under the heading on the Settings page."
+  },
+  "settingsLabel": {
+    "message": "Settings",
+    "description": "Label and tooltip for the popup's gear button."
+  }
+}

@@ -30,6 +30,12 @@
     // The first-run picker has been through once. Set by the picker itself,
     // not by install, so somebody who never opens it still gets it.
     pickerDone: false,
+    // How a copied link is written out: one of XIT.COPY_FORMATS (Q4).
+    copyFormat: 'url',
+    // How unpinned entries are ordered in every list (U7). 'group' keeps the
+    // order they are defined in; 'name' sorts alphabetically. Pinned entries
+    // always keep the order you put them in, which is the point of pinning.
+    listSort: 'group',
   };
 
   function clone(v) {
@@ -120,6 +126,10 @@
       'contextMenuAll', 'pickerDone']) {
       s[k] = !!s[k];
     }
+    // An unknown format would otherwise reach every copy path and be passed
+    // through as a bare URL, which works but silently ignores the setting.
+    if (!XIT.COPY_FORMATS.some((f) => f.id === s.copyFormat)) s.copyFormat = DEFAULTS.copyFormat;
+    if (s.listSort !== 'name' && s.listSort !== 'group') s.listSort = DEFAULTS.listSort;
     return s;
   }
 
@@ -135,6 +145,15 @@
   // mutation there, so each operation reads after the previous write finishes.
   function startWriter() { writer = true; }
 
+  /** A custom id derived from a name, stepped until it is free. */
+  function freshId(name, taken) {
+    const base = 'c-' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
+    let id = base === 'c-' ? 'c-redirector' : base;
+    const start = id;
+    for (let n = 2; taken.has(id); n++) id = start + '-' + n;
+    return id;
+  }
+
   async function applyMutation(operation) {
     const current = await load();
     let raw = current;
@@ -146,6 +165,37 @@
     } else if (operation.type === 'replace') {
       if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error('Settings must be a JSON object.');
       raw = operation.settings;
+    } else if (operation.type === 'merge') {
+      // Q2: import used to replace the whole object, so taking one redirector
+      // from somebody meant adopting their default, pins and toggles too. A
+      // merge brings across their redirectors and nothing else: which of them
+      // you pin, star or turn off stays your decision.
+      const incoming = operation.settings;
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error('Settings must be a JSON object.');
+      const theirs = Array.isArray(incoming.custom) ? incoming.custom : [];
+      const taken = new Set(allRedirectors(current).map((r) => r.id));
+      const held = new Set(current.custom.map((c) => c.template));
+      const added = [];
+      for (const entry of theirs) {
+        if (!entry || typeof entry !== 'object') continue;
+        const template = entry.template;
+        if (!XIT.validateTemplate(template).ok) continue;
+        // The same redirector under a different name is still the same
+        // redirector, so this is keyed on the template, not the id.
+        if (held.has(template)) continue;
+        // A catalogue entry they had taken keeps our definition and our id,
+        // exactly as enabling it here would. Anything else is their own.
+        const catalogue = XIT.findCatalogue(entry.id);
+        const name = String(entry.name || (catalogue && catalogue.name) || '').trim();
+        if (!name) continue;
+        let id = catalogue ? catalogue.id : String(entry.id || '');
+        if (!id || taken.has(id)) id = freshId(name, taken);
+        taken.add(id);
+        held.add(template);
+        added.push(catalogue ? { id, template } : { id, name, template });
+      }
+      raw = { ...current, custom: [...current.custom, ...added],
+        enabledIds: [...current.enabledIds, ...added.map((c) => c.id)] };
     } else if (operation.type === 'rewrite') {
       // Re-save normalized settings so keys that are no longer in DEFAULTS
       // leave stored data, not just the object normalize() returns.
@@ -192,10 +242,8 @@
       if (operation.type === 'edit-custom') {
         raw = { ...current, custom: current.custom.map((c) => c.id === original.id ? { ...c, name, template: entry.template } : c) };
       } else {
-        const base = 'c-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28);
         const taken = new Set(allRedirectors(current).map((r) => r.id));
-        let id = base;
-        for (let n = 2; taken.has(id); n++) id = base + '-' + n;
+        const id = freshId(name, taken);
         raw = { ...current, custom: [...current.custom, { id, name, template: entry.template }], enabledIds: [...current.enabledIds, id] };
       }
     } else {
@@ -228,6 +276,7 @@
 
   const save = (patch) => mutate({ type: 'patch', patch });
   const replace = (settings) => mutate({ type: 'replace', settings });
+  const merge = (settings) => mutate({ type: 'merge', settings });
   const reset = () => mutate({ type: 'reset' });
   const setEnabled = (id, enabled) => mutate({ type: 'enabled', id, enabled });
   const addCustom = (entry) => mutate({ type: 'add-custom', entry });
@@ -291,8 +340,12 @@
     const byId = new Map(all.map((r) => [r.id, r]));
     const pinned = settings.pinnedIds || [];
     const isPinned = new Set(pinned);
+    // U7: pinning says "these first, in this order", so only the rest sorts.
+    const order = settings && settings.listSort === 'name'
+      ? (entries) => entries.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      : (entries) => entries;
     return [{ id: 'pinned', label: 'Pinned', entries: pinned.map((id) => byId.get(id)).filter(Boolean) },
-      ...XIT.GROUPS.map((g) => ({ ...g, entries: all.filter((r) => r.group === g.id && !isPinned.has(r.id)) }))]
+      ...XIT.GROUPS.map((g) => ({ ...g, entries: order(all.filter((r) => r.group === g.id && !isPinned.has(r.id))) }))]
       .filter((g) => g.entries.length);
   }
 
@@ -324,7 +377,7 @@
 
   root.XITStore = {
     api, DEFAULTS, SCHEMA_VERSION,
-    load, save, replace, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
+    load, save, replace, merge, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
     startWriter, mutate,
     editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups,
     menuRedirectors, menuSignature,

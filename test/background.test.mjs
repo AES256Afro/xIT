@@ -74,10 +74,12 @@ function harness(firefox = false) {
       sendMessage: async (tabId, message) => {
         if (noContentScript) throw new Error('could not establish connection');
         sent.push({ tabId, ...message });
-        return { ok: true };
+        return tabReply;
       },
       create: async (opts) => { opened.push(opts); return { id: 99 }; },
-      query: async () => [],
+      // The keyboard commands ask for the active tab; the diagnostics sweep
+      // asks by URL pattern and must keep seeing nothing here.
+      query: async (q) => (q && q.active ? [activeTab] : []),
     },
     scripting: {
       executeScript: async ({ args }) => { injected.push(args); return [{ result: true }]; },
@@ -123,10 +125,15 @@ function harness(firefox = false) {
     // Stands in for the real fingerprint: enough that a change the menu does
     // depend on looks different and one it does not looks the same.
     menuSignature: (s) => JSON.stringify([!!s.contextMenu, !!s.contextMenuAll, s.name]),
-    defaultRedirector: (s) => ({name:s.name}),
+    // Keeps .name driven by settings, as the menu tests expect, while
+    // carrying the template the keyboard commands need to convert with.
+    defaultRedirector: (s) => ({...redirector, name:s.name}),
     findRedirector: (s, id) => byId[id] || redirector,
     extraHosts: () => new Set(['example.com']),
   };
+  let tabReply = { ok: true };
+  let activeTab = { id: 1, url: 'https://x.com/jack/status/20?s=20', index: 3 };
+
   async function fakeFetch(url, options) {
     fetched.push({ url, method: options && options.method });
     const answer = answers[url];
@@ -139,6 +146,7 @@ function harness(firefox = false) {
     convert: REAL.convert, canonical: REAL.canonical,
     isSourceHost: REAL.isSourceHost, bareHost: REAL.bareHost,
     checkOrigin: REAL.checkOrigin,
+    COPY_FORMATS: REAL.COPY_FORMATS, formatCopy: REAL.formatCopy,
   }, XITStore: store, URL, Set, fetch: fakeFetch,
   AbortController, setTimeout, clearTimeout, Date });
   vm.runInContext(readFileSync(new URL('../src/background.js', import.meta.url),'utf8'),ctx);
@@ -152,6 +160,9 @@ function harness(firefox = false) {
     answer(map) { answers = { ...answers, ...map }; },
     fetched,
     dropContentScript() { noContentScript = true; },
+    command: (name) => ctx.handleCommand(name),
+    answerTab(reply) { tabReply = reply; },
+    setActiveTab(tab) { activeTab = tab; },
     change(patch) { settings={...settings,...patch}; changed({...settings}); },
     failRemove() { failRemoval=true; }, failCreate() { failCreation=true; },
   };
@@ -496,4 +507,36 @@ test('the check only runs when asked, never on install, startup or a settings wr
   h.change({ name: 'second' });
   await h.settle();
   assert.deepEqual(h.fetched, [], 'xIT makes no network request of its own');
+});
+
+// Q1: the open command walks the same path as copy and diverges at the end.
+test('the open command opens a tab instead of copying',async()=>{
+  const h=harness();
+  await h.settle();
+  h.setRedirector({ id:'fx', name:'FxTwitter', template:'https://fxtwitter.com/{path}{query}' });
+  // On an X tab the content script takes it, so the background does nothing.
+  h.answerTab({ ok:true });
+  await h.command('open-current-tweet');
+  assert.equal(h.opened.length,0,'the content script handled it');
+  assert.equal(h.injected.length,0,'and nothing was copied');
+  // With no content script the background converts the tab URL itself.
+  h.answerTab(null);
+  await h.command('open-current-tweet');
+  assert.deepEqual(h.opened.map((o)=>o.url),['https://fxtwitter.com/jack/status/20']);
+  assert.equal(h.injected.length,0,'opening never writes to the clipboard');
+  // The copy command still copies rather than opening.
+  await h.command('copy-current-tweet');
+  assert.equal(h.opened.length,1,'no second tab');
+  assert.equal(h.sent.filter((m)=>m.type==='xit:clipboard').length+h.injected.length>0,true,
+    'the copy path still reaches the clipboard');
+});
+
+test('an unknown command does nothing at all',async()=>{
+  const h=harness();
+  await h.settle();
+  h.setRedirector({ id:'fx', name:'FxTwitter', template:'https://fxtwitter.com/{path}{query}' });
+  h.answerTab(null);
+  await h.command('not-a-command');
+  assert.equal(h.opened.length,0);
+  assert.equal(h.injected.length,0);
 });

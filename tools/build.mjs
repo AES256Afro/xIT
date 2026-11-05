@@ -23,7 +23,7 @@ const DIST = path.join(ROOT, 'dist');
 
 const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
 
-const LIB = ['lib/redirectors.js', 'lib/storage.js'];
+const LIB = ['lib/redirectors.js', 'lib/storage.js', 'lib/i18n.js'];
 
 // src/lib/redirectors.js owns the X origin list. Read it rather than keeping a
 // second copy here, so the manifest cannot drift from what the code matches.
@@ -39,12 +39,27 @@ if (!Array.isArray(HOSTS) || !HOSTS.length) throw new Error('XIT.HOST_PATTERNS i
 const CHECK_ORIGINS = hostCtx.XIT.CHECK_ORIGINS.map((origin) => origin + '*');
 if (!CHECK_ORIGINS.length) throw new Error('XIT.CHECK_ORIGINS is missing from src/lib/redirectors.js');
 
+// C10, P3: the manifest's own strings come from _locales/en so both stores
+// stop reporting the extension as single-locale, and so adding a language is
+// a new messages.json rather than a change here. A __MSG_ placeholder with no
+// matching key makes the browser refuse to load the extension at all, which
+// is a silent failure at install time, so every one is checked below.
+const MESSAGES = JSON.parse(await readFile(path.join(SRC, '_locales/en/messages.json'), 'utf8'));
+
+function msg(key) {
+  if (!Object.prototype.hasOwnProperty.call(MESSAGES, key)) {
+    throw new Error(`src/_locales/en/messages.json has no "${key}", which the manifest asks for`);
+  }
+  return '__MSG_' + key + '__';
+}
+
 function baseManifest() {
   return {
     manifest_version: 3,
-    name: 'xIT',
+    default_locale: 'en',
+    name: msg('extensionName'),
     version: pkg.version,
-    description: 'Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.',
+    description: msg('extensionDescription'),
     // declarativeNetRequest is kept for 1.0.7 only, so the background can
     // remove redirect rules earlier versions installed. Page redirecting is
     // gone; drop this permission once users have had time to update.
@@ -82,7 +97,14 @@ function baseManifest() {
     commands: {
       'copy-current-tweet': {
         suggested_key: { default: 'Alt+Shift+C' },
-        description: 'Copy the tweet in view with the default redirector',
+        description: msg('commandCopyCurrent'),
+      },
+      // Q1: the counterpart to the copy command. No suggested key, because
+      // both browsers reserve Alt+Shift+O-shaped combinations unevenly and a
+      // clash is silently dropped at install; the shortcuts page is where
+      // this one gets bound.
+      'open-current-tweet': {
+        description: msg('commandOpenCurrent'),
       },
     },
   };

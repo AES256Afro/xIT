@@ -317,6 +317,42 @@
     return { ok: true, url, parts };
   }
 
+  /*
+   * Q4: only bare URLs could be copied. These wrap the converted link without
+   * touching how it is built, so a format is a presentation choice and every
+   * copy path shares one implementation.
+   */
+  const COPY_FORMATS = [
+    { id: 'url', name: 'Just the link', hint: 'https://fxtwitter.com/jack/status/20' },
+    { id: 'markdown', name: 'Markdown link', hint: '[@jack](https://fxtwitter.com/jack/status/20)' },
+    { id: 'author', name: 'Author then link', hint: '@jack https://fxtwitter.com/jack/status/20' },
+  ];
+
+  /**
+   * A markdown destination may not contain unescaped parentheses or spaces;
+   * the angle-bracket form is the way to carry them, and a literal '>' inside
+   * would end it early, so that one case falls back to percent-encoding.
+   */
+  function markdownTarget(url) {
+    if (!/[()\s]/.test(url)) return url;
+    if (!url.includes('>')) return '<' + url + '>';
+    return url.replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/\s/g, '%20');
+  }
+
+  /** Render a converted link in one of COPY_FORMATS. Unknown formats pass through. */
+  function formatCopy(url, parts, format) {
+    const handle = parts && parts.user ? '@' + parts.user : '';
+    if (format === 'author') return handle ? handle + ' ' + url : url;
+    if (format === 'markdown') {
+      // The link text is the handle when the link carries one. An /i/web/
+      // status does not, and a bare URL as its own text reads worse than a
+      // plain word, so it gets one.
+      const text = (handle || 'Tweet').replace(/([\\[\]])/g, '\\$1');
+      return '[' + text + '](' + markdownTarget(url) + ')';
+    }
+    return url;
+  }
+
   /** Canonical x.com URL for a parsed link, tracking params dropped. */
   function canonical(raw, opts) {
     const o = opts || {};
@@ -326,8 +362,8 @@
   }
 
   root.XIT = {
-    GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS,
-    parse, expand, convert, canonical, stripTracking,
+    GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
+    parse, expand, convert, canonical, stripTracking, formatCopy,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };

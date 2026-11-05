@@ -283,7 +283,7 @@ async function handleMenuClick(info, tab) {
   }
 
   if (action === 'copy') {
-    if (tab) await copyInTab(tab.id, out.url, settings.toast);
+    if (tab) await copyInTab(tab.id, XIT.formatCopy(out.url, out.parts, settings.copyFormat), settings.toast);
   } else {
     await api.tabs.create({ url: out.url, index: tab ? tab.index + 1 : undefined, active: true });
   }
@@ -360,14 +360,18 @@ async function clearLegacyRedirects() {
  * -------------------------------------------------------------------- */
 
 async function handleCommand(command, tab) {
-  if (command !== 'copy-current-tweet') return;
+  // Q1: copy and open are the same journey up to the last step, so they share
+  // everything but what they do with the converted link.
+  const open = command === 'open-current-tweet';
+  if (command !== 'copy-current-tweet' && !open) return;
   const settings = await XITStore.load();
   const active = tab || (await api.tabs.query({ active: true, currentWindow: true }))[0];
   if (!active) return;
 
   // Let the content script pick the tweet under the cursor / in view.
   try {
-    const res = await api.tabs.sendMessage(active.id, { type: 'xit:copy-current' });
+    const res = await api.tabs.sendMessage(active.id,
+      { type: open ? 'xit:open-current' : 'xit:copy-current' });
     if (res && res.ok) return;
   } catch (_) { /* not on X, or not injected */ }
 
@@ -375,7 +379,9 @@ async function handleCommand(command, tab) {
     stripTracking: settings.stripTracking,
     extraHosts: XITStore.extraHosts(settings),
   });
-  if (out.ok) await copyInTab(active.id, out.url, settings.toast);
+  if (!out.ok) return;
+  if (open) await api.tabs.create({ url: out.url, index: active.index + 1, active: true });
+  else await copyInTab(active.id, XIT.formatCopy(out.url, out.parts, settings.copyFormat), settings.toast);
 }
 
 /* -------------------------------------------------------------------- *

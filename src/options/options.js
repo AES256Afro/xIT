@@ -151,12 +151,29 @@
     return button;
   }
 
+  /*
+   * U7: the list had no filter and no ordering for anything unpinned. The
+   * filter is view state, not a setting: it is a way of finding a row, so it
+   * would be wrong to still be in force the next time Settings is opened.
+   * The ordering is a setting, because it applies to every list.
+   */
+  let listFilter = '';
+
+  /** Does this entry match what was typed? Name, host, template and note. */
+  function matchesFilter(entry) {
+    if (!listFilter) return true;
+    const haystack = [entry.name, entry.template, entry.note, XIT.templateHost(entry.template)]
+      .filter(Boolean).join(' ').toLowerCase();
+    return listFilter.split(/\s+/).every((word) => haystack.includes(word));
+  }
+
   function renderList() {
     const host = $('redirector-list');
     const focused = document.activeElement;
     const focusRow = focused && focused.closest('[data-id]')?.dataset.id;
     const focusAction = focused && focused.dataset.action;
     host.textContent = '';
+    let shown = 0;
     for (const g of XITStore.redirectorGroups(settings, false)) {
       const wrap = document.createElement('div');
       wrap.className = 'rgroup';
@@ -171,6 +188,8 @@
         wrap.appendChild(blurb);
       }
       for (const r of g.entries) {
+        if (!matchesFilter(r)) continue;
+        shown += 1;
         const row = document.createElement('div');
         row.className = 'ritem';
         row.dataset.id = r.id;
@@ -229,8 +248,13 @@
         row.appendChild(actions);
         wrap.appendChild(row);
       }
-      host.appendChild(wrap);
+      // A group whose rows were all filtered out would otherwise leave its
+      // heading and blurb standing over nothing.
+      if (wrap.querySelector('.ritem')) host.appendChild(wrap);
     }
+    $('list-empty').textContent = shown ? '' : 'Nothing matches "' + listFilter + '".';
+    $('list-empty').hidden = !!shown;
+    $('list-sort').value = settings.listSort;
     if (focusRow && focusAction) {
       const row = host.querySelector('[data-id="' + CSS.escape(focusRow) + '"]');
       let target = row && row.querySelector('[data-action="' + focusAction + '"]');
@@ -420,13 +444,60 @@
     node.hidden = !text;
   }
 
+  /**
+   * Q2: import replaced the whole settings object, so taking one redirector
+   * from somebody meant adopting their default, pins and switches with it.
+   * The file is read first and the choice offered second, because what the
+   * file actually contains is what makes the choice meaningful.
+   */
+  let pendingImport = null;
+
   async function importSettings(file) {
     backupError('');
+    let raw;
     try {
-      const raw = JSON.parse(await file.text());
-      settings = await XITStore.replace(raw);
+      raw = JSON.parse(await file.text());
+    } catch (e) {
+      $('saved').textContent = '';
+      backupError('That file could not be read as settings: ' + (e && e.message));
+      return;
+    }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      backupError('That file is not a settings object.');
+      return;
+    }
+    const theirs = Array.isArray(raw.custom) ? raw.custom : [];
+    const usable = theirs.filter((c) => c && XIT.validateTemplate(c.template).ok);
+    const mine = new Set(settings.custom.map((c) => c.template));
+    const fresh = usable.filter((c) => !mine.has(c.template));
+    pendingImport = raw;
+    $('import-summary').textContent = fresh.length
+      ? `That file has ${plural(fresh.length, 'redirector')} you do not have yet, out of ${usable.length} in total.`
+      : usable.length
+        ? 'You already have every redirector in that file, so adding would change nothing.'
+        : 'That file has no redirectors of its own, so there is nothing to add.';
+    $('import-merge').disabled = !fresh.length;
+    $('import-replace').disabled = false;
+    $('confirm-import').showModal();
+  }
+
+  /** "1 redirector", "3 redirectors". */
+  function plural(n, one, many) {
+    return n + ' ' + (n === 1 ? one : (many || one + 's'));
+  }
+
+  async function applyImport(mode) {
+    const raw = pendingImport;
+    pendingImport = null;
+    $('confirm-import').close();
+    if (!raw) return;
+    const before = new Set(settings.custom.map((c) => c.id));
+    try {
+      settings = await (mode === 'merge' ? XITStore.merge(raw) : XITStore.replace(raw));
       render();
-      saved('Imported');
+      if (mode !== 'merge') { saved('Imported'); return; }
+      const gained = settings.custom.filter((c) => !before.has(c.id)).length;
+      saved(gained ? `Added ${plural(gained, 'redirector')}.` : 'Nothing to add.');
     } catch (e) {
       $('saved').textContent = '';
       backupError('That file could not be read as settings: ' + (e && e.message));
@@ -435,9 +506,25 @@
 
   /* ---- render + wire ---- */
 
+  function renderCopyFormat() {
+    const select = $('copy-format');
+    if (!select.options.length) {
+      for (const f of XIT.COPY_FORMATS) {
+        const option = document.createElement('option');
+        option.value = f.id;
+        option.textContent = f.name;
+        select.appendChild(option);
+      }
+    }
+    select.value = settings.copyFormat;
+    const chosen = XIT.COPY_FORMATS.find((f) => f.id === settings.copyFormat);
+    $('copy-format-sample').textContent = chosen ? chosen.hint : '';
+  }
+
   function render() {
     renderDefault();
     renderList();
+    renderCopyFormat();
     $('t-button').checked = settings.copyButton;
     $('t-hijack').checked = settings.hijackNativeCopy;
     $('t-strip').checked = settings.stripTracking;
@@ -451,6 +538,9 @@
   }
 
   async function init() {
+    // C10: before anything is drawn, so a localised string never appears as a
+    // flash of English. The markup carries the English as its fallback.
+    XITI18N.apply();
     settings = await XITStore.load();
     await loadChecks();
     render();
@@ -516,6 +606,12 @@
       backupError('');
       $('confirm-reset').showModal();
     });
+    $('import-merge').addEventListener('click', () => applyImport('merge'));
+    $('import-replace').addEventListener('click', () => applyImport('replace'));
+    $('import-cancel').addEventListener('click', () => $('confirm-import').close());
+    // Escape and the backdrop reach this too, so a dismissed question never
+    // leaves a parsed file sitting in memory waiting to be applied.
+    $('confirm-import').addEventListener('close', () => { pendingImport = null; });
     $('reset-cancel').addEventListener('click', () => $('confirm-reset').close());
     $('reset-go').addEventListener('click', async () => {
       $('confirm-reset').close();
@@ -539,7 +635,38 @@
     });
     $('p-template').addEventListener('input', () => { $('picker-error').textContent = ''; });
 
-    if (navigator.userAgent.includes('Firefox')) $('kbd').textContent = 'Alt+Shift+C';
+    // U8: the address had to be retyped by hand. An extension cannot open
+    // either of these pages itself, which is why this is a copy button and
+    // not a link.
+    const firefox = navigator.userAgent.includes('Firefox');
+    if (firefox) {
+      $('kbd').textContent = 'Alt+Shift+C';
+      $('shortcut-url').textContent = 'about:addons';
+      $('shortcut-note').textContent = 'Open it, then the gear menu, then Manage Extension Shortcuts.';
+    }
+    $('copy-format').addEventListener('change', (ev) => commit({ copyFormat: ev.target.value }));
+    $('list-filter').addEventListener('input', (ev) => {
+      listFilter = ev.target.value.trim().toLowerCase();
+      renderList();
+    });
+    $('list-sort').addEventListener('change', (ev) => commit({ listSort: ev.target.value }));
+    $('copy-shortcut-url').addEventListener('click', async (ev) => {
+      const address = $('shortcut-url').textContent;
+      try {
+        await navigator.clipboard.writeText(address);
+        saved('Address copied. Paste it into the address bar.');
+      } catch (_) {
+        // A clipboard write can be refused. Select it so the user can copy by
+        // hand rather than being told it worked when it did not.
+        const range = document.createRange();
+        range.selectNodeContents($('shortcut-url'));
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        saved('Could not copy. The address is selected, so copy it yourself.');
+      }
+      ev.currentTarget.blur();
+    });
 
     // First run. Opened from here rather than on install, so somebody who
     // never opens Settings is not handed a dialog out of nowhere, and anybody

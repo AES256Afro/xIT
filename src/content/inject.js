@@ -124,8 +124,11 @@
       toast(out.reason, 'error');
       return false;
     }
-    const ok = await writeClipboard(out.url);
-    toast(ok ? 'Copied ' + redirector.name + ': ' + shortLabel(out.url) : 'Could not write to the clipboard', ok ? 'ok' : 'error');
+    // Q4: the format is how the link is written out, so the toast shows what
+    // actually went on the clipboard rather than the bare URL behind it.
+    const text = XIT.formatCopy(out.url, out.parts, settings.copyFormat);
+    const ok = await writeClipboard(text);
+    toast(ok ? 'Copied ' + redirector.name + ': ' + shortLabel(text) : 'Could not write to the clipboard', ok ? 'ok' : 'error');
     return ok;
   }
 
@@ -645,6 +648,7 @@
         name: d ? d.name : '',
         requires: (d && d.requires) || [],
         stripTracking: settings.stripTracking,
+        format: settings.copyFormat,
       },
     }, location.origin);
   }
@@ -690,6 +694,19 @@
       const article = currentArticle();
       copyWith(XITStore.defaultRedirector(settings), sourceUrlFor(article))
         .then((ok) => sendResponse({ ok }));
+      return true;
+    }
+
+    // Q1: openWith reports failure through a toast rather than a return value,
+    // so the reply says only that this tab handled it. The background's
+    // fallback is for a tab with no content script, not for a bad link.
+    if (msg.type === 'xit:open-current') {
+      const article = currentArticle();
+      const source = sourceUrlFor(article);
+      const d = XITStore.defaultRedirector(settings);
+      const usable = !!source && XIT.convert(source, d, { stripTracking: settings.stripTracking, extraHosts }).ok;
+      if (usable) openWith(d, source);
+      sendResponse({ ok: usable });
       return true;
     }
 

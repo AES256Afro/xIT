@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+- Choose how a copied link is written: the bare URL, a markdown link, or the author's handle followed by the link. Applies everywhere a copy happens, including X's own "Copy link". Opening a link in a tab is unaffected.
+- Add a second keyboard command that opens the tweet in view with your default rather than copying it. It ships unbound, because both browsers already use the obvious combinations and a suggested key that clashes is dropped at install without saying so. Bind it on the browser's own shortcuts page.
+- Importing settings now asks whether to replace or to add. Adding brings across only redirectors you do not already have and leaves your default, your pins and your switches exactly as they were. A redirector you already have under a different name is matched on its template rather than its name, so it is not duplicated.
+- Filter the redirector list by name, host or note, and order the unpinned entries alphabetically instead of as grouped. Pinned entries keep the order you put them in, which is the point of pinning. The filter is not remembered between visits, because it is a way of finding a row rather than a setting.
+- Add a copy button for the browser's shortcuts address. An extension cannot open that page for you, so the address had to be retyped by hand.
+- Fix the colours that carry meaning. The blue, green and red were X's brand values, chosen for fidelity and never measured: as text they ranged from 2.39:1 to 3.89:1 against a 4.5:1 accessibility floor, and the filled buttons put white text on 3.00:1 blue. Every one of them now clears the floor with headroom in both light and dark, and a test measures them so this cannot drift back.
+- Add the groundwork for other languages. The name, description and shortcut descriptions now come from a message catalogue rather than being hardcoded, so neither store reports the extension as single-locale, and new strings have somewhere to go. The interface itself is still English.
+
 ## 1.1.1
 
 - Replace the two blocking browser dialogs in Settings. A settings file that cannot be read now reports in the Backup panel and stays there while you go and look at the file, instead of an `alert()` box you have to dismiss before you can see the page behind it. Reset asks in a dialog that says what is actually lost: your own redirectors, any catalogue entries you took, your pins and your default. The old prompt said only "Reset every setting back to defaults?".

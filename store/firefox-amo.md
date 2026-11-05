@@ -51,7 +51,7 @@ TWO WAYS TO COPY, SAME RESULT
 • A button on every tweet. Click to copy with your default; click the chevron, right-click, or long-press to pick a different one for that copy.
 • X's own "Copy link" is patched to hand you the rewritten URL too, with the native menu unchanged.
 
-Plus a right-click menu on tweet links anywhere on the web, and Alt+Shift+C for the tweet under your pointer.
+Plus a right-click menu on tweet links anywhere on the web, Alt+Shift+C for the tweet under your pointer, and a second shortcut you can bind to open it instead. Copy as a bare link, a markdown link, or the author's handle plus the link.
 
 BUILT IN
 

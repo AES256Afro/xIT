@@ -50,7 +50,7 @@
   async function doCopy(redirector) {
     const out = XIT.convert(sourceUrl, redirector, opts());
     if (!out.ok) { status(out.reason, 'error'); return; }
-    const ok = await writeClipboard(out.url);
+    const ok = await writeClipboard(XIT.formatCopy(out.url, out.parts, settings.copyFormat));
     status(ok ? 'Copied ' + redirector.name + ' link' : 'Clipboard write failed', ok ? 'ok' : 'error');
   }
 
@@ -195,6 +195,7 @@
   /* ---- wiring ---- */
 
   async function init() {
+    XITI18N.apply();
     settings = await XITStore.load();
     const tabs = await api.tabs.query({ active: true, currentWindow: true });
     tab = tabs && tabs[0];

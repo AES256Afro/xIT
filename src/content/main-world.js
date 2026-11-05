@@ -36,6 +36,10 @@
       name: typeof d.payload.name === 'string' ? d.payload.name : '',
       requires: Array.isArray(d.payload.requires) ? d.payload.requires.filter((v) => v === 'id' || v === 'user') : [],
       stripTracking: d.payload.stripTracking !== false,
+      // Q4: constrained the same way as the template. The worst a page script
+      // can do by changing it is pick a different one of our three renderings
+      // of a link the user was going to copy anyway.
+      format: XIT.COPY_FORMATS.some((f) => f.id === d.payload.format) ? d.payload.format : 'url',
     };
     // Acknowledge configuration without requesting it again. Replying with
     // hello here would create an endless config -> hello -> config loop.
@@ -57,7 +61,7 @@
     const out = XIT.convert(t, { template: cfg.template, name: cfg.name, requires: cfg.requires },
       { stripTracking: cfg.stripTracking });
     if (!out.ok) return text;
-    return out.url;
+    return XIT.formatCopy(out.url, out.parts, cfg.format);
   }
 
   const clip = navigator.clipboard;
