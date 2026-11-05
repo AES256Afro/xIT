@@ -133,7 +133,7 @@
   }
 
   async function copyOriginal(sourceUrl) {
-    const clean = XIT.canonical(sourceUrl, { stripTracking: settings.stripTracking, extraHosts });
+    const clean = XIT.cleanCopy(sourceUrl, { stripTracking: settings.stripTracking, extraHosts }, settings.copyFormat);
     if (!clean) {
       toast(XITI18N.t('popupNotATweetFull'), 'error');
       return;

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.5
+
+- The copy format now applies to the x.com link as well. If you had chosen "Markdown link" or "Author then link", "Copy as FxTwitter" honoured it and "Copy x.com link" sitting next to it did not, and nor did the right-click menu's x.com item or the link you are given when a redirector does not apply to what you right-clicked. All four write the format you chose. The handle is already in an x.com path, as it is in a mirror's, so "Author then link" repeats it there in the same way it always has.
+
 ## 1.3.4
 
 - Put a limit on what a settings file can carry. A redirector's name and note were taken exactly as given, and its template could be any length: the 48-character limit you see in the form is enforced by the form, which an imported file, a merge and a hand-edited file all go around. A name or note that is too long is shortened; a template that is too long is refused with a reason, since a shortened template would simply be broken. Nothing was ever able to run as code this way, but a file could put a hundred kilobytes into a label in the list, the popup and the right-click menu.

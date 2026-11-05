@@ -141,13 +141,16 @@ function harness(firefox = false) {
     if (answer === undefined || answer === 'throw') throw new Error('network');
     return { status: answer, ok: answer < 400 };
   }
+  // The real library, with only the group list swapped for a test one. It
+  // used to be a hand-listed subset, which meant every new export broke this
+  // harness with a TypeError about something the test was not about: the same
+  // drift between two copies of one list that B8, B9 and S6 all turned out to
+  // be. What background.js is allowed to reach for is held by the load-list
+  // test instead, which compares the manifests against the globals the file
+  // actually references.
   const ctx = vm.createContext({ ...(firefox ? { browser: api } : { chrome: api }), console: { warn() {} }, XIT: {
+    ...REAL,
     GROUPS: [{id:'test',label:'Test'}],
-    HOST_PATTERNS: REAL.HOST_PATTERNS,
-    convert: REAL.convert, canonical: REAL.canonical,
-    isSourceHost: REAL.isSourceHost, bareHost: REAL.bareHost,
-    checkOrigin: REAL.checkOrigin,
-    COPY_FORMATS: REAL.COPY_FORMATS, formatCopy: REAL.formatCopy,
   }, XITStore: store, URL, Set, fetch: fakeFetch,
   AbortController, setTimeout, clearTimeout, Date });
   // The manifest loads lib/i18n.js before background.js in both browsers, and
@@ -160,6 +163,7 @@ function harness(firefox = false) {
   return { menus, errors, events, settle, local, rules:()=>rules, setRules:(r)=>{rules=r;}, ruleUpdates:()=>ruleUpdates,
     rewrites, badge, createCount: () => created,
     sent, opened, injected,
+    setSettings(patch) { settings = { ...settings, ...patch }; },
     setRedirector(value) { redirector = value; },
     setRedirectors(map) { byId = map; },
     grant(...origins) { for (const o of origins) grantedOrigins.add(o); },
@@ -620,4 +624,46 @@ test('a reply from a pre-update content script is still understood',async()=>{
     'no second copy on top of the one that tab already made');
   await h.command('open-current-tweet');
   assert.equal(h.opened.length,0);
+});
+
+/* -------------------------------------------------------------------- *
+ * Sweep 2
+ * -------------------------------------------------------------------- */
+
+test('a clean x.com link is copied in the chosen format', async () => {
+  // Q6. Both of these went on the clipboard as a bare URL while every
+  // redirector copy honoured the format, so two items in one menu disagreed
+  // about a choice the user had made. Reverting either cleanCopy call in
+  // background.js fails the matching assertion below, and the guard after it.
+  const h = harness();
+  h.setSettings({ copyFormat: 'markdown' });
+  await h.settle();
+
+  h.events.clicked({ menuItemId: 'xit-link-copy-original', linkUrl: 'https://x.com/jack/status/20?s=20' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.sent[0].text, '[@jack](https://x.com/jack/status/20)',
+    'Copy x.com link is a copy like any other');
+
+  // The same clean link by the other route: a redirector that does not apply.
+  h.setRedirector({ name: 'Thread Reader App', template: 'https://threadreaderapp.com/thread/{id}.html', requires: ['id'] });
+  h.events.clicked({ menuItemId: 'xit-link-copy:threadreader', linkUrl: 'https://x.com/jack?s=20' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.sent[1].text, '[@jack](https://x.com/jack)',
+    'and so is the fallback, which is handed to the user the same way');
+});
+
+test('no copy path reaches for a bare canonical link', async () => {
+  // Q6 again, as a guard rather than a case. canonical returns a string and
+  // drops the parts it computed, so a copy built on it cannot see the format
+  // and silently ignores it: that is how all four of these came to disagree.
+  // Opening on X is the one use left, since nothing is copied there.
+  const uses = [];
+  for (const file of ['src/background.js', 'src/popup/popup.js', 'src/content/inject.js']) {
+    const src = readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+    for (const line of src.split('\n')) {
+      if (line.includes('XIT.canonical')) uses.push(file + ': ' + line.trim());
+    }
+  }
+  assert.equal(uses.length, 1, 'one use left, in openOriginal: ' + JSON.stringify(uses));
+  assert.match(uses[0], /^src\/background\.js: const url = XIT\.canonical\(input,/);
 });
