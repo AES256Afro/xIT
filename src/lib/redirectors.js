@@ -210,6 +210,27 @@
     };
   }
 
+  /**
+   * The account a link actually names, or null.
+   *
+   * B6: `parse` reports `user` for a status link by reading the path segment
+   * before `status`, and falls back to `'i'` when there is none, because
+   * x.com itself writes authorless links as `/i/web/status/<id>` and
+   * `/i/status/<id>`. That makes `user` a sentinel rather than a handle, and
+   * `'i'` is truthy, so every consumer has to know. One did (the popup) and
+   * one did not (`formatCopy`), which is how `@i` reached a release. The
+   * knowledge lives here now, and nothing else tests `parts.user` directly.
+   *
+   * Checked against RESERVED rather than against `'i'` alone, because the
+   * same read can surface any site feature that happens to sit before
+   * `status` in a path.
+   */
+  function handleOf(parts) {
+    const user = parts && parts.user ? String(parts.user) : '';
+    if (!user || RESERVED.has(user.toLowerCase())) return null;
+    return user;
+  }
+
   function stripTracking(search) {
     if (!search || search === '?') return '';
     const p = new URLSearchParams(search.replace(/^\?/, ''));
@@ -228,7 +249,7 @@
     const o = opts || {};
     const search = o.stripTracking === false ? parts.search : stripTracking(parts.search);
     const map = {
-      user: parts.user || '',
+      user: handleOf(parts) || '',
       id: parts.id || '',
       path: parts.path || '',
       query: search || '',
@@ -309,7 +330,7 @@
     if (requires.includes('id') && !parts.id) {
       return { ok: false, reason: redirector.name + ' needs a link to a specific tweet.' };
     }
-    if (requires.includes('user') && !parts.user) {
+    if (requires.includes('user') && !handleOf(parts)) {
       return { ok: false, reason: redirector.name + ' needs a link with an account in it.' };
     }
     const url = expand(redirector.template, parts, { stripTracking: o.stripTracking !== false });
@@ -341,7 +362,7 @@
 
   /** Render a converted link in one of COPY_FORMATS. Unknown formats pass through. */
   function formatCopy(url, parts, format) {
-    const handle = parts && parts.user ? '@' + parts.user : '';
+    const handle = handleOf(parts) ? '@' + handleOf(parts) : '';
     if (format === 'author') return handle ? handle + ' ' + url : url;
     if (format === 'markdown') {
       // The link text is the handle when the link carries one. An /i/web/
@@ -363,7 +384,7 @@
 
   root.XIT = {
     GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
-    parse, expand, convert, canonical, stripTracking, formatCopy,
+    parse, expand, convert, canonical, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };

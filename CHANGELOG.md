@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1
+
+- Fix the author and markdown copy formats inventing an account. A tweet link that names nobody, which is how x.com writes some of them and how every link converted from a thread reader ends up, copied as `@i`. There is no account called i: it is the path segment x.com uses when there is no author to name. Those links now copy as a plain link, and in markdown as `[Tweet](...)`.
+- A custom template using `{user}` on such a link produced the host with nothing after it. It now leaves the account out rather than putting `i` there.
+- The popup describes one of those tweets as "Tweet" rather than "Tweet by @...".
+
 ## 1.3.0
 
 - Finish what 1.2.0 started: the interface can now be translated. Every string a user reads, in Settings, the popup, the in-page menu on X and the right-click menu, comes from a message catalogue instead of being written into the code. Nothing looks different in English; a translation is now a single new file rather than a rewrite of the extension.

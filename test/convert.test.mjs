@@ -264,13 +264,52 @@ test('copy formats render a link three ways',()=>{
   assert.equal(XIT.formatCopy(url,parts,undefined),url);
 });
 
-test('copy formats cope with a missing handle and awkward URLs',()=>{
-  // /i/web/status/20 carries no account, so there is no handle to use.
-  const noUser={id:'20'};
-  assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',noUser,'markdown'),
-    '[Tweet](https://fx.com/i/web/status/20)');
-  assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',noUser,'author'),
-    'https://fx.com/i/web/status/20','no handle means no empty prefix');
+/*
+ * B6: the version of this test that shipped in 1.2.0 built its own `parts`
+ * object, `{id:'20'}`, which parse() never produces: for an authorless link it
+ * reports user:'i', and 'i' is truthy. So the test passed while every
+ * /i/web/status/ link copied as "@i". These go through parse() instead, which
+ * is the only shape the formats ever actually see.
+ */
+test('an authorless link copies as a tweet, not as an account called i',()=>{
+  for (const url of ['https://x.com/i/web/status/20','https://x.com/i/status/20']) {
+    const parts=XIT.parse(url);
+    assert.equal(parts.user,'i','parse still uses its sentinel, which is what made this a trap');
+    assert.equal(XIT.handleOf(parts),null,'but nothing treats the sentinel as a handle');
+    assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',parts,'markdown'),
+      '[Tweet](https://fx.com/i/web/status/20)',url);
+    assert.equal(XIT.formatCopy('https://fx.com/i/web/status/20',parts,'author'),
+      'https://fx.com/i/web/status/20','no handle means no prefix at all');
+  }
+  // A link retargeted from a thread tool goes through the same path, which is
+  // why this was a common case and not an edge one.
+  const recovered=XIT.convert('https://threadreaderapp.com/thread/20.html',
+    XIT.PRESETS.find((r)=>r.id==='fxtwitter'));
+  assert.ok(recovered.ok);
+  assert.equal(XIT.formatCopy(recovered.url,recovered.parts,'author'),recovered.url);
+  // A real handle is still used.
+  const real=XIT.parse('https://x.com/jack/status/20');
+  assert.equal(XIT.handleOf(real),'jack');
+  assert.equal(XIT.formatCopy('https://fx.com/jack/status/20',real,'author'),
+    '@jack https://fx.com/jack/status/20');
+  // Any other site feature that lands where the account goes is excluded too,
+  // since the check is against RESERVED rather than against 'i' alone.
+  assert.equal(XIT.handleOf({user:'search'}),null);
+  assert.equal(XIT.handleOf({user:'settings'}),null);
+  assert.equal(XIT.handleOf(null),null);
+  assert.equal(XIT.handleOf({}),null);
+});
+
+test('{user} expands to nothing when the link names no account',()=>{
+  // Same sentinel, reached through expand() rather than formatCopy: a template
+  // of https://host/{user} used to produce https://host/i.
+  const parts=XIT.parse('https://x.com/i/web/status/20');
+  assert.equal(XIT.expand('https://mine.example/{user}',parts),'https://mine.example/');
+  assert.equal(XIT.expand('https://mine.example/{user}',XIT.parse('https://x.com/jack/status/20')),
+    'https://mine.example/jack');
+});
+
+test('copy formats cope with awkward URLs',()=>{
   // Parentheses would close the markdown destination early.
   const parts={user:'jack'};
   assert.equal(XIT.formatCopy('https://fx.com/a?q=(x)',parts,'markdown'),'[@jack](<https://fx.com/a?q=(x)>)');
