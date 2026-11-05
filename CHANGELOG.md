@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3
+
+- A custom template that uses `{user}` but not `{path}` is now told it needs a link with an account in it, instead of quietly copying your redirector's bare address. A link to a search page or to a tweet that names no author produced `https://your.host/` and said nothing.
+- Adding somebody else's redirectors no longer gives you a second copy of one xIT already ships. Their file often carries the same services as entries of its own, and only your own list was being checked. The import dialog counts the same way, so it no longer offers to add something it would then skip.
+- An imported redirector whose name made an unusable id is now kept with an id derived from its name, as any new entry would be. Previously an id with a space in it was accepted and then dropped, and the import reported nothing added.
+
 ## 1.3.2
 
 - Stop the keyboard shortcut copying something you were just told it could not copy. If the redirector does not apply to the tweet under the pointer, for example a thread reader on a profile link, xIT said so and then copied the page's own link anyway, with a second message contradicting the first. A refusal is now the end of it.

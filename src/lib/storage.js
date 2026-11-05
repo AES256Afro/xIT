@@ -57,6 +57,34 @@
     });
   }
 
+  /**
+   * What a template cannot do without.
+   *
+   * {path} already carries the account and the status id for any link that
+   * has them, so a template using it needs nothing in particular. A template
+   * that names {id} or {user} on their own does: without this, convert()
+   * expands the missing piece to an empty string and copies a link pointing
+   * at the host root.
+   *
+   * B7: only {id} was inferred, so convert()'s requires-'user' branch was
+   * unreachable and a template of https://host/{user} silently produced
+   * https://host/ for a search page and https://host/ for an authorless
+   * tweet.
+   */
+  function inferRequires(template) {
+    const t = String(template || '');
+    if (/\{path\}/.test(t)) return [];
+    const needs = [];
+    if (/\{id\}/.test(t)) needs.push('id');
+    if (/\{user\}/.test(t)) needs.push('user');
+    return needs;
+  }
+
+  // The shape a stored redirector id may have. normalize drops anything else,
+  // so every route that invents or accepts an id has to agree with this: B9
+  // was the merge accepting an id normalize would then throw away.
+  const ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
+
   function normalize(raw) {
     const s = clone(DEFAULTS);
     for (const key of Object.keys(DEFAULTS)) {
@@ -90,7 +118,7 @@
       if (!c || typeof c.template !== 'string') return false;
       if (!XIT.validateTemplate(c.template).ok) return false;
       const id = String(c.id || '');
-      if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || seen.has(id)) return false;
+      if (!ID_RE.test(id) || seen.has(id)) return false;
       seen.add(id);
       return true;
     }).map((c) => {
@@ -108,7 +136,7 @@
         name: String(c.name || c.id),
         group: 'custom',
         template: String(c.template).trim(),
-        requires: /\{id\}/.test(c.template) && !/\{path\}/.test(c.template) ? ['id'] : [],
+        requires: inferRequires(c.template),
         note: c.note ? String(c.note) : '',
         custom: true,
       };
@@ -174,7 +202,10 @@
       if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error(XITI18N.t('errNotJsonObject'));
       const theirs = Array.isArray(incoming.custom) ? incoming.custom : [];
       const taken = new Set(allRedirectors(current).map((r) => r.id));
-      const held = new Set(current.custom.map((c) => c.template));
+      // B8: every redirector already available, bundled ones included. Keyed
+      // on current.custom alone this added a second FxTwitter whenever their
+      // file happened to carry it as an entry of their own.
+      const held = new Set(allRedirectors(current).map((r) => r.template));
       const added = [];
       for (const entry of theirs) {
         if (!entry || typeof entry !== 'object') continue;
@@ -189,7 +220,11 @@
         const name = String(entry.name || (catalogue && catalogue.name) || '').trim();
         if (!name) continue;
         let id = catalogue ? catalogue.id : String(entry.id || '');
-        if (!id || taken.has(id)) id = freshId(name, taken);
+        // B9: a taken id was replaced and an invalid one was not, so an entry
+        // whose id merely had a space in it was added here and then dropped by
+        // normalize. The template was fine and the redirector was usable; only
+        // the name it arrived under was not.
+        if (!id || taken.has(id) || !ID_RE.test(id)) id = freshId(name, taken);
         taken.add(id);
         held.add(template);
         added.push(catalogue ? { id, template } : { id, name, template });

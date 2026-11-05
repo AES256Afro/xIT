@@ -240,9 +240,9 @@ from 98. 191 messages, none of them typed twice.
 
 ## Milestone 6, what sweep 2 found
 
-Eleven findings. **B6 is done in 1.3.1 and B10 in 1.3.2**, nine remain. Full
-text in `AUDIT-LOOP.md`. Ordered by what goes wrong for a user, not by
-category.
+Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, and B7, B8 and B9 in
+1.3.3**, six remain. Full text in `AUDIT-LOOP.md`. Ordered by what goes wrong
+for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
    at the root rather than at the call site: `XIT.handleOf` is now the only
@@ -262,16 +262,20 @@ category.
    `{ok:false}` without toasting, so its substitution was silent. It now goes
    through `openWith`, which explains the refusal, and the duplicate
    `convert()` that existed only to decide the reply is gone.
-3. **B7, `{user}` is not inferred as a requirement.** A template using only
-   `{user}` silently copies a host-root URL for any link with no account.
-   Fix: infer `'user'` the way `'id'` is inferred, which makes `convert()`'s
-   existing branch reachable.
-4. **B8 and B9, the import merge.** B8 adds a second copy of a bundled
-   redirector, because "do I have this?" checks only the user's own entries.
-   B9 drops an entry whose id is invalid rather than merely taken, because
-   only a taken id gets a fresh one. Both shipped in 1.2.0. Fix: check
-   templates against `PRESETS` too, and send any unusable id through
-   `freshId`.
+3. ~~**B7, `{user}` is not inferred as a requirement.**~~ **Done in 1.3.1 and
+   1.3.3.** 1.3.1's `handleOf` stopped `{user}` expanding to the `'i'`
+   sentinel; 1.3.3 added the inference, so `convert()`'s requires-'user'
+   branch is reachable and such a link is refused rather than mangled. The
+   inference is now one function, `inferRequires`, which reads `{path}` as
+   "needs nothing in particular" because it already carries both pieces.
+4. ~~**B8 and B9, the import merge.**~~ **Done in 1.3.3.** Both turned out to
+   be one defect each written twice. B8's predicate, "do I already have this
+   template?", existed in the merge and again in the import dialog's count;
+   fixing only the merge would have left the dialog offering an Add that then
+   added nothing. B9's id rule was a literal in `normalize` and a different
+   condition in the merge, so the merge accepted ids normalize would discard.
+   Both now read one shared definition: `allRedirectors` for the first,
+   `ID_RE` for the second.
 5. **B11, the Check race.** `runCheck` sets its guard after awaiting the
    permission prompt, so a second click during the prompt starts a second run.
    Fix: set the flag before the request, and clear it in the existing

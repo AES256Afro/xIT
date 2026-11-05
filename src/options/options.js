@@ -469,7 +469,11 @@
     }
     const theirs = Array.isArray(raw.custom) ? raw.custom : [];
     const usable = theirs.filter((c) => c && XIT.validateTemplate(c.template).ok);
-    const mine = new Set(settings.custom.map((c) => c.template));
+    // B8: every redirector already available, bundled ones included, and not
+    // just the user's own. The merge itself skips a template it already has;
+    // counting only `custom` here would offer an Add that adds nothing and
+    // then report "Nothing to add."
+    const mine = new Set(XITStore.allRedirectors(settings).map((r) => r.template));
     const fresh = usable.filter((c) => !mine.has(c.template));
     pendingImport = raw;
     $('import-summary').textContent = fresh.length
