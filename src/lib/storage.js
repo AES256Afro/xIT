@@ -277,11 +277,22 @@
       menuRedirectors(settings).map((r) => [r.id, r.name, (r.requires || []).join('+')])]);
   }
 
+  /**
+   * O3: this runs on every render in four places, and used to do a linear
+   * `find` over every redirector for each pinned id, plus a linear `includes`
+   * over the pinned list for every redirector. Both are indexed once per call
+   * instead. A cache across calls was the other option and is not worth it:
+   * it would have to be invalidated on every settings write, and the work
+   * here is now proportional to the list rather than to its square.
+   */
   function redirectorGroups(settings, enabledOnly = true) {
-    const all = allRedirectors(settings).filter((r) => !enabledOnly || settings.enabledIds.includes(r.id));
+    const on = new Set(settings.enabledIds || []);
+    const all = allRedirectors(settings).filter((r) => !enabledOnly || on.has(r.id));
+    const byId = new Map(all.map((r) => [r.id, r]));
     const pinned = settings.pinnedIds || [];
-    return [{ id: 'pinned', label: 'Pinned', entries: pinned.map((id) => all.find((r) => r.id === id)).filter(Boolean) },
-      ...XIT.GROUPS.map((g) => ({ ...g, entries: all.filter((r) => r.group === g.id && !pinned.includes(r.id)) }))]
+    const isPinned = new Set(pinned);
+    return [{ id: 'pinned', label: 'Pinned', entries: pinned.map((id) => byId.get(id)).filter(Boolean) },
+      ...XIT.GROUPS.map((g) => ({ ...g, entries: all.filter((r) => r.group === g.id && !isPinned.has(r.id)) }))]
       .filter((g) => g.entries.length);
   }
 

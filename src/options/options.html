@@ -38,6 +38,20 @@
     </form>
   </dialog>
 
+  <dialog id="confirm-reset" class="ask" aria-labelledby="reset-heading">
+    <form method="dialog">
+      <h2 id="reset-heading">Reset to defaults?</h2>
+      <p class="hint">Every setting goes back to how xIT installs: three
+        redirectors enabled, FxTwitter as the default, nothing pinned. Any
+        redirector you added yourself is removed, and so is any catalogue entry
+        you took. This cannot be undone.</p>
+      <div class="picker-foot">
+        <button id="reset-cancel" type="button" class="ghost" autofocus>Keep my settings</button>
+        <button id="reset-go" type="button" class="danger">Reset everything</button>
+      </div>
+    </form>
+  </dialog>
+
   <section class="panel">
     <h2>Default redirector</h2>
     <p class="hint">Used by the tweet button, the keyboard shortcut, and X's own “Copy link”.</p>
@@ -106,6 +120,7 @@
       <button id="reset" class="ghost danger">Reset to defaults</button>
     </div>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
+    <p id="backup-error" class="warn-text" role="alert" hidden></p>
   </section>
 
   <section class="panel">

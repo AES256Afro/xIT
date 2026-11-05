@@ -6,6 +6,11 @@
   --accent: #1d9bf0;
   --card: #f7f9f9;
   --danger: #f4212e;
+  /* --danger is a text and border colour against --bg or --card. White text on
+     it is 4.11:1, under the 4.5:1 AA floor for 13px bold, so the one control
+     that fills with it uses this darker shade instead, at 5.72:1. Both themes
+     share it, because the button is white-on-red either way. */
+  --danger-fill: #c81e27;
   --ok: #00ba7c;
   color-scheme: light dark;
 }
@@ -101,7 +106,7 @@ kbd { border: 1px solid var(--line); }
 .custom-form input { flex: 1 1 190px; min-width: 0; }
 .custom-form input#c-template { flex: 2 1 300px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 
-button.primary, button.ghost {
+button.primary, button.ghost, button.danger {
   all: unset;
   padding: 8px 14px;
   border-radius: 9999px;
@@ -115,6 +120,11 @@ button.primary:hover { filter: brightness(1.08); }
 button.ghost { border: 1px solid var(--line); }
 button.ghost:hover { border-color: var(--accent); color: var(--accent); }
 button.ghost.danger:hover { border-color: var(--danger); color: var(--danger); }
+/* The filled form is for the button that actually performs the destruction,
+   inside the dialog that asks. `:not(.ghost)` keeps the panel's own
+   "Reset to defaults" button, which only opens that dialog, as an outline. */
+button.danger:not(.ghost) { background: var(--danger-fill); color: #fff; }
+button.danger:not(.ghost):hover { filter: brightness(1.08); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .row-btn {
@@ -144,7 +154,8 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
  * than from code of ours that would have to be got right.
  * ------------------------------------------------------------------- */
 
-.picker {
+.picker,
+.ask {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
   padding: 0;
@@ -154,9 +165,11 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
   color: inherit;
 }
 
-.picker::backdrop { background: rgba(0, 0, 0, 0.5); }
+.picker::backdrop,
+.ask::backdrop { background: rgba(0, 0, 0, 0.5); }
 
-.picker form {
+.picker form,
+.ask form {
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 48px);
@@ -164,7 +177,8 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
   gap: 10px;
 }
 
-.picker h2 { margin: 0; font-size: 16px; }
+.picker h2,
+.ask h2 { margin: 0; font-size: 16px; }
 
 .picker-list {
   flex: 1 1 auto;
@@ -182,6 +196,10 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 .picker-own input[type=text] { width: 100%; margin-bottom: 6px; }
 
 .picker-foot { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* A confirmation, not a chooser: narrower, and it never needs to scroll. */
+.ask { width: min(420px, calc(100vw - 32px)); }
+.ask form { max-height: none; }
 
 .pick-alias {
   font-size: 10.5px;

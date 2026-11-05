@@ -34,7 +34,14 @@ try {
   const options = await context.newPage();
   const popup = await context.newPage();
   const errors = [];
-  for (const page of [options, popup]) page.on('pageerror', error => errors.push(error.message));
+  const nativeDialogs = [];
+  for (const page of [options, popup]) {
+    page.on('pageerror', error => errors.push(error.message));
+    // U5: alert() and confirm() are gone. Playwright dismisses a dialog it has
+    // no handler for, which would hide a regression, so record each one and
+    // assert at the end that nothing arrived.
+    page.on('dialog', async d => { nativeDialogs.push(d.type() + ': ' + d.message()); await d.dismiss(); });
+  }
   await options.goto(`chrome-extension://${id}/options/options.html`);
   await options.waitForSelector('#en-fxtwitter');
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
@@ -156,6 +163,39 @@ try {
   await popup.setViewportSize({ width: 400, height: 850 });
   await popup.screenshot({ path: path.join(root, '.harness/qol-popup.png'), fullPage: true });
   await options.locator('#redirector-list').screenshot({ path: path.join(root, '.harness/qol-redirectors.png') });
+  // U5: a bad import reports in the page and leaves settings alone. The
+  // default is read rather than named, so this does not depend on which
+  // redirector the sections above left selected.
+  const chosen = await worker.evaluate(async () => (await XITStore.load()).defaultRedirector);
+  assert.notEqual(chosen, 'fxtwitter', 'the reset assertion below needs a default that is not the install default');
+  await options.locator('#import-file').setInputFiles({
+    name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{ not json'),
+  });
+  await options.waitForSelector('#backup-error:not([hidden])');
+  assert.match(await options.locator('#backup-error').textContent(), /could not be read as settings/);
+  assert.equal(await options.evaluate(() => document.querySelector('#backup-error').getAttribute('role')), 'alert');
+  assert.equal(await worker.evaluate(async () => (await XITStore.load()).defaultRedirector), chosen);
+
+  // U5: reset asks in a modal dialog. Escape is a refusal, and settings survive.
+  await options.locator('#reset').click();
+  await waitFor(options, () => document.querySelector('#confirm-reset').open);
+  assert.ok(await options.evaluate(() => document.querySelector('#confirm-reset').matches(':modal')),
+    'the reset question is a modal dialog, so it traps focus and takes Escape');
+  assert.ok(await options.evaluate(() => document.querySelector('#backup-error').hidden),
+    'opening the question clears the stale import error');
+  await options.keyboard.press('Escape');
+  await waitFor(options, () => !document.querySelector('#confirm-reset').open);
+  assert.equal(await worker.evaluate(async () => (await XITStore.load()).defaultRedirector), chosen);
+
+  // Only the reset button itself resets.
+  await options.locator('#reset').click();
+  await waitFor(options, () => document.querySelector('#confirm-reset').open);
+  await options.locator('#reset-go').click();
+  await waitFor(options, () => !document.querySelector('#confirm-reset').open);
+  await waitFor(options, async () => (await XITStore.load()).defaultRedirector === 'fxtwitter');
+  check('Import failure and reset are answered in the page, with no native dialogs anywhere in the run');
+
+  assert.deepEqual(nativeDialogs, []);
   assert.deepEqual(errors, []);
   await writeFile(path.join(root, '.harness/qol-results.json'), JSON.stringify(results, null, 2) + '\n');
   console.log(JSON.stringify(results, null, 2));
