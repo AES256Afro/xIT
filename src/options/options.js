@@ -453,6 +453,22 @@
    * attempt, because the user may need to go and look at the file, and
    * role="alert" means a screen reader announces it without being moved.
    */
+  /**
+   * What a reset leaves enabled, and which of them becomes the default.
+   *
+   * U11: the dialog said "three redirectors enabled, FxTwitter as the
+   * default" in prose, which is DEFAULTS written a second time in a sentence.
+   * True today, wrong the moment the bundled set changes, and nothing would
+   * have noticed: the same shape as B8, B9, S6 and Q6. Both facts are read
+   * from DEFAULTS, which is what a reset actually applies.
+   */
+  function resetDefaults() {
+    const id = XITStore.DEFAULTS.defaultRedirector;
+    const entry = XIT.PRESETS.find((p) => p.id === id) || XIT.findCatalogue(id);
+    return XITI18N.t('resetDefaults',
+      [String(XITStore.DEFAULTS.enabledIds.length), (entry && entry.name) || id]);
+  }
+
   function backupError(text) {
     const node = $('backup-error');
     node.textContent = text || '';
@@ -622,6 +638,9 @@
     // backdrop both mean no, because the only button that resets is reset-go.
     $('reset').addEventListener('click', () => {
       backupError('');
+      // U11: filled from DEFAULTS each time the dialog opens, rather than
+      // written into the sentence.
+      $('reset-defaults').textContent = resetDefaults();
       $('confirm-reset').showModal();
     });
     $('import-merge').addEventListener('click', () => applyImport('merge'));

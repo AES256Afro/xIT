@@ -199,3 +199,72 @@ test('the library families cover every entry the library ships', async () => {
     assert.ok(current['copyFormat_' + id], 'copyFormat_' + id);
   }
 });
+
+/**
+ * The two libraries loaded as the extension loads them, for the sake of
+ * reading DEFAULTS. storage.js reaches for the extension API at load time, so
+ * it gets the shape of one: nothing here calls a method on it.
+ */
+function libraries() {
+  const api = { storage: { local: {}, session: {}, onChanged: { addListener() {} } }, runtime: {} };
+  const ctx = vm.createContext({ console, chrome: api });
+  vm.runInContext(read('src/lib/i18n.js'), ctx);
+  vm.runInContext(read('src/lib/redirectors.js'), ctx);
+  vm.runInContext(read('src/lib/storage.js'), ctx);
+  return ctx;
+}
+
+test('the reset dialog reads its defaults from the defaults', async () => {
+  /*
+   * U11. The dialog said "three redirectors enabled, FxTwitter as the
+   * default", which is DEFAULTS written a second time in a sentence: true
+   * today, wrong the moment the bundled set changes, and nothing would have
+   * noticed. The clause is now a substitution message filled from DEFAULTS.
+   *
+   * This builds the clause the way options.js does, from the real catalogue
+   * and the real DEFAULTS, so a change to either side fails here.
+   */
+  const { fakeI18n } = await import('./helpers/i18n-stub.mjs');
+  const ctx = libraries();
+  const { DEFAULTS } = ctx.XITStore;
+  const { PRESETS } = ctx.XIT;
+  const def = PRESETS.find((p) => p.id === DEFAULTS.defaultRedirector);
+  assert.ok(def, 'the default redirector should be one xIT bundles');
+
+  const clause = fakeI18n().getMessage('resetDefaults',
+    [String(DEFAULTS.enabledIds.length), def.name]);
+  assert.equal(clause, '3 redirectors enabled, FxTwitter as the default');
+
+  // And the sentence around it no longer states either fact itself. This is
+  // the regression guard: writing the numbers back into the prose fails here.
+  const hint = load().resetHint.message;
+  assert.ok(hint.includes('{1}'), 'the clause is a part of the sentence');
+  assert.doesNotMatch(hint, /three|FxTwitter/i,
+    'the sentence should not name the defaults it is given');
+});
+
+test('the message format has no plural rules, so the bundled count may not be one', () => {
+  /*
+   * U11, the limit this leaves behind, recorded rather than hidden.
+   * WebExtension messages have no plural selection: "$count$ redirectors
+   * enabled" is correct for every count except 1. xIT bundles three and that
+   * is unlikely to drop, but nothing in the format would catch it, so this is
+   * what catches it.
+   */
+  assert.ok(libraries().XITStore.DEFAULTS.enabledIds.length > 1,
+    'a single bundled redirector would read "1 redirectors"; resetDefaults needs rewording first');
+});
+
+test('the derived clause has somewhere to go and something to fill it', () => {
+  // The span and the code that writes it are two halves of one change: either
+  // alone leaves the dialog saying nothing where the defaults should be.
+  const html = read('src/options/options.html');
+  const js = read('src/options/options.js');
+  assert.match(html, /<span id="reset-defaults">/);
+  assert.match(html, /data-i18n-parts="resetHint"/);
+  assert.match(js, /\$\('reset-defaults'\)\.textContent = resetDefaults\(\)/);
+  // And it fills it from DEFAULTS rather than from a number typed again: a
+  // literal count here is the whole of U11, one layer down.
+  assert.match(js, /XITStore\.DEFAULTS\.enabledIds\.length/);
+  assert.match(js, /XITStore\.DEFAULTS\.defaultRedirector/);
+});
