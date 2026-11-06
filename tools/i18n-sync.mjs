@@ -263,32 +263,57 @@ export function check() {
       if (!spec || typeof spec.content !== 'string') problems.push(`${key}: placeholder "${name}" has no content`);
     }
   }
+  // The file is generated, so its order is generated too. Only reported when
+  // nothing above is missing, since a missing key is the better complaint and
+  // plan() cannot run without it.
+  if (!problems.length) {
+    const expected = [...plan().keys()].join('\n');
+    if (Object.keys(current).join('\n') !== expected) {
+      problems.push('the catalogue holds the right messages in the wrong order; run npm run i18n:write');
+    }
+  }
   return problems;
 }
 
-/** Rewrite the catalogue from the markup. */
-function write() {
+/**
+ * The whole catalogue in the order it is kept in: the messages only a person
+ * can write first, then everything derived from the markup and the library.
+ *
+ * Shared with check() rather than living inside write(), because the order is
+ * part of what is generated. A key added to the file by hand lands wherever
+ * the person put it, and the next `i18n:write` then reshuffles the file for
+ * reasons that have nothing to do with the change being reviewed. That is
+ * what happened between 1.2.0 and 1.3.8: fourteen messages moved, none of
+ * them altered, in a commit about something else.
+ */
+function plan() {
   const current = load();
   const wanted = derive();
   const fromManifest = manifestKeys();
   const fromCode = codeKeys();
   for (const [key, entry] of libraryMessages()) wanted.set(key, entry);
-  const next = {};
+  const next = new Map();
   for (const key of fromCode) {
     if (!current[key]) throw new Error(`JavaScript asks for "${key}" and only a person can write that one`);
-    next[key] = current[key];
+    next.set(key, current[key]);
   }
   for (const key of fromManifest) {
     if (!current[key]) throw new Error(`the manifest asks for "${key}" and only a human can write that one`);
-    next[key] = current[key];
+    next.set(key, current[key]);
   }
   for (const [key, entry] of wanted) {
     // A key the manifest also uses keeps its hand-written description, which
     // says where in the store it appears. That is better than anything
     // derivable from the markup.
     if (fromManifest.has(key) || fromCode.has(key)) continue;
-    next[key] = { message: entry.message, description: entry.description };
+    next.set(key, { message: entry.message, description: entry.description });
   }
+  return next;
+}
+
+/** Rewrite the catalogue from the markup. */
+function write() {
+  const next = Object.fromEntries(plan());
   writeFileSync(CATALOGUE, JSON.stringify(next, null, 2) + '\n');
   return Object.keys(next).length;
 }

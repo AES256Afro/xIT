@@ -156,6 +156,20 @@
     "message": "Exported",
     "description": "Settings: status line after settings are written to a file."
   },
+  "resetDefaults": {
+    "message": "$count$ redirectors enabled, $default$ as the default",
+    "description": "Settings, Reset to defaults?: the clause inside the <p> that names what a reset leaves behind. $count$ is how many redirectors a fresh install enables, $default$ the name of the one it makes the default. Both are read from the stored defaults rather than written out, so this sentence cannot go stale.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      },
+      "default": {
+        "content": "$2",
+        "example": "FxTwitter"
+      }
+    }
+  },
   "importUnreadable": {
     "message": "That file could not be read as settings: $detail$",
     "description": "Settings: shown when an imported file will not parse. $detail$ is the parser's own message, untranslated.",
@@ -288,6 +302,19 @@
   "popupTweetBy": {
     "message": "Tweet by @$user$",
     "description": "Popup: label describing the current tab. $user$ is an account handle, or an ellipsis when the link does not name one. The @ is part of the handle format and is not translated.",
+    "placeholders": {
+      "user": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupTweetNoAuthor": {
+    "message": "Tweet",
+    "description": "Popup: label describing the current tab when it holds a tweet link that names no account, which is how x.com writes /i/web/status/ links."
+  },
+  "popupProfileOf": {
+    "message": "@$user$'s profile",
+    "description": "Popup: label describing the current tab when it holds a profile. $user$ is an account handle; the @ is part of the handle format and is not translated.",
     "placeholders": {
       "user": {
         "content": "$1"
@@ -486,6 +513,38 @@
     "message": "That is not one of your redirectors.",
     "description": "Shown when a request asks to open a destination that no configured redirector would have produced."
   },
+  "errBadOperation": {
+    "message": "Invalid settings operation.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the request itself was malformed."
+  },
+  "errNotJsonObject": {
+    "message": "Settings must be a JSON object.",
+    "description": "Shown in Settings when a change to stored settings is rejected: an imported file was valid JSON but not an object."
+  },
+  "errNoSuchCustom": {
+    "message": "That custom redirector no longer exists.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the redirector being edited or removed is already gone."
+  },
+  "errNothingToRestore": {
+    "message": "There is no removed redirector to restore.",
+    "description": "Shown in Settings when a change to stored settings is rejected: Undo was used with nothing to undo."
+  },
+  "errIdTaken": {
+    "message": "That redirector ID is already in use.",
+    "description": "Shown in Settings when a change to stored settings is rejected: restoring a removed redirector would collide with an existing one."
+  },
+  "errNeedName": {
+    "message": "Give the redirector a name.",
+    "description": "Shown when a redirector is added or edited with no name. Used only when the template itself was valid, so there is no more specific complaint to make."
+  },
+  "errUnknownOperation": {
+    "message": "Unknown settings operation.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the request named an operation this version does not have."
+  },
+  "errSaveFailed": {
+    "message": "Could not save settings.",
+    "description": "Shown when the background does not answer a request to change settings."
+  },
   "extensionDescription": {
     "message": "Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.",
     "description": "The store and browser description. Both stores cap this at 132 characters."
@@ -567,8 +626,8 @@
     "description": "Settings, Reset to defaults?: text of the <h2>."
   },
   "resetHint": {
-    "message": "Every setting goes back to how xIT installs: three redirectors enabled, FxTwitter as the default, nothing pinned. Any redirector you added yourself is removed, and so is any catalogue entry you took. This cannot be undone.",
-    "description": "Settings, Reset to defaults?: text of the <p>."
+    "message": "Every setting goes back to how xIT installs: {1}, nothing pinned. Any redirector you added yourself is removed, and so is any catalogue entry you took. This cannot be undone.",
+    "description": "Settings, Reset to defaults?: <p> whose {1}, {2}... are markup kept in place."
   },
   "resetCancel": {
     "message": "Keep my settings",
@@ -869,50 +928,5 @@
   "copyFormat_author": {
     "message": "Author then link",
     "description": "Name of the \"author\" copy format, as offered in Settings. Its example is a URL and is not translated."
-  },
-  "errBadOperation": {
-    "message": "Invalid settings operation.",
-    "description": "Shown in Settings when a change to stored settings is rejected: the request itself was malformed."
-  },
-  "errNotJsonObject": {
-    "message": "Settings must be a JSON object.",
-    "description": "Shown in Settings when a change to stored settings is rejected: an imported file was valid JSON but not an object."
-  },
-  "errNoSuchCustom": {
-    "message": "That custom redirector no longer exists.",
-    "description": "Shown in Settings when a change to stored settings is rejected: the redirector being edited or removed is already gone."
-  },
-  "errNothingToRestore": {
-    "message": "There is no removed redirector to restore.",
-    "description": "Shown in Settings when a change to stored settings is rejected: Undo was used with nothing to undo."
-  },
-  "errIdTaken": {
-    "message": "That redirector ID is already in use.",
-    "description": "Shown in Settings when a change to stored settings is rejected: restoring a removed redirector would collide with an existing one."
-  },
-  "errUnknownOperation": {
-    "message": "Unknown settings operation.",
-    "description": "Shown in Settings when a change to stored settings is rejected: the request named an operation this version does not have."
-  },
-  "errNeedName": {
-    "message": "Give the redirector a name.",
-    "description": "Shown when a redirector is added or edited with no name. Used only when the template itself was valid, so there is no more specific complaint to make."
-  },
-  "errSaveFailed": {
-    "message": "Could not save settings.",
-    "description": "Shown when the background does not answer a request to change settings."
-  },
-  "popupTweetNoAuthor": {
-    "message": "Tweet",
-    "description": "Popup: label describing the current tab when it holds a tweet link that names no account, which is how x.com writes /i/web/status/ links."
-  },
-  "popupProfileOf": {
-    "message": "@$user$'s profile",
-    "description": "Popup: label describing the current tab when it holds a profile. $user$ is an account handle; the @ is part of the handle format and is not translated.",
-    "placeholders": {
-      "user": {
-        "content": "$1"
-      }
-    }
   }
 }

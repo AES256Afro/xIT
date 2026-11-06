@@ -161,6 +161,32 @@ behind it, rather than letting every string fall back to the English in the
 call. Changing one message now fails six background tests, which is the point:
 the assertions read what the shipped catalogue produces.
 
+## A generated file whose order nothing generated
+
+U11 was a small fix that uncovered a larger one. Rewriting the catalogue for
+it reordered fourteen messages that had not changed, because the committed
+file was not in the order `i18n:write` produces and nothing had ever checked.
+`write()` emits the hand-written messages first, so every message added by
+hand since 1.2.0 pushed the file further out of step, and the reshuffle waits
+to land in whichever commit next runs the tool.
+
+The order was defined inside `write()` and therefore known to nothing else.
+It now lives in `plan()`, which `write()` builds from and `check()` compares
+against, so the file's order is as derived as its content. This is the fourth
+time this sweep the answer has been "one definition, used by both", after B8,
+B9 and Q6, and the third place that definition turned out to be a generator
+that nobody checked, after the two harness stubs below.
+
+Verified both ways: a reordered catalogue fails the check, and with the check
+removed the same reordering passes everything else. The reorder itself was
+confirmed content-identical by comparing every key and value against the
+committed file before accepting it.
+
+The fix leaves one limit, recorded rather than hidden. WebExtension messages
+have no plural rules, so "$count$ redirectors enabled" is right for every
+count but one. A test asserts the bundled count is greater than one, which is
+what will catch a bundled set of a single redirector.
+
 ## Three harness stubs that were lying
 
 C13 needed `XITStore.allRedirectors` in the background harness, which is a
@@ -230,9 +256,9 @@ position. Three separate reversions each fail it.
 ## What sweep 2 produced
 
 Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
-1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, and C13 in 1.3.7**; the other
-two are carried into
-Milestone 6 in `PLAN.md`: U11, O5.
+1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, and U11 in
+1.3.8**; the last one is carried into
+Milestone 6 in `PLAN.md`: O5.
 
 Q6 turned on a shape worth naming, since it is the fourth finding of this
 sweep to have it. `canonical` returns a string and drops the parts it has
@@ -339,7 +365,7 @@ was used, what it printed is quoted.
 
 | id | Finding |
 |---|---|
-| U11 | **The reset dialog states the install defaults in prose.** "three redirectors enabled, FxTwitter as the default" is accurate today and duplicates `PRESETS` in a sentence, so it becomes wrong the moment the bundled set changes, with nothing to catch it. Now that the string is a catalogue message it cannot simply interpolate, but it can take `$count$` and `$default$` placeholders, which is what the message format is for. |
+| U11 | **Fixed in 1.3.8.** **The reset dialog states the install defaults in prose.** "three redirectors enabled, FxTwitter as the default" is accurate today and duplicates `PRESETS` in a sentence, so it becomes wrong the moment the bundled set changes, with nothing to catch it. Now that the string is a catalogue message it cannot simply interpolate, but it can take `$count$` and `$default$` placeholders, which is what the message format is for. |
 
 ### Quality of life
 

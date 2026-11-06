@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.8
+
+- The Reset to defaults dialog now reads the defaults rather than stating them. It told you "three redirectors enabled, FxTwitter as the default", which was a sentence somebody had typed out: correct today and quietly wrong the first time the bundled set changed. It is now filled in from the defaults a reset actually applies.
+
 ## 1.3.7
 
 - Reachability results are tidied up after themselves. A redirector you remove now takes its Check result with it instead of leaving a badge for something that is no longer there, and Reset to defaults clears the results along with everything else. Disabling a redirector still keeps its result, since you can tick it back on and the result is about the same host either way.
