@@ -24,8 +24,22 @@
     if (text) statusTimer = setTimeout(() => { el.textContent = ''; }, 2600);
   }
 
+  /*
+   * The hosts here are gathered by walking every configured redirector, so
+   * building this per row per keystroke was most of O2 on its own. Settings
+   * are replaced wholesale on every change (load and normalize each build a
+   * fresh object), so their identity says when this is stale: the same object
+   * cannot describe different hosts. Nothing may write to what comes back.
+   */
+  let optsFor = null;
+  let optsCache = null;
+
   function opts() {
-    return { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) };
+    if (optsFor !== settings) {
+      optsCache = { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) };
+      optsFor = settings;
+    }
+    return optsCache;
   }
 
   async function writeClipboard(text) {
@@ -93,13 +107,28 @@
     renderList(parts);
   }
 
-  function renderList(parts) {
+  /*
+   * O2: this list is shaped by the settings and written by the source. A
+   * keystroke in the paste field changes only the source, so rebuilding every
+   * row, its five buttons and their listeners per keystroke redid work that
+   * could not have changed, and ran convert once per row to throw the rows
+   * away. The rows are built once per settings object and only the two things
+   * a new source can alter, the sub line and what is still clickable, are
+   * written again. Settings identity is the test for the same reason opts()
+   * uses it: a settings change always brings a fresh object, and nothing else
+   * can change the shape of this list.
+   */
+  let rowsFor = null;
+  let rows = [];
+
+  function buildRows() {
     const list = $('list');
     const scrollTop = list.scrollTop;
     const focused = document.activeElement;
     const focusId = focused && focused.closest('[data-id]')?.dataset.id;
     const focusAction = focused && focused.dataset.action;
     list.textContent = '';
+    rows = [];
 
     for (const g of XITStore.redirectorGroups(settings)) {
       const inGroup = g.entries;
@@ -120,23 +149,18 @@
         const b = document.createElement('b');
         b.textContent = r.name;
         const sub = document.createElement('span');
-        const out = parts ? XIT.convert(sourceUrl, r, opts()) : { ok: false, reason: '' };
-        sub.textContent = out.ok ? out.url.replace(/^https:\/\//, '')
-          : (out.reason || (r.note ? XITI18N.of('note', r.id, r.note) : ''));
         name.append(b, sub);
 
         const copyBtn = document.createElement('button');
         copyBtn.className = 'mini';
         copyBtn.dataset.action = 'copy';
         copyBtn.textContent = XITI18N.t('actionCopy');
-        copyBtn.disabled = !out.ok;
         copyBtn.addEventListener('click', () => doCopy(r));
 
         const openBtn = document.createElement('button');
         openBtn.className = 'mini';
         openBtn.dataset.action = 'open';
         openBtn.textContent = XITI18N.t('actionOpen');
-        openBtn.disabled = !out.ok;
         openBtn.addEventListener('click', () => doOpen(r));
 
         const defBtn = document.createElement('button');
@@ -162,10 +186,32 @@
         pin.addEventListener('click', () => commit(XITStore.setPinned(r.id, !pinned)));
         row.append(name, copyBtn, openBtn, pin, defBtn);
         list.appendChild(row);
+        rows.push({ redirector: r, sub, copyBtn, openBtn });
       }
     }
     if (focusId && focusAction) list.querySelector('[data-id="' + CSS.escape(focusId) + '"] [data-action="' + focusAction + '"]')?.focus({ preventScroll: true });
     list.scrollTop = scrollTop;
+  }
+
+  /** Write the part of each row that the source decides, and nothing else. */
+  function updateRows(parts) {
+    const o = opts();
+    for (const row of rows) {
+      const r = row.redirector;
+      const out = parts ? XIT.convert(sourceUrl, r, o) : { ok: false, reason: '' };
+      row.sub.textContent = out.ok ? out.url.replace(/^https:\/\//, '')
+        : (out.reason || (r.note ? XITI18N.of('note', r.id, r.note) : ''));
+      row.copyBtn.disabled = !out.ok;
+      row.openBtn.disabled = !out.ok;
+    }
+  }
+
+  function renderList(parts) {
+    if (rowsFor !== settings) {
+      buildRows();
+      rowsFor = settings;
+    }
+    updateRows(parts);
   }
 
   async function commit(operation) {

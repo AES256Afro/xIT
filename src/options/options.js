@@ -173,12 +173,42 @@
    */
   let listFilter = '';
 
-  /** Does this entry match what was typed? Name, host, template and note. */
-  function matchesFilter(entry) {
-    if (!listFilter) return true;
-    const haystack = [entry.name, entry.template, entry.note, XIT.templateHost(entry.template)]
+  /** Everything about an entry the filter looks at: name, host, template, note. */
+  function haystack(entry) {
+    return [entry.name, entry.template, entry.note, XIT.templateHost(entry.template)]
       .filter(Boolean).join(' ').toLowerCase();
-    return listFilter.split(/\s+/).every((word) => haystack.includes(word));
+  }
+
+  /** Does that haystack match what was typed? */
+  function matchesFilter(hay) {
+    if (!listFilter) return true;
+    return listFilter.split(/\s+/).every((word) => hay.includes(word));
+  }
+
+  /*
+   * O5: the filter decides which rows are shown. It says nothing about what a
+   * row contains, so it is applied to rows that already exist rather than used
+   * to skip building them, and a keystroke no longer recreates every row, its
+   * buttons, its listeners and its badge. Each row carries its own haystack,
+   * so this needs no second pass over the settings. One function does the
+   * whole job, called at the end of a render and on its own from the
+   * keystroke, so a filtered view and a freshly rendered one cannot drift.
+   */
+  function applyFilter() {
+    const host = $('redirector-list');
+    let shown = 0;
+    for (const row of host.querySelectorAll('.ritem')) {
+      const hit = matchesFilter(row.dataset.filter);
+      row.hidden = !hit;
+      if (hit) shown += 1;
+    }
+    // A group whose rows were all filtered out would otherwise leave its
+    // heading and blurb standing over nothing.
+    for (const group of host.querySelectorAll('.rgroup')) {
+      group.hidden = !group.querySelector('.ritem:not([hidden])');
+    }
+    $('list-empty').textContent = shown ? '' : XITI18N.t('listNoMatch', [listFilter]);
+    $('list-empty').hidden = !!shown;
   }
 
   function renderList() {
@@ -187,7 +217,6 @@
     const focusRow = focused && focused.closest('[data-id]')?.dataset.id;
     const focusAction = focused && focused.dataset.action;
     host.textContent = '';
-    let shown = 0;
     for (const g of XITStore.redirectorGroups(settings, false)) {
       const wrap = document.createElement('div');
       wrap.className = 'rgroup';
@@ -202,11 +231,10 @@
         wrap.appendChild(blurb);
       }
       for (const r of g.entries) {
-        if (!matchesFilter(r)) continue;
-        shown += 1;
         const row = document.createElement('div');
         row.className = 'ritem';
         row.dataset.id = r.id;
+        row.dataset.filter = haystack(r);
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = settings.enabledIds.includes(r.id);
@@ -263,12 +291,11 @@
         row.appendChild(actions);
         wrap.appendChild(row);
       }
-      // A group whose rows were all filtered out would otherwise leave its
-      // heading and blurb standing over nothing.
+      // A group with no entries at all would leave its heading standing over
+      // nothing. Which of its rows the filter shows is applyFilter's business.
       if (wrap.querySelector('.ritem')) host.appendChild(wrap);
     }
-    $('list-empty').textContent = shown ? '' : XITI18N.t('listNoMatch', [listFilter]);
-    $('list-empty').hidden = !!shown;
+    applyFilter();
     $('list-sort').value = settings.listSort;
     if (focusRow && focusAction) {
       const row = host.querySelector('[data-id="' + CSS.escape(focusRow) + '"]');
@@ -684,7 +711,7 @@
     $('copy-format').addEventListener('change', (ev) => commit({ copyFormat: ev.target.value }));
     $('list-filter').addEventListener('input', (ev) => {
       listFilter = ev.target.value.trim().toLowerCase();
-      renderList();
+      applyFilter();
     });
     $('list-sort').addEventListener('change', (ev) => commit({ listSort: ev.target.value }));
     $('copy-shortcut-url').addEventListener('click', async (ev) => {
