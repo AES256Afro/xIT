@@ -253,12 +253,79 @@ permission request itself, so a reversion that moved the refusal out of the
 block passed. It now finds the block by its `catch (error)` rather than by
 position. Three separate reversions each fail it.
 
+## Two render paths, one rule
+
+O5 and O2 were recorded as separate findings in separate sweeps, in separate
+files, and they are one defect: a render that rebuilds everything when the
+thing that changed decides only part of what is shown. Taken together they
+also come apart differently, which is the reason for doing them together.
+
+In the settings list the filter decides *which* rows are shown and nothing
+about what a row contains, so the filter can be lifted out of the render
+altogether. `renderList` now builds every row and `applyFilter` hides the ones
+that do not match, which is called from the keystroke on its own and from the
+end of a render. A keystroke creates no elements at all.
+
+In the popup the source decides what two parts of each row *say*, so the
+conversions cannot go anywhere: the line under each redirector's name is the
+converted URL. What could go is everything else. The rows are built once and a
+keystroke rewrites the sub line and the two disabled flags. The conversions
+remain one per row per keystroke, by design, and this is worth being plain
+about rather than claiming the finding is wholly gone.
+
+The part of O2 that actually grew with the catalogue was not the conversions.
+`opts()` gathers the hosts of every configured redirector by walking them all,
+and it was called once per row, which made a keystroke quadratic in the number
+of entries. It is now held against the settings object.
+
+Both caches are keyed on settings object identity rather than on a signature
+of the fields they depend on. A signature would be a second copy of the rule
+"what this render is made of", which is the shape this audit keeps finding
+wrong. Identity needs no such copy: `load` and `normalize` each build a fresh
+object, so a settings change always brings a new one, and the same object
+cannot describe different settings. Two reversions hold the two halves of
+that: one that always rebuilds and one that never rebuilds again.
+
+Coalescing renders to one per animation frame was considered and left out. It
+would address "per keystroke" more directly than either fix, but it makes
+rendering asynchronous, and the suites that would catch the fallout are the
+Playwright ones, which cannot be run in this environment.
+
+## A DOM, because source text is not behaviour
+
+`test/options.test.mjs` opened last sweep with a note that the options page is
+a DOM file with no harness here, so its tests read the source. Two of this
+sweep's own tests then passed while the code was wrong, both for the same
+reason: asserting that a line exists is not asserting what the line does.
+O5 and O2 are claims about how much work a keystroke does, which source text
+cannot express at all.
+
+So `test/helpers/dom.mjs` is an element tree with the handful of selectors the
+two page scripts actually use, and `test/helpers/page.mjs` loads a page script
+over it with the real i18n, redirectors and storage libraries behind it. The
+measure both findings are about is one counter: how many elements were created.
+The harness throws on a selector it does not implement rather than returning
+nothing, and it auto-creates elements by id rather than parsing the markup,
+which the i18n suite already reads directly. Eight tests, nine reversions,
+each failing its own.
+
+Deliberately not stubbed: the store. A stub of it would have to repeat what
+counts as a redirector group, and the section above on three lying harness
+stubs is what that costs. Two of the three remaining static tests in
+`options.test.mjs` stay static, because what they hold is the statement order
+around the permission prompt, and the prompt is browser chrome that no harness
+can put up.
+
+A dual-mode storage stub was needed, and is worth noting as the same class of
+defect caught earlier: the store promisifies the callback form while the
+options page awaits the promise form directly, so a stub supporting one would
+have let every call in the other style pass silently.
+
 ## What sweep 2 produced
 
-Eleven findings. **B6 is fixed in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
-1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, and U11 in
-1.3.8**; the last one is carried into
-Milestone 6 in `PLAN.md`: O5.
+Eleven findings, all fixed: **B6 in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
+1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, U11 in 1.3.8,
+and O5 in 1.3.9**, which took Milestone 2's O2 with it.
 
 Q6 turned on a shape worth naming, since it is the fourth finding of this
 sweep to have it. `canonical` returns a string and drops the parts it has
@@ -383,7 +450,7 @@ was used, what it printed is quoted.
 
 | id | Finding |
 |---|---|
-| O5 | **The filter rebuilds the whole list on every keystroke.** `renderList` clears `#redirector-list` and recreates every row, its buttons, its listeners and its reachability badge, so filtering an entry does the work of rendering all of them. Harmless at eight entries and the same defect as O2, which is still open: both only matter once the catalogue is large, which is the direction the list is going. |
+| O5 | **The filter rebuilds the whole list on every keystroke.** `renderList` clears `#redirector-list` and recreates every row, its buttons, its listeners and its reachability badge, so filtering an entry does the work of rendering all of them. Harmless at eight entries and the same defect as O2: both only matter once the catalogue is large, which is the direction the list is going. **Fixed in 1.3.9**, with O2, which is the same defect in the other render path. |
 
 ## Sweep 1, 4 November 2026
 
@@ -466,7 +533,7 @@ this pass.
 | id | Finding |
 |---|---|
 | O1 | `syncTheme` unthrottled on body attribute mutations (same defect as B5, counted once in the fix). |
-| O2 | `renderList` in the popup re-runs `XIT.convert` for every redirector on every keystroke in the paste field. Cheap at eight entries, not cheap once a catalogue can add thirty. |
+| O2 | `renderList` in the popup re-runs `XIT.convert` for every redirector on every keystroke in the paste field. Cheap at eight entries, not cheap once a catalogue can add thirty. **Fixed in 1.3.9**, with O5: the rows are built once per settings object and a keystroke writes only what the source decides. The conversions themselves stay, because the line each row shows is the converted URL. |
 | O3 | `redirectorGroups` does an O(n) `find` per pinned id on every render, in three separate render paths. **Fixed in 1.1.1:** both lookups are indexed once per call. |
 | O4 | Any settings write rebuilds the entire context menu: one `removeAllMenus` plus roughly 25 awaited `create` calls, in sequence. Toggling the toast setting pays that cost for no reason. **Fixed in 1.1.0:** the menu is rebuilt only when something it is built from changes. |
 

@@ -65,6 +65,15 @@
     "message": "Check complete. A response does not prove the host can display tweets.",
     "description": "Settings: shown when a reachability check finishes."
   },
+  "listNoMatch": {
+    "message": "Nothing matches \"$text$\".",
+    "description": "Settings: shown when the redirector filter matches nothing. $text$ is what the user typed.",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      }
+    }
+  },
   "rowUnpin": {
     "message": "Unpin",
     "description": "Settings: button that removes a redirector from the pinned list."
@@ -96,15 +105,6 @@
   "rowRemove": {
     "message": "Remove",
     "description": "Settings: button that deletes a redirector the user added."
-  },
-  "listNoMatch": {
-    "message": "Nothing matches \"$text$\".",
-    "description": "Settings: shown when the redirector filter matches nothing. $text$ is what the user typed.",
-    "placeholders": {
-      "text": {
-        "content": "$1"
-      }
-    }
   },
   "panelCustomEdit": {
     "message": "Edit custom redirector",

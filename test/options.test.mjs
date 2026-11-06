@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { loadPage } from './helpers/page.mjs';
 
 const SRC = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
 
 /**
  * The source of one top-level function in options.js, by brace matching.
- * The options page is a DOM file with no harness here, so these are static
- * checks on its text: they hold an invariant that is about the order of
- * statements rather than about a value, which is the kind of thing a
- * behavioural test in the Playwright suite confirms but cannot be run in this
- * environment.
+ *
+ * The two tests below are static checks on the file's text, and the only ones
+ * here that are: what they hold is the order of statements around the
+ * permission prompt, and the prompt is browser chrome, so no harness can put
+ * it up and click twice while it is there. Everything else about this page is
+ * tested by running it, through test/helpers/page.mjs.
  */
 function body(name) {
   const start = SRC.indexOf('async function ' + name + '(');
@@ -85,4 +87,87 @@ test('runCheck clears the flag on every path out of it', () => {
   const refusal = src.indexOf('checkNoAccess');
   assert.ok(refusal > span.open && refusal < span.close,
     'the refusal returns early, so it must sit inside the try that has the finally');
+});
+
+/* ---- O5: the list filter ---- */
+
+/** The rows of the settings list, which is not the only `.ritem` on the page. */
+function listRows(page) {
+  return page.$('redirector-list').querySelectorAll('.ritem');
+}
+
+function visible(page) {
+  return listRows(page).filter((row) => !row.hidden).map((row) => row.dataset.id);
+}
+
+test('filtering the list builds nothing', async () => {
+  /*
+   * O5. `renderList` used to decide what to build from the filter, so every
+   * keystroke cleared the list and recreated each row, its checkbox, its five
+   * buttons, their listeners and its reachability badge. The filter chooses
+   * which rows are shown and says nothing about what a row contains, so it is
+   * applied to rows that already exist.
+   *
+   * Putting the `continue` back in renderList and calling it from the
+   * keystroke again makes this fail: the count is then one element per row
+   * per keystroke.
+   */
+  const page = await loadPage('options/options.js');
+  const before = listRows(page).length;
+  assert.ok(before >= 3, 'the default list should have rows to filter');
+
+  page.dom.reset();
+  page.type('list-filter', 'thread');
+
+  assert.equal(page.dom.created(), 0, 'a keystroke in the filter should create no elements');
+  assert.equal(listRows(page).length, before, 'the rows should still be there, merely hidden');
+  assert.deepEqual(visible(page), ['threadreader']);
+});
+
+test('a group whose rows are all filtered out is hidden, and comes back', async () => {
+  const page = await loadPage('options/options.js');
+  const groups = () => page.$('redirector-list').querySelectorAll('.rgroup');
+  const shownGroups = () => groups().filter((g) => !g.hidden).length;
+  const all = shownGroups();
+  assert.ok(all >= 2, 'the default list should span more than one group');
+
+  page.type('list-filter', 'thread');
+  assert.equal(shownGroups(), 1, 'a heading should not stand over nothing');
+
+  page.type('list-filter', '');
+  assert.equal(shownGroups(), all, 'clearing the filter should bring every group back');
+  assert.deepEqual(visible(page).length, listRows(page).length);
+});
+
+test('a filter that matches nothing says so, in the words that were typed', async () => {
+  const page = await loadPage('options/options.js');
+  page.type('list-filter', 'nothing here by that name');
+  assert.equal(visible(page).length, 0);
+  assert.equal(page.$('list-empty').hidden, false);
+  assert.match(page.$('list-empty').textContent, /nothing here by that name/);
+
+  page.type('list-filter', 'thread');
+  assert.equal(page.$('list-empty').hidden, true);
+  assert.equal(page.$('list-empty').textContent, '');
+});
+
+test('a filter survives a render it did not ask for', async () => {
+  /*
+   * The filter is view state and a render rebuilds every row, so the rows a
+   * render makes have to be put through the filter before the user sees them.
+   * Any settings change renders: without that, turning a switch on in another
+   * tab would quietly empty the filter field's effect while the field still
+   * showed what was typed.
+   *
+   * Taking the applyFilter call off the end of renderList makes this fail.
+   */
+  const page = await loadPage('options/options.js');
+  page.type('list-filter', 'thread');
+  assert.deepEqual(visible(page), ['threadreader']);
+
+  await page.changeSettings({ toast: false });
+
+  assert.deepEqual(visible(page), ['threadreader'],
+    'the filter should still be in force over the rows the render just made');
+  assert.equal(page.$('list-filter').value, 'thread');
 });

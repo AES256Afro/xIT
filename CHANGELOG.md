@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.9
+
+- Typing in the Settings redirector filter and in the popup's paste field no longer redraws the whole list for each character. Filtering now hides the rows that do not match rather than rebuilding every row, its buttons and its reachability badge, and the popup builds its rows once and rewrites only the line that the link you pasted decides. Nothing looks different; both lists simply stop doing work that could not change anything, which matters as the number of redirectors grows.
+
 ## 1.3.8
 
 - The Reset to defaults dialog now reads the defaults rather than stating them. It told you "three redirectors enabled, FxTwitter as the default", which was a sentence somebody had typed out: correct today and quietly wrong the first time the bundled set changed. It is now filled in from the defaults a reset actually applies.

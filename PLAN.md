@@ -241,8 +241,9 @@ from 98. 191 messages, none of them typed twice.
 ## Milestone 6, what sweep 2 found
 
 Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
-S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, and U11 in 1.3.8**, one
-remains. Full text in `AUDIT-LOOP.md`. Ordered by what
+S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, U11 in 1.3.8, and O5 in
+1.3.9**, which took Milestone 2's O2 with it. One remains: P5, a platform
+feature rather than a defect. Full text in `AUDIT-LOOP.md`. Ordered by what
 goes wrong for a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
@@ -325,15 +326,25 @@ goes wrong for a user, not by category.
 10. **P5, no `selection` context menu.** A tweet URL that is plain text
     rather than a link cannot be converted from the right-click menu. Fix:
     add `contexts: ['selection']` and convert the selected text.
-11. **O5, the filter rebuilds the whole list per keystroke.** Same defect as
-    O2, which is still open. Both only matter as the catalogue grows. Fix the
-    two together, or neither.
+11. ~~**O5, the filter rebuilds the whole list per keystroke.**~~ **Done in
+    1.3.9, with O2.** They are one defect in two render paths, so they were
+    fixed as one. In the settings list the filter decides only which rows are
+    shown, so it came out of the render: `applyFilter` hides rows that already
+    exist and a keystroke creates nothing. In the popup the source decides
+    what parts of each row say, so the rows are built once per settings object
+    and a keystroke rewrites only the sub line and the two disabled flags. The
+    conversions stay, one per row, because that line is the converted URL;
+    what came out was the per-row host gathering, which was the part that grew
+    quadratically. Both caches are keyed on settings object identity rather
+    than a signature, so nothing repeats the rule about what a render is made
+    of. This also needed a DOM: the page scripts could only be tested as
+    source text before, which twice this sweep let a wrong fix pass. Both are
+    in `AUDIT-LOOP.md`.
 
-Still carried from earlier milestones: **C12**, the failure messages
+Still carried from an earlier milestone: **C12**, the failure messages
 `convert()` and `validateTemplate()` return, which needs a library-contract
 change rather than a string move, and which grew by one in 1.3.4 because the
-new template-length message had nowhere else to go; and **O2**, the popup
-re-running `convert` for every redirector on every keystroke.
+new template-length message had nowhere else to go.
 
 ## Explicitly not doing
 
