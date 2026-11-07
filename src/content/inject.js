@@ -720,6 +720,14 @@
       return true;
     }
 
+    // P5: the background has something to say and nothing to copy. A
+    // selection that holds no tweet link is the case this exists for.
+    if (msg.type === 'xit:toast') {
+      toast(msg.text, msg.kind || 'warn');
+      sendResponse({ ok: true });
+      return true;
+    }
+
     if (msg.type === 'xit:ping') {
       sendResponse({ ok: true });
       return true;

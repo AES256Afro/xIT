@@ -261,10 +261,13 @@ test(`Firefox=${firefox}: install, startup, storage events and popup messages ca
   assert.deepEqual(h.errors,[]);
   assert.equal(response?.ok,true);
   assert.equal(h.menus.get('xit-link-copy-default').title,'Copy as latest');
-  // 12, not 13: the capped menu puts its two entries at the top level rather
-  // than inside a group submenu (U3).
-  assert.equal(h.menus.size,12);
+  // Three trees: one on links, one on selected text (P5), one on the page.
+  // The link and selection trees come to eight items each with one
+  // redirector configured, because the capped menu puts its entries at the
+  // top level rather than inside a group submenu (U3); the page tree is four.
+  assert.equal(h.menus.size,20);
   assert.ok(h.menus.has('xit-link-open-original'));
+  assert.ok(h.menus.has('xit-sel-open-original'));
   assert.ok(h.menus.has('xit-page-open-original'));
   h.change({contextMenu:false});
   await h.settle();
@@ -347,6 +350,149 @@ test('a successful copy carries no note', async () => {
   await h.settle();
   assert.equal(h.sent[0].text, 'https://example.com/jack/status/20');
   assert.equal(h.sent[0].note, null, 'no explanation is needed when it worked');
+});
+
+/* ---- P5: the selection menu ---- */
+
+test('a tweet link buried in selected text is found and converted', async () => {
+  /*
+   * P5. The menus could only act on something the browser had already called
+   * a link, a page or a frame, so a tweet URL sitting in prose had no route
+   * but the popup's paste field. The selection carries text, not a URL.
+   *
+   * Taking XIT.findLink out of the target line makes this fail: the handler
+   * then falls back to the tab, which is not X at all here.
+   */
+  const h = harness();
+  await h.settle();
+
+  h.events.clicked({
+    menuItemId: 'xit-sel-copy-default',
+    selectionText: 'worth reading: https://x.com/jack/status/20?s=20 (via a mailing list)',
+  }, { id: 7, index: 2, url: 'https://lists.example.org/thread/4812' });
+  await h.settle();
+
+  assert.equal(h.sent.length, 1, 'exactly one clipboard write');
+  assert.equal(h.sent[0].text, 'https://example.com/jack/status/20');
+});
+
+test('a selection with no tweet link copies nothing and says so', async () => {
+  /*
+   * B10's lesson applied to a new route: the worst outcome here is leaving
+   * the clipboard holding whatever it held and letting the user paste that.
+   * Nothing is copied, and the tab is told why.
+   *
+   * Dropping the early return makes this fail on the clipboard write, since
+   * the handler would go on to convert an empty target.
+   */
+  const h = harness();
+  await h.settle();
+
+  h.events.clicked({ menuItemId: 'xit-sel-copy-default', selectionText: 'no link here, just x.com in passing' },
+    { id: 7, index: 2, url: 'https://x.com/home' });
+  await h.settle();
+
+  const writes = h.sent.filter((m) => m.type === 'xit:copy-text');
+  assert.deepEqual(writes, [], 'nothing should reach the clipboard');
+  const said = h.sent.filter((m) => m.type === 'xit:toast');
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /No tweet link/);
+  assert.deepEqual(h.errors, []);
+});
+
+test('off an X page a selection with no tweet link fails quietly rather than throwing', async () => {
+  // There is no content script off X, so there is no toast either. That is a
+  // limitation of having no UI on pages xIT does not script, and the point of
+  // this test is that it stays a limitation rather than becoming an error.
+  const h = harness();
+  await h.settle();
+  h.dropContentScript();
+
+  h.events.clicked({ menuItemId: 'xit-sel-copy-default', selectionText: 'nothing to find' },
+    { id: 7, index: 2, url: 'https://lists.example.org/thread/4812' });
+  await h.settle();
+
+  assert.deepEqual(h.sent, []);
+  assert.deepEqual(h.injected, [], 'nothing was copied, so nothing was injected');
+  assert.deepEqual(h.errors, []);
+});
+
+test('the selection menu is not restricted to any host', async () => {
+  /*
+   * The whole point is text on a page xIT knows nothing about, and the
+   * browser cannot say what a selection holds before the menu opens, so
+   * there is nothing to match on. Adding either pattern list to the
+   * selection context would make the feature useless off X and this fail.
+   */
+  const h = harness();
+  await h.settle();
+  const root = h.menus.get('xit-sel-root');
+  // Array.from first: the array was made inside the vm realm, so its
+  // prototype is not this realm's and a strict deepEqual compares those too.
+  assert.deepEqual(Array.from(root.contexts), ['selection']);
+  assert.equal(root.targetUrlPatterns, undefined);
+  assert.equal(root.documentUrlPatterns, undefined);
+
+  const link = h.menus.get('xit-link-root');
+  assert.ok(link.targetUrlPatterns.length, 'the link menu still only offers itself on tweet links');
+});
+
+test('the selection menu offers exactly what the link menu offers', async () => {
+  /*
+   * Somebody who right-clicked a selection wants what somebody who
+   * right-clicked a link wants, and the two trees are built by one function
+   * so they cannot drift. Writing the selection tree out a second time, by
+   * hand, is what this is here to stop: it would pass today and rot later.
+   */
+  const h = harness();
+  await h.settle();
+  const suffixes = (prefix) => [...h.menus.keys()]
+    .filter((id) => id.startsWith(prefix))
+    .map((id) => id.slice(prefix.length))
+    .sort();
+
+  assert.deepEqual(suffixes('xit-sel-'), suffixes('xit-link-'));
+  assert.ok(suffixes('xit-sel-').includes('copy-original'));
+});
+
+test('every selection item works, not only the default one', async () => {
+  // The id is read as a scope and then an action, so one branch serves all
+  // three scopes. These are the paths that branch has to carry.
+  const h = harness();
+  await h.settle();
+  const text = 'see https://x.com/jack/status/20 for the rest';
+
+  h.events.clicked({ menuItemId: 'xit-sel-copy:example', selectionText: text }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.sent[0].text, 'https://example.com/jack/status/20');
+
+  h.events.clicked({ menuItemId: 'xit-sel-copy-original', selectionText: text }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.sent[1].text, 'https://x.com/jack/status/20');
+
+  h.events.clicked({ menuItemId: 'xit-sel-open:example', selectionText: text }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.opened[0].url, 'https://example.com/jack/status/20');
+
+  h.events.clicked({ menuItemId: 'xit-sel-open-original', selectionText: text }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.opened[1].url, 'https://x.com/jack/status/20');
+  assert.deepEqual(h.errors, []);
+});
+
+test('a separator or a group heading is not a click', async () => {
+  // Both carry ids under the same prefixes and neither is clickable. They
+  // used to fall out of a regex that only matched copy: and open:; they now
+  // fall out of one that matches anything, so this is worth holding.
+  const h = harness();
+  await h.settle();
+  for (const id of ['xit-sel-sep1', 'xit-link-sep2', 'xit-sel-root', 'xit-link-g-test']) {
+    h.events.clicked({ menuItemId: id, selectionText: 'https://x.com/jack/status/20' }, { id: 7, index: 2 });
+  }
+  await h.settle();
+  assert.deepEqual(h.sent, []);
+  assert.deepEqual(h.opened, []);
+  assert.deepEqual(h.errors, []);
 });
 
 test('a frame context menu converts the frame, not the top document', async () => {
@@ -438,7 +584,9 @@ test('showing every redirector groups the menu, capping it does not', async () =
   h.change({ contextMenuAll: true });
   await h.settle();
   assert.equal(h.menus.has('xit-link-g-test'), true, 'the full list is grouped');
-  assert.equal(h.menus.size, flat + 1);
+  assert.equal(h.menus.has('xit-sel-g-test'), true, 'and so is the selection menu');
+  // Two group parents, not one: the link and selection trees both group.
+  assert.equal(h.menus.size, flat + 2);
   assert.deepEqual(h.errors, []);
 });
 

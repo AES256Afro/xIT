@@ -375,3 +375,62 @@ test('cleanCopy writes the clean x.com link in the chosen format', () => {
   // stripTracking: false is still honoured, since this is canonical's work.
   assert.equal(XIT.cleanCopy(u, { stripTracking: false }, 'url'), 'https://x.com/jack/status/20?s=20');
 });
+
+/* ---- P5: finding a tweet link inside a run of text ---- */
+
+test('findLink picks a tweet link out of prose', () => {
+  const find = (text, hosts) => XIT.findLink(text, hosts);
+
+  assert.equal(find('worth reading: https://x.com/jack/status/20 (via a list)'),
+    'https://x.com/jack/status/20');
+  // The punctuation that ends the sentence is not part of the URL, and nor
+  // are the brackets or markup characters text wraps one in.
+  assert.equal(find('see https://x.com/jack/status/20.'), 'https://x.com/jack/status/20');
+  assert.equal(find('<https://x.com/jack/status/20>'), 'https://x.com/jack/status/20');
+  assert.equal(find('(https://x.com/jack/status/20),'), 'https://x.com/jack/status/20');
+  assert.equal(find('_https://x.com/jack/status/20_'), 'https://x.com/jack/status/20');
+  // Plain text often carries no scheme. The answer always has one, so a
+  // caller can hand it straight to convert.
+  assert.equal(find('posted at x.com/jack/status/20 today'), 'https://x.com/jack/status/20');
+  assert.equal(find('a profile at x.com/jack perhaps'), 'https://x.com/jack');
+  assert.equal(find('twitter.com/jack/status/20'), 'https://twitter.com/jack/status/20');
+});
+
+test('findLink holds out for a tweet or a profile', () => {
+  /*
+   * `parse` accepts any X URL, the home page and /explore included, so
+   * matching on it alone would make the word "x.com" in a sentence look like
+   * a find and then copy something useless. Dropping the kind check makes
+   * the first three of these return a URL.
+   */
+  assert.equal(XIT.findLink('nothing but x.com in passing'), null);
+  assert.equal(XIT.findLink('see https://x.com/ for more'), null);
+  assert.equal(XIT.findLink('https://x.com/explore'), null);
+  assert.equal(XIT.findLink('https://example.com/jack/status/20'), null);
+  assert.equal(XIT.findLink('no links at all, just words'), null);
+  assert.equal(XIT.findLink(''), null);
+  assert.equal(XIT.findLink(null), null);
+  assert.equal(XIT.findLink(undefined), null);
+});
+
+test('findLink takes the first link and the user\'s own hosts', () => {
+  assert.equal(XIT.findLink('https://x.com/jack/status/20 and https://x.com/jack/status/99'),
+    'https://x.com/jack/status/20');
+  // A host the user configured counts as a mirror, the same as it does
+  // everywhere else the library is given extraHosts.
+  // Not a nitter-shaped name, which isMirrorHost accepts on its own.
+  const hosts = new Set(['mirror.example.org']);
+  assert.equal(XIT.findLink('mirror: mirror.example.org/jack/status/20', hosts),
+    'https://mirror.example.org/jack/status/20');
+  assert.equal(XIT.findLink('mirror: mirror.example.org/jack/status/20'), null,
+    'and not without being told about it');
+});
+
+test('findLink does not scan an unbounded amount of text', () => {
+  // A selection can be a whole page. The scan is capped, which is the same
+  // reasoning as S6: a field whose size nothing bounds is a field that will
+  // one day arrive enormous.
+  const link = 'https://x.com/jack/status/20';
+  assert.equal(XIT.findLink('x'.repeat(100) + ' ' + link), link, 'a little prose is fine');
+  assert.equal(XIT.findLink('x'.repeat(5000) + ' ' + link), null, 'past the cap it is not read');
+});

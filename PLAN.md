@@ -242,9 +242,9 @@ from 98. 191 messages, none of them typed twice.
 
 Eleven findings. **B6 is done in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in 1.3.3,
 S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, U11 in 1.3.8, and O5 in
-1.3.9**, which took Milestone 2's O2 with it. One remains: P5, a platform
-feature rather than a defect. Full text in `AUDIT-LOOP.md`. Ordered by what
-goes wrong for a user, not by category.
+1.3.9**, which took Milestone 2's O2 with it, **and P5 in 1.4.0**. All
+eleven are done. Full text in `AUDIT-LOOP.md`. Ordered by what goes wrong for
+a user, not by category.
 
 1. ~~**B6, the author formats invent an account.**~~ **Done in 1.3.1.** Fixed
    at the root rather than at the call site: `XIT.handleOf` is now the only
@@ -323,9 +323,21 @@ goes wrong for a user, not by category.
    nothing, so it had drifted and a rewrite reshuffled fourteen untouched
    messages; and the format has no plural rules, so a test holds the bundled
    count above one. Both are in `AUDIT-LOOP.md`.
-10. **P5, no `selection` context menu.** A tweet URL that is plain text
-    rather than a link cannot be converted from the right-click menu. Fix:
-    add `contexts: ['selection']` and convert the selected text.
+10. ~~**P5, no `selection` context menu.**~~ **Done in 1.4.0.** The
+    selection menu offers what the link menu offers, built by one function so
+    the two cannot drift, and the click handler now reads an id as a scope
+    and then an action rather than naming all three scopes in four places.
+    The finding understated two things. A selection is text, so the URL has
+    to be found inside it: `XIT.findLink` holds out for a tweet or a profile,
+    because `parse` accepts any X URL and a sentence mentioning "x.com" would
+    otherwise have looked like a find. And a selection with no tweet link in
+    it must not leave the clipboard holding what it held, so the content
+    script gained a toast-only message; off X there is no toast, which is
+    recorded as a limitation. The popup's paste field reads the same function
+    now, since it is the other place a URL arrives buried in prose. Firefox's
+    `menus.onShown` could hide the item when a selection holds no link, and
+    is deliberately not done: Firefox-only, and only the Playwright suites
+    could exercise it. Both are in `AUDIT-LOOP.md`.
 11. ~~**O5, the filter rebuilds the whole list per keystroke.**~~ **Done in
     1.3.9, with O2.** They are one defect in two render paths, so they were
     fixed as one. In the settings list the filter decides only which rows are
