@@ -442,8 +442,10 @@ async function diagnostics() {
  * Earlier versions installed declarativeNetRequest rules that sent X page
  * loads to a third-party front-end, including ones xIT no longer offers.
  * Dynamic rules survive extension updates, so they are removed on every
- * start. declarativeNetRequest stays in the manifest for this release only,
- * so this can run; drop the permission once users have had time to update.
+ * start. This outlives the release that removed the feature: it can only go
+ * one release after a release carrying it has been published, and the live
+ * Store version is still 1.0.3, which is what installed the rules. Until
+ * then, dropping the permission strands those users mid-redirect (S5).
  * -------------------------------------------------------------------- */
 
 async function clearLegacyRedirects() {

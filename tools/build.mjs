@@ -60,9 +60,12 @@ function baseManifest() {
     name: msg('extensionName'),
     version: pkg.version,
     description: msg('extensionDescription'),
-    // declarativeNetRequest is kept for 1.0.7 only, so the background can
-    // remove redirect rules earlier versions installed. Page redirecting is
-    // gone; drop this permission once users have had time to update.
+    // declarativeNetRequest is here so clearLegacyRedirects can delete the
+    // redirect rules earlier versions installed, which survive updates. The
+    // condition for dropping it is not a version number: it can go one
+    // release after a release carrying that cleanup has actually been
+    // published. The live Store version is still 1.0.3, which installed
+    // those rules, so nothing published has run the cleanup yet (S5).
     permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
     host_permissions: HOSTS,
     // Not granted on install. The Settings page requests one of these only
