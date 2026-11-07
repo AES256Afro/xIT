@@ -4,11 +4,17 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { fakeI18n } from './helpers/i18n-stub.mjs';
 import { setImmediate } from 'node:timers/promises';
+import { makeDom } from './helpers/dom.mjs';
 
 const script = (name) => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8');
 
-async function bridge({ mainFirst = true } = {}) {
+async function bridge({ mainFirst = true, toast = false } = {}) {
   const listeners = [];
+  // The content script's own runtime messages. Nothing captured these before,
+  // so removing one of its handlers broke no test: a gap found by reverting
+  // the P5 handler and seeing the suite stay green.
+  const onMessage = [];
+  const dom = makeDom();
   const pending = [];
   const copied = [];
   let changeSettings;
@@ -18,20 +24,23 @@ async function bridge({ mainFirst = true } = {}) {
   };
   const settings = {
     copyButton: true, hijackNativeCopy: true, stripTracking: true,
-    toast: false, defaultRedirector: 'fxtwitter',
+    toast, defaultRedirector: 'fxtwitter',
   };
   const clipboard = { async writeText(text) { copied.push(text); } };
   const fallbackCopied = [];
   const docListeners = [];
-  const shared = { console, URL, URLSearchParams, window, location: new URL('https://x.com/jack/status/20') };
+  const shared = { console, URL, URLSearchParams, window, setTimeout, clearTimeout,
+    location: new URL('https://x.com/jack/status/20') };
   const main = vm.createContext({ ...shared, navigator: { clipboard } });
   const isolated = vm.createContext({
     ...shared,
     navigator: { clipboard: { async writeText(text) { fallbackCopied.push(text); } } },
     KeyboardEvent: class { constructor(type, init) { Object.assign(this, { type }, init); } },
-    chrome: { runtime: { onMessage: { addListener() {} } } },
+    chrome: { runtime: { onMessage: { addListener(fn) { onMessage.push(fn); } } } },
     document: {
-      body: {}, documentElement: { setAttribute() {} },
+      body: dom.document.body,
+      createElement: (tag) => dom.document.createElement(tag),
+      documentElement: { setAttribute() {} },
       addEventListener(type, listener) { docListeners.push({ type, listener }); },
       dispatchEvent() { return true; },
       querySelector() { return null; },
@@ -91,7 +100,15 @@ async function bridge({ mainFirst = true } = {}) {
     for (const { type, listener } of docListeners) if (type === 'click') listener(ev);
     await setImmediate();
   }
-  return { clipboard, copied, fallbackCopied, drain, clickNativeCopy,
+  /** Deliver a runtime message to the content script, as the background does. */
+  async function send(message) {
+    const replies = [];
+    for (const listener of onMessage) listener(message, {}, (value) => replies.push(value));
+    await setImmediate();
+    return replies;
+  }
+  return { clipboard, copied, fallbackCopied, drain, clickNativeCopy, send,
+    toasts: () => dom.document.body.querySelectorAll('.xit-toast').map((el) => el.textContent),
     push(data) { pending.push(data); drain(); },
     update(patch) { changeSettings({ ...settings, ...patch }); drain(); } };
 }
@@ -153,4 +170,39 @@ test('a page script cannot disarm the fallback by claiming the main world accept
   b.push({ __xit: 'ready', declined: false });
   await b.clickNativeCopy();
   assert.equal(b.fallbackCopied.at(-1), 'https://mine.example/jack/status/20');
+});
+
+test('the content script shows a toast the background asks for, and nothing else', async () => {
+  /*
+   * P5: a selection holding no tweet link leaves nothing to copy, and the
+   * background has to say so rather than let the user paste whatever was on
+   * the clipboard before. There was no toast-only message, so one was added.
+   *
+   * This exists because reverting that handler broke no test: nothing here
+   * had ever delivered a runtime message to the content script at all.
+   * Deleting the handler now fails this.
+   */
+  const b = await bridge({ toast: true });
+
+  const replies = await b.send({ type: 'xit:toast', text: 'No tweet link in what you selected.' });
+  // The reply was made inside the vm realm, so its prototype is not this
+  // realm's and a strict deepEqual would compare those too.
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].ok, true);
+  assert.deepEqual(b.toasts(), ['No tweet link in what you selected.']);
+  assert.deepEqual(b.copied, [], 'a toast is not a copy');
+
+  // An unknown type is left alone, so another extension's message or a later
+  // version's cannot make this one answer for it.
+  const ignored = await b.send({ type: 'xit:not-a-thing', text: 'should not show' });
+  assert.deepEqual(ignored, []);
+  assert.deepEqual(b.toasts(), ['No tweet link in what you selected.']);
+});
+
+test('a toast is suppressed when the user turned confirmations off', async () => {
+  // toast() opens with that check, and the background passes this message
+  // whatever the setting says, so the setting is honoured here or nowhere.
+  const b = await bridge({ toast: false });
+  await b.send({ type: 'xit:toast', text: 'nothing to see' });
+  assert.deepEqual(b.toasts(), []);
 });

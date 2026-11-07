@@ -99,3 +99,39 @@ test('a source that is not a tweet leaves nothing clickable', async () => {
       'a usable source should bring the buttons back');
   }
 });
+
+/* ---- P5: the paste field reads a link out of prose too ---- */
+
+test('the paste field finds a link inside text pasted around it', async () => {
+  /*
+   * P5 gave the library findLink for the selection menu. This field is the
+   * other place somebody arrives with a URL buried in prose, and it used to
+   * require the field to hold nothing else: pasting a line from a mail or a
+   * chat produced "Not a tweet".
+   *
+   * Taking findLink back out of the input handler makes this fail.
+   */
+  const page = await loadPage('popup/popup.js', { tabUrl: 'https://x.com/jack/status/20' });
+
+  page.type('manual', 'worth reading: https://x.com/jack/status/99 (via a list)');
+  assert.equal(page.$('preview').textContent, 'https://fxtwitter.com/jack/status/99');
+  for (const sub of subs(page)) assert.match(sub, /99/);
+});
+
+test('the paste field is unchanged for a value that is already a link', async () => {
+  // findLink returns the URL it was given, so nothing about the old
+  // behaviour moves: a bare link, a scheme-less one, and prose with no link
+  // in it all do what they did.
+  const page = await loadPage('popup/popup.js', { tabUrl: 'https://x.com/jack/status/20' });
+
+  page.type('manual', 'https://x.com/jack/status/99');
+  assert.equal(page.$('preview').textContent, 'https://fxtwitter.com/jack/status/99');
+
+  page.type('manual', 'not a link at all');
+  assert.equal(page.$('copy-default').disabled, true);
+  assert.match(page.$('current-kind').textContent, /Not an X\/Twitter link/);
+
+  // Emptying it goes back to the tab, as it always did.
+  page.type('manual', '');
+  assert.equal(page.$('preview').textContent, 'https://fxtwitter.com/jack/status/20');
+});

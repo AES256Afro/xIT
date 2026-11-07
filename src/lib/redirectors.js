@@ -387,6 +387,44 @@
     return 'https://x.com/' + parts.path + (o.stripTracking === false ? parts.search : stripTracking(parts.search)) + parts.hash;
   }
 
+  /*
+   * P5: the first tweet link inside a run of text, or null.
+   *
+   * The context menus could only act on something the browser had already
+   * identified as a link, a page or a frame. A tweet URL sitting in prose,
+   * which is how they arrive in a mailing-list archive, a code block or a
+   * pasted quote, had no route but the popup's paste field. A selection is
+   * text, not a URL, so the URL has to be found in it.
+   *
+   * Scheme-less candidates are accepted because plain text often carries
+   * them that way, and the result always comes back with a scheme on it so
+   * that callers can hand it straight to parse or convert.
+   *
+   * Only a tweet or a profile counts. `parse` accepts any X URL, the home
+   * page included, so matching on it alone would make the word "x.com" in a
+   * sentence look like a find and copy something useless.
+   *
+   * The first match wins. A selection holding several is a selection the
+   * user made loosely, and there is no way to ask which they meant.
+   */
+  const MAX_SEARCH = 4096;
+  const LINK_CANDIDATE = /(?:https?:\/\/)?[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:\/[^\s<>"'`]*)?/gi;
+  // Punctuation that ends a sentence rather than a URL, and the brackets and
+  // markup characters text tends to wrap one in.
+  const TRAILING = /[.,;:!?'"*_)\]}>]+$/;
+
+  function findLink(text, extraHosts) {
+    const hay = String(text == null ? '' : text).slice(0, MAX_SEARCH);
+    for (const match of hay.matchAll(LINK_CANDIDATE)) {
+      const trimmed = match[0].replace(TRAILING, '');
+      if (!trimmed) continue;
+      const url = /^https?:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
+      const parts = parse(url, extraHosts);
+      if (parts && (parts.kind === 'status' || parts.kind === 'profile')) return url;
+    }
+    return null;
+  }
+
   /** Canonical x.com URL for a parsed link, tracking params dropped. */
   function canonical(raw, opts) {
     const o = opts || {};
@@ -423,7 +461,7 @@
   root.XIT = {
     GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
     MAX_TEMPLATE,
-    parse, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
+    parse, findLink, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };

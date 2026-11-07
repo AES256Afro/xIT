@@ -277,7 +277,12 @@
 
     $('manual').addEventListener('input', (ev) => {
       const v = ev.target.value.trim();
-      sourceUrl = v || (tab && tab.url) || '';
+      // P5 gave the library a way to find a tweet link inside a run of text,
+      // for the selection menu. This field is the other place somebody
+      // arrives with a URL buried in prose, and two routes for the same job
+      // behaving differently is the drift this audit keeps finding. A value
+      // that is already a URL is unaffected, since findLink then returns it.
+      sourceUrl = v ? (XIT.findLink(v, opts().extraHosts) || v) : ((tab && tab.url) || '');
       refreshPreview();
     });
     $('manual').addEventListener('keydown', (ev) => {

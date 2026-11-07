@@ -496,6 +496,10 @@
       }
     }
   },
+  "menuNoTweetInSelection": {
+    "message": "No tweet link in what you selected.",
+    "description": "Right-click menu: toast when the selected text holds no link to a tweet, so there was nothing to copy. Shown only on X, since xIT has no toast on pages it does not script."
+  },
   "menuFellBackToClean": {
     "message": "$reason$ Copied the clean x.com link instead.",
     "description": "Right-click menu: toast when the chosen redirector does not apply to the link. $reason$ is a sentence from the converter saying why, already ending in a full stop.",

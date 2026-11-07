@@ -22,6 +22,7 @@ XITStore.startWriter();
 
 const MENU_ROOT_LINK = 'xit-link-root';
 const MENU_ROOT_PAGE = 'xit-page-root';
+const MENU_ROOT_SEL = 'xit-sel-root';
 const LEGACY_SETTINGS = ['browseRedirect', 'browseRedirectorId', 'browseScope', 'browsePausedUntil'];
 
 const LINK_PATTERNS = XIT.HOST_PATTERNS;
@@ -62,36 +63,58 @@ async function buildMenus(settings) {
   const grouped = !!settings.contextMenuAll;
   const link = { contexts: ['link'], targetUrlPatterns: LINK_PATTERNS };
   const page = { contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS };
+  /*
+   * P5: no URL patterns, deliberately. The whole point of the selection menu
+   * is text on a page xIT knows nothing about, so there is nothing to match
+   * on: the browser cannot tell us what a selection contains before the menu
+   * opens. The cost is one line in the menu wherever text is selected, which
+   * is why this is a root item with its children behind it rather than a
+   * handful of items sitting at the top level.
+   */
+  const selection = { contexts: ['selection'] };
 
-  // On a tweet link anywhere on the web.
-  await createMenu({ id: MENU_ROOT_LINK, title: XITI18N.t('extensionName'), ...link });
-  await createMenu({ id: 'xit-link-copy-default', parentId: MENU_ROOT_LINK, ...link,
-    title: XITI18N.t('menuCopyAs', [XITStore.defaultRedirector(settings).name]) });
-  if (list.length) {
-    await createMenu({ id: 'xit-link-sep1', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
-  }
-
-  async function linkPair(parentId, r) {
-    await createMenu({ id: 'xit-link-copy:' + r.id, parentId, ...link, title: XITI18N.t('menuCopyAs', [r.name]) });
-    await createMenu({ id: 'xit-link-open:' + r.id, parentId, ...link, title: XITI18N.t('menuOpenWith', [r.name]) });
-  }
-
-  if (grouped) {
-    for (const g of XIT.GROUPS) {
-      const inGroup = list.filter((r) => r.group === g.id);
-      if (!inGroup.length) continue;
-      const groupId = 'xit-link-g-' + g.id;
-      await createMenu({ id: groupId, parentId: MENU_ROOT_LINK, ...link, title: g.label });
-      for (const r of inGroup) await linkPair(groupId, r);
+  /*
+   * The link menu and the selection menu offer the same choices, because
+   * somebody who right-clicked a selection wants what somebody who
+   * right-clicked a link wants. They were going to be two copies of the same
+   * twenty lines, which is the shape this audit has spent nine releases
+   * taking back out, so the tree is written once and the context and the id
+   * prefix are what differ.
+   */
+  async function copyOpenTree(rootId, prefix, ctx) {
+    await createMenu({ id: rootId, title: XITI18N.t('extensionName'), ...ctx });
+    await createMenu({ id: prefix + 'copy-default', parentId: rootId, ...ctx,
+      title: XITI18N.t('menuCopyAs', [XITStore.defaultRedirector(settings).name]) });
+    if (list.length) {
+      await createMenu({ id: prefix + 'sep1', parentId: rootId, ...ctx, type: 'separator' });
     }
-  } else {
-    // Few enough to sit at the top level, where they take one fewer hover.
-    for (const r of list) await linkPair(MENU_ROOT_LINK, r);
+
+    const pair = async (parentId, r) => {
+      await createMenu({ id: prefix + 'copy:' + r.id, parentId, ...ctx, title: XITI18N.t('menuCopyAs', [r.name]) });
+      await createMenu({ id: prefix + 'open:' + r.id, parentId, ...ctx, title: XITI18N.t('menuOpenWith', [r.name]) });
+    };
+
+    if (grouped) {
+      for (const g of XIT.GROUPS) {
+        const inGroup = list.filter((r) => r.group === g.id);
+        if (!inGroup.length) continue;
+        const groupId = prefix + 'g-' + g.id;
+        await createMenu({ id: groupId, parentId: rootId, ...ctx, title: g.label });
+        for (const r of inGroup) await pair(groupId, r);
+      }
+    } else {
+      // Few enough to sit at the top level, where they take one fewer hover.
+      for (const r of list) await pair(rootId, r);
+    }
+
+    await createMenu({ id: prefix + 'sep2', parentId: rootId, ...ctx, type: 'separator' });
+    await createMenu({ id: prefix + 'copy-original', parentId: rootId, ...ctx, title: XITI18N.t('menuCopyCleanLink') });
+    await createMenu({ id: prefix + 'open-original', parentId: rootId, ...ctx, title: XITI18N.t('actionOpenOriginal') });
   }
 
-  await createMenu({ id: 'xit-link-sep2', parentId: MENU_ROOT_LINK, ...link, type: 'separator' });
-  await createMenu({ id: 'xit-link-copy-original', parentId: MENU_ROOT_LINK, ...link, title: XITI18N.t('menuCopyCleanLink') });
-  await createMenu({ id: 'xit-link-open-original', parentId: MENU_ROOT_LINK, ...link, title: XITI18N.t('actionOpenOriginal') });
+  // On a tweet link anywhere on the web, and on selected text anywhere.
+  await copyOpenTree(MENU_ROOT_LINK, 'xit-link-', link);
+  await copyOpenTree(MENU_ROOT_SEL, 'xit-sel-', selection);
 
   // On the page itself while browsing X.
   await createMenu({ id: MENU_ROOT_PAGE, title: XITI18N.t('extensionName'), ...page });
@@ -277,18 +300,62 @@ async function copyInTab(tabId, text, showToast, note) {
  * Menu clicks
  * -------------------------------------------------------------------- */
 
+/**
+ * Tell the tab something without copying anything. Only X tabs are scripted,
+ * so off X this reaches nobody, and there is nothing a caller could do about
+ * that: xIT has no interface on a page it does not script and will not inject
+ * one to deliver a sentence.
+ */
+async function tellTab(tabId, text) {
+  try {
+    await api.tabs.sendMessage(tabId, { type: 'xit:toast', text, kind: 'warn' });
+  } catch (_) { /* no content script here */ }
+}
+
 async function handleMenuClick(info, tab) {
   const settings = await XITStore.load();
   const opts = { stripTracking: settings.stripTracking, extraHosts: XITStore.extraHosts(settings) };
-  const target = info.linkUrl || info.frameUrl || (tab && tab.url) || '';
   const id = String(info.menuItemId || '');
 
-  if (id === 'xit-link-open-original' || id === 'xit-page-open-original') {
+  /*
+   * Every menu item's id is its scope and then what it does. Reading the two
+   * apart here is what lets the selection menu exist without a third copy of
+   * the branches below: adding it to the old code would have meant naming all
+   * three scopes in four separate places.
+   *
+   * Group parents and separators fall out of this with a `what` that matches
+   * nothing, which is correct: neither is clickable.
+   */
+  const parsed = /^xit-(link|page|sel)-(.+)$/.exec(id);
+  if (!parsed) return;
+  const scope = parsed[1];
+  const what = parsed[2];
+
+  /*
+   * A selection is text, not a URL, so the URL has to be found inside it. The
+   * other scopes have one already: a link the browser identified, the frame
+   * it was in, or the tab itself.
+   */
+  const target = scope === 'sel'
+    ? (XIT.findLink(info.selectionText, opts.extraHosts) || '')
+    : (info.linkUrl || info.frameUrl || (tab && tab.url) || '');
+
+  if (scope === 'sel' && !target) {
+    // B10's lesson: never leave the clipboard holding the last thing without
+    // saying so. On a page xIT does not script there is no toast to show, and
+    // this records that honestly rather than pretending otherwise.
+    const reason = XITI18N.t('menuNoTweetInSelection');
+    console.warn('[xit]', reason);
+    if (tab) await tellTab(tab.id, reason);
+    return;
+  }
+
+  if (what === 'open-original') {
     await openOriginal(target, tab);
     return;
   }
 
-  if (id === 'xit-link-copy-original') {
+  if (what === 'copy-original') {
     const clean = XIT.cleanCopy(target, opts, settings.copyFormat);
     if (clean && tab) await copyInTab(tab.id, clean, settings.toast);
     return;
@@ -296,11 +363,11 @@ async function handleMenuClick(info, tab) {
 
   let action = null;
   let redirectorId = null;
-  if (id === 'xit-link-copy-default' || id === 'xit-page-copy-default') {
+  if (what === 'copy-default') {
     action = 'copy';
     redirectorId = settings.defaultRedirector;
   } else {
-    const m = /^xit-(?:link|page)-(copy|open):(.+)$/.exec(id);
+    const m = /^(copy|open):(.+)$/.exec(what);
     if (!m) return;
     action = m[1];
     redirectorId = m[2];

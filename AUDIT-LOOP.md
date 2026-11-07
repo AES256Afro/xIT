@@ -321,11 +321,83 @@ defect caught earlier: the store promisifies the callback form while the
 options page awaits the promise form directly, so a stub supporting one would
 have let every call in the other style pass silently.
 
+## A menu item with nothing to match on
+
+P5 asked for `contexts: ['selection']`, and the platform gives that much
+readily. What it does not give is any way to know what a selection holds
+before the menu opens. The link menu is offered only on tweet links because
+`targetUrlPatterns` matches the link the browser already identified; a
+selection is text, and there is nothing of that kind to match. So the
+selection menu carries no patterns at all and appears wherever text is
+selected, anywhere on the web.
+
+That cost is real and was weighed rather than discovered: it is one line in
+the menu, which is why the items sit behind a root rather than at the top
+level. Firefox could do better, with `menus.onShown` and `menus.refresh()` to
+hide the item when the selection holds no tweet link, and Chrome has no
+equivalent at all. That is left undone deliberately: it is a Firefox-only
+path, and the suites that would exercise it are the Playwright ones, which
+cannot be run in this environment. The same reasoning as the render
+coalescing left out of 1.3.9.
+
+Finding the URL inside the text is the part the finding understates. `parse`
+takes a URL, so a selection needs a search, and the search has to be fussier
+than `parse` is: `parse` accepts any X URL, the home page included, so a
+sentence merely mentioning "x.com" would have looked like a find and copied
+something useless. `findLink` holds out for a tweet or a profile, strips the
+punctuation that ends a sentence rather than a URL, accepts a scheme-less
+candidate because plain text usually carries them that way, and always
+returns one with a scheme on it so a caller can hand it straight to convert.
+It is capped at 4 KB for the reason S6 bounded the settings fields: a
+selection can be a whole page.
+
+The popup's paste field now goes through the same function. Nothing asked for
+that, but it is the other place somebody arrives with a URL buried in prose,
+and two routes for one job behaving differently is the drift this audit has
+spent ten releases taking out. A value that is already a URL is unaffected,
+since `findLink` hands it back.
+
+What the finding did not mention at all is the failure case, and B10 is the
+reason it matters: a selection with no tweet link in it must not leave the
+clipboard holding whatever it held, to be pasted in good faith. The content
+script gained a toast-only message for it. Off X there is no content script
+and so no toast, which is the same limitation the link menu's fallback note
+already had; it is now recorded rather than merely true.
+
+The menu itself got smaller rather than larger. The selection tree offers
+what the link tree offers, because somebody who right-clicked a selection
+wants what somebody who right-clicked a link wants, and writing it out twice
+would have been twenty duplicated lines of exactly the kind this audit keeps
+removing. One function builds both, and the id prefix and the context are all
+that differ. The click handler was the same story: it named the scopes in
+four separate places, so adding a third would have meant twelve mentions. It
+now reads an id as a scope and then an action, and the branches below do not
+know how many scopes there are.
+
+## A test file that had never sent a message
+
+Found by reverting, which is the whole reason for reverting. Taking the new
+`xit:toast` handler out of the content script broke nothing, because
+`test/content-bridge.test.mjs` stubbed `chrome.runtime.onMessage.addListener`
+as a no-op: not one of the content script's four runtime handlers had ever
+been delivered a message. The bridge tests drive the page's own `postMessage`
+exchange, which is what that file was written for, and the runtime side went
+with it by omission.
+
+The harness now captures the listeners and `send()` delivers to them, with
+`test/helpers/dom.mjs` from 1.3.9 supplying the two DOM methods the toast
+needs. Two tests hold the handler and the setting it honours. This is the
+third harness defect this audit has turned up by reverting a fix and watching
+the suite stay green, after the three lying stubs of 1.3.7 and the vacuous
+filter of the same release.
+
 ## What sweep 2 produced
 
 Eleven findings, all fixed: **B6 in 1.3.1, B10 in 1.3.2, B7, B8 and B9 in
 1.3.3, S6 in 1.3.4, Q6 in 1.3.5, B11 in 1.3.6, C13 in 1.3.7, U11 in 1.3.8,
-and O5 in 1.3.9**, which took Milestone 2's O2 with it.
+and O5 in 1.3.9**, which took Milestone 2's O2 with it. Milestone 1's **P5** went
+with them in **1.4.0**, which leaves C12 as the only finding of any sweep
+still open.
 
 Q6 turned on a shape worth naming, since it is the fourth finding of this
 sweep to have it. `canonical` returns a string and drops the parts it has
@@ -444,7 +516,7 @@ was used, what it printed is quoted.
 
 | id | Finding |
 |---|---|
-| P5 | **No `selection` context-menu item.** The menus offer `link`, `page` and `frame`. A tweet URL sitting in a page as plain text, which is how they arrive in a mailing-list archive, a code block or a pasted quote, cannot be converted from the right-click menu at all; the popup's paste field is the only route. `contexts: ['selection']` with the selected text as the input is the platform's own answer. |
+| P5 | **No `selection` context-menu item.** The menus offer `link`, `page` and `frame`. A tweet URL sitting in a page as plain text, which is how they arrive in a mailing-list archive, a code block or a pasted quote, cannot be converted from the right-click menu at all; the popup's paste field is the only route. `contexts: ['selection']` with the selected text as the input is the platform's own answer. **Fixed in 1.4.0.** |
 
 ### Optimisation
 

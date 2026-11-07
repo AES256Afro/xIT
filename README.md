@@ -16,8 +16,9 @@ Both copy routes give you the same rewritten link:
 - **X's own "Copy link".** The native share menu is patched so it returns the
   redirected URL too, with no change to how the menu looks or behaves.
 
-Plus a right-click menu on any tweet link anywhere on the web, and keyboard
-shortcuts for copying or opening the tweet in view.
+Plus a right-click menu on any tweet link anywhere on the web, the same menu
+on selected text that has a tweet URL somewhere in it, and keyboard shortcuts
+for copying or opening the tweet in view.
 
 A copied link can be written out as the bare URL, as a markdown link, or as the
 author's handle followed by the link. Opening a link in a tab is unaffected.
@@ -170,7 +171,14 @@ not already have and leaves every choice of yours alone. A redirector you
 already have under another name is matched on its template, so it is not
 duplicated.
 - Paste a link in the popup and press **Enter** to copy the previewed URL. The
-  paste field receives focus when the current tab has no usable X link.
+  paste field receives focus when the current tab has no usable X link. The
+  field reads a tweet URL out of surrounding text, so a whole line from a mail
+  or a chat works as well as a bare link.
+- **Select text and right-click** to convert a tweet URL that is not a link:
+  the plain text in a mailing-list archive, a code block, or a pasted quote.
+  The first tweet URL in the selection is the one used. On a page xIT does not
+  script there is no toast, so a selection holding no tweet URL leaves the
+  clipboard untouched without saying so.
 - **Open on X** in the popup, tweet dropdown, or right-click menu opens the
   original x.com page for a link you are looking at on a redirector.
 - **Copy diagnostics** in the popup or Settings copies versions, X access,

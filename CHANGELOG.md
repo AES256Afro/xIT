@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- Selected text can now be converted from the right-click menu. A tweet URL that sits in a page as plain text, which is how they arrive in a mailing-list archive, a code block or a pasted quote, had no route but the popup's paste field. Select it, right-click, and the xIT menu offers everything it offers on a real link. The first tweet URL in the selection is the one used.
+- The popup's paste field reads a tweet URL out of surrounding text too, so a whole line copied from a mail or a chat works as well as a bare link.
+- On an X page, a selection that turns out to hold no tweet URL now says so instead of leaving the clipboard holding whatever it held before. Off X there is no toast to show, so nothing is copied and nothing is said.
+
 ## 1.3.9
 
 - Typing in the Settings redirector filter and in the popup's paste field no longer redraws the whole list for each character. Filtering now hides the rows that do not match rather than rebuilding every row, its buttons and its reachability badge, and the popup builds its rows once and rewrites only the line that the link you pasted decides. Nothing looks different; both lists simply stop doing work that could not change anything, which matters as the number of redirectors grows.
