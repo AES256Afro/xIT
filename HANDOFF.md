@@ -1,6 +1,6 @@
 # xIT handoff
 
-State as of 14 September 2026. This covers the things that are *not* in the
+State as of 6 November 2026. This covers the things that are *not* in the
 code or the other docs: current status, decisions already made and why, and the
 traps. For how the extension works and how to build it, read the
 [README](README.md). For store fields, read [store/SUBMISSION.md](store/SUBMISSION.md).
@@ -15,23 +15,46 @@ traps. For how the extension works and how to build it, read the
 | Chrome item ID | `clilllbfkoeamfonhoeaaepglgceanlc` |
 | Firefox add-on ID | `xit@aes256afro.github.io` (permanent once submitted) |
 | Published | Chrome **1.0.3** |
-| In the repo | **1.0.7**, withdraws the Nitter-based front-ends and removes page redirecting. Not uploaded. |
+| In the repo | **1.4.0**. Versions 1.0.4 to 1.4.0 are built and committed; none has been uploaded. |
 
 ## Do this next
 
-1. **Upload `dist/xit-chrome-1.0.7.zip`.** This supersedes the unuploaded 1.0.4
-   to 1.0.6 packages. It withdraws xcancel, twiiit and three Nitter instances
-   after those services received a cease and desist, and removes page
-   redirecting along with the `alarms` permission and all optional host
-   permissions. The Store listing no longer needs an alarms justification, but
-   the `declarativeNetRequest` and optional-host entries must be replaced with
-   the text in [store/chrome-web-store.md](store/chrome-web-store.md).
-2. **Re-upload the four screenshots** from `store/assets/` on the Store listing
-   tab. The live listing still has the pre-14 September images with em dashes
-   burned into the captions, and there is one fewer screenshot now that the
-   page-redirect panel is gone. A listing edit gets a light review and needs no
-   version bump.
-3. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.0.7.zip`
+1. **Run the three browser suites on the host, before anything else.**
+
+   ```bash
+   npm i && npm run test:browser && npm run test:firefox && npm run test:qol
+   ```
+
+   They need Playwright, which the sandboxed development environment does not
+   have, so they have not run against any build since 1.0.3. That is every
+   version from 1.0.4 to 1.4.0, including all of the context menu trees, the
+   toast, and the popup and Settings render paths rewritten in 1.3.9 and 1.4.0.
+   The 153 unit tests are a hand-written harness: they prove the logic agrees
+   with itself, not that Chrome and Firefox agree with it. This is the only
+   item here that can actually fail, so it goes first.
+
+2. **Re-render the screenshots**, then upload them on the Store listing tab.
+
+   ```bash
+   npm run store-assets   # needs a real Chrome on the host
+   ```
+
+   The four images in `store/assets/` predate every control added since 1.1.0,
+   so the live listing shows a version of xIT that no longer exists. A listing
+   edit gets a light review and needs no version bump.
+
+3. **Upload `dist/xit-chrome-1.4.0.zip`.** It supersedes the unuploaded 1.0.4
+   to 1.3.9 packages. Since the live listing is 1.0.3, the changes a reviewer
+   sees are the whole span: the Nitter-based front-ends withdrawn after a cease
+   and desist, page redirecting removed along with the `alarms` permission, and
+   everything added since. Check the listing fields against
+   [store/chrome-web-store.md](store/chrome-web-store.md) rather than assuming
+   they are current: every one of them was written for 1.0.3. The single-purpose
+   field is the one most likely to read as a mismatch, because the extension now
+   also converts selected text, reads a link out of pasted prose, checks host
+   reachability, and keeps a user-editable redirector list.
+
+4. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.4.0.zip`
    and the copy is in [store/firefox-amo.md](store/firefox-amo.md). No fee.
    Unlisted skips the review queue if a signed build for personal use is all
    that is wanted.
@@ -69,11 +92,18 @@ are still *read*, so xIT can convert them to something it does offer, but
 nothing sends a user to them. If another bundled service goes the same way, the
 removal pattern is that commit.
 
-**`declarativeNetRequest` is declared but installs nothing.** It is retained so
-the background can delete redirect rules earlier versions left on users'
-machines, because dynamic rules survive extension updates. Drop the permission
-in the release after users have had time to update, and delete
-`clearLegacyRedirects` with it.
+**`declarativeNetRequest` installs no rules, but it is not unused.** It is what
+lets `clearLegacyRedirects` delete the rules earlier versions left on users'
+machines, and dynamic rules survive extension updates. The condition for
+dropping it is not a version number or a waiting period: it can go one release
+after a release carrying that cleanup has actually been *published*. The live
+listing is 1.0.3, which is what installed the rules, so nothing published has
+ever run the cleanup. Drop the permission before then and anyone on 1.0.3 with
+redirecting enabled keeps being sent to a front-end xIT no longer offers, with
+no setting left to turn it off, because the feature itself is gone. A sweep for
+unused permissions will flag this; it is wrong. Recorded as S5 in
+[AUDIT-LOOP.md](AUDIT-LOOP.md). Delete `clearLegacyRedirects` with the
+permission, in that later release.
 
 **Embed fixers bounce browsers back to x.com.** fxtwitter, fixupx and twittpr
 answer a real browser with a 302 to x.com, and vxtwitter does it with a meta
@@ -94,12 +124,15 @@ different product sharing a mechanism, and it would have put the listing at risk
 during the trust-building window. If that feature is still wanted, ship it as a
 separate extension. Most of this repo is reusable for one.
 
-**`*://*/*` in `optional_host_permissions` stays.** It triggers an in-depth
-review banner, but nothing is granted at install, and it is what allows a custom
-self-hosted instance to be used as a page-redirect target. Removing it would
-also break page redirecting for the bundled redirectors unless replaced with an
-explicit host list, because `permissions.request()` can only ask for origins
-already declared in the manifest.
+**`optional_host_permissions` is an explicit host list, not `*://*/*`.** It was
+the broad pattern while page redirecting existed, for custom self-hosted
+targets. Page redirecting went in 1.0.7, and the list is now the eight origins
+in `XIT.CHECK_ORIGINS`, derived in `tools/build.mjs` from the bundled
+redirectors. Nothing is granted at install: the Settings page asks for one
+origin only when the user presses Check, which is the sole reason the list
+exists. It has to stay declared, because `permissions.request()` can only ask
+for origins already in the manifest, so a reachability check against a
+redirector absent from this list cannot be offered at all.
 
 **No em dashes**, anywhere: docs, listing copy, UI strings, screenshot captions.
 Rewrite the sentence rather than substituting another dash. This was an explicit
@@ -121,11 +154,22 @@ what ships.
   report a count for a listing this new. Worth adding once there are installs.
 - The listing language is English (United States) while the copy is British
   spelling.
+- **The U4 ARIA fix has never been through a screen reader.** The content-script
+  menu rows became a `role="group"` of `role="menuitem"` buttons in 1.1.0, and
+  there are unit and Playwright assertions on the structure, but structure is
+  not the same as being usable. Not a review blocker; an untested claim.
+- **C12 is the last inline English a user can read.** The eleven failure
+  messages `convert()` and `validateTemplate()` return cannot move into
+  `_locales` the way the rest did, because `src/lib/redirectors.js` has to stay
+  free of browser APIs: `tools/build.mjs` evaluates it in a bare context and the
+  unit tests load it alone. Moving them means returning a message code plus
+  parameters, a library-contract change with roughly twenty assertions on it.
+  It is the only finding of either audit sweep still open.
 
 ## Verifying a change
 
 ```bash
-npm test              # 50 tests: URL logic, settings writes, menus and clipboard
+npm test              # 153 tests: URL logic, settings writes, menus, clipboard, both page render paths
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules
@@ -140,28 +184,37 @@ The checks use native extension APIs and mock X documents. They include regex
 compilation, installed rules, settings from separate pages, permission denial,
 error display, keyboard controls, scrolling, and article lifecycle changes.
 
-The 1.0.7 build passes 50 unit tests, six Chrome regression checks and five
-QoL checks against Playwright's Chromium 1234. The Chrome checks install a
-redirect rule the way earlier versions did, then use Chrome's own
-`testMatchOutcome` to confirm an x.com link is no longer redirected after
-startup cleanup, with the menu rebuild deliberately failing. Deleting the rule
-removal makes those checks fail, so they are not vacuous.
+**The 1.4.0 build has passed unit tests only: 153 of them, all on Node.** None
+of the three browser suites has run against it, or against any build since
+1.0.3, because Playwright is not installed in the sandboxed environment this
+work is done in and Firefox cannot spawn its content processes there either.
+Treat all three as unverified from 1.0.4 onward and run them on the host.
 
-The Firefox checks were **not run** for 1.0.7: Firefox cannot spawn its content
-processes inside the sandbox used to develop this change, so
-`npm run test:firefox` exits during launch there. Run it on the host before
-submitting to AMO. The script was updated for this release but is unverified.
+What they covered when they last ran, which is worth knowing before reading a
+failure: the Chrome checks install a redirect rule the way earlier versions
+did, then use Chrome's own `testMatchOutcome` to confirm an x.com link is no
+longer redirected after startup cleanup, with the menu rebuild deliberately
+failing. Deleting the rule removal makes those checks fail, so they are not
+vacuous. The Firefox script has been updated several times since it last ran.
+
+The unit suite does bite. Every fix since 1.3.0 was checked by reverting it and
+confirming the matching test failed, which is how three harness defects were
+found: stubs that silently answered nothing. The most recent, in 1.4.0, was a
+`chrome.runtime.onMessage.addListener` stub that had never delivered a message
+to the content script.
 
 Pins and defaults remain separate. Undo retains only the last removed custom
 entry in `storage.session`, so it survives closing Settings but ends at browser
 restart, import, reset, undo, or another removal. Neither manifest requests
-`alarms`, optional host permissions, clipboard-read, or history.
+`alarms`, clipboard-read, or history. Optional host permissions are declared,
+as the list above describes, and none is granted at install.
 
 At the end of the fix pass, the Chrome regression workload recorded zero full-
 document scans for 60 unrelated mutations at 50, 200, and 1,000 mounted tweets.
 The earlier audit recorded 31 scans for each workload. This is a synthetic DOM
 measurement, not an authenticated live X performance claim.
 
-The public version badge still reports 1.0.3: versions 1.0.4 to 1.0.6 were
+The public version badge still reports 1.0.3: versions 1.0.4 to 1.4.0 were
 built but never uploaded. Store upload and publication are separate from the
-checked-in version and package build.
+checked-in version and package build, so the badge lagging is expected and is
+not a sign that a build or a commit failed.
