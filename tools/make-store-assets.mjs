@@ -10,7 +10,16 @@
  * downsampled back - supersampling, so text stays sharp at the exact pixel
  * dimensions the stores require.
  *
- * Needs Google Chrome and macOS `sips` (or ImageMagick `magick`/`convert`).
+ * Chrome is driven over its DevTools protocol, from one headless instance,
+ * and each page is captured once it has loaded and settled. The --screenshot
+ * flag used to do this and stopped being trustworthy in Chrome 156: with a
+ * virtual-time budget it captured the content script's open menu as nothing
+ * at all, while the DOM said the menu was open, laid out and visible. A
+ * capture taken from a live page at a moment of our choosing has no such
+ * gap between what the page holds and what the file shows.
+ *
+ * Needs Google Chrome, Node 22 or later for its WebSocket, and macOS `sips`
+ * (or ImageMagick `magick`/`convert`).
  * Pass a filter to re-render a subset:  node tools/make-store-assets.mjs hero
  */
 import { cp, mkdir, rm, writeFile, readFile, readdir, mkdtemp, stat } from 'node:fs/promises';
@@ -72,7 +81,11 @@ async function stubPage(dir, file, extraScript) {
   html = html.replace(/src="\.\.\/lib\//g, 'src="lib/');
   html = html.replace(`href="${base}.css"`, `href="${dir}/${base}.css"`);
   html = html.replace(`src="${base}.js"`, `src="${dir}/${base}.js"`);
-  html = html.replace('<script src="lib/redirectors.js">', '<script src="stub.js"></script>\n<script src="lib/redirectors.js">');
+  // The stub goes in front of the first library script. lib/i18n.js looks for
+  // chrome.i18n once, as it loads, so a stub that arrived later would leave
+  // every message at its English fallback and some at nothing.
+  const first = html.includes('<script src="lib/i18n.js">') ? '<script src="lib/i18n.js">' : '<script src="lib/redirectors.js">';
+  html = html.replace(first, '<script src="stub.js"></script>\n' + first);
   html = html.replace('</body>', `<script>${extraScript || ''}</script>\n</body>`);
   await writeFile(path.join(stage, `${base}-stub.html`), html);
 }
@@ -126,14 +139,19 @@ async function downscale(file, w, h) {
 }
 
 
+/* ---- browser ---- */
+
+// How long a page gets after its load event for its own scripts to settle:
+// the hero opens the menu at 300 ms, the custom-template page fills its form
+// at 260 ms, and the options page scrolls to its panel at 200 ms.
+const SETTLE_MS = 1500;
+
 /**
- * Take one screenshot.
- *
- * Headless Chrome reliably *writes* the PNG but does not always exit when the
- * page contains subframes, so waiting on the process is not dependable. Wait
- * for the file to appear and stop growing instead, then stop the browser.
+ * One headless Chrome for the whole run, spoken to over the DevTools
+ * protocol. Port 0 lets Chrome pick a free port and write it to the profile,
+ * for the same reason the static server picks its own.
  */
-async function shoot(url, out, w, h) {
+async function startChrome(profile) {
   const child = spawn(chrome, [
     '--headless=new',
     '--disable-gpu',
@@ -141,54 +159,95 @@ async function shoot(url, out, w, h) {
     '--no-first-run',
     '--no-default-browser-check',
     `--user-data-dir=${profile}`,
-    `--force-device-scale-factor=${SCALE}`,
-    `--window-size=${w},${h}`,
-    '--virtual-time-budget=5000',
-    `--screenshot=${out}`,
-    url,
+    '--remote-debugging-port=0',
+    'about:blank',
   ], { stdio: 'ignore', detached: false });
 
-  const deadline = Date.now() + 60000;
-  let lastSize = -1;
-  let stableFor = 0;
-  let exited = false;
-  child.on('exit', () => { exited = true; });
-
-  try {
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 250));
-      let size = -1;
-      try { size = (await stat(out)).size; } catch (_) { /* not written yet */ }
-      if (size > 0 && size === lastSize) {
-        stableFor += 250;
-        if (stableFor >= 750) return;   // written and settled
-      } else {
-        stableFor = 0;
-      }
-      lastSize = size;
-      if (exited && size > 0) return;
-      if (exited && Date.now() > deadline - 55000 && size <= 0) break;
-    }
-    throw new Error(`timed out waiting for ${path.basename(out)}`);
-  } finally {
-    if (!exited) { try { child.kill('SIGKILL'); } catch (_) { /* gone */ } }
+  const portFile = path.join(profile, 'DevToolsActivePort');
+  let port = 0;
+  for (let i = 0; i < 100 && !port; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    try { port = Number((await readFile(portFile, 'utf8')).split('\n')[0]); } catch (_) { /* not yet */ }
   }
+  if (!port) { child.kill('SIGKILL'); throw new Error('Chrome did not open a DevTools port'); }
+
+  let targets = [];
+  for (let i = 0; i < 50 && !targets.some((t) => t.type === 'page'); i++) {
+    try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch (_) { /* not yet */ }
+    if (!targets.some((t) => t.type === 'page')) await new Promise((r) => setTimeout(r, 100));
+  }
+  const page = targets.find((t) => t.type === 'page');
+  if (!page) { child.kill('SIGKILL'); throw new Error('Chrome opened no page'); }
+
+  const ws = new WebSocket(page.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
+
+  let nextId = 0;
+  const pending = new Map();
+  const listeners = new Map();
+  ws.addEventListener('message', (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.id && pending.has(msg.id)) {
+      const { resolve, reject } = pending.get(msg.id);
+      pending.delete(msg.id);
+      if (msg.error) reject(new Error(msg.error.message)); else resolve(msg.result);
+    } else if (msg.method && listeners.has(msg.method)) {
+      for (const fn of listeners.get(msg.method)) fn(msg.params);
+    }
+  });
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    const id = ++nextId;
+    pending.set(id, { resolve, reject });
+    ws.send(JSON.stringify({ id, method, params }));
+  });
+  const once = (method) => new Promise((resolve) => {
+    const fn = (params) => { listeners.get(method).delete(fn); resolve(params); };
+    if (!listeners.has(method)) listeners.set(method, new Set());
+    listeners.get(method).add(fn);
+  });
+  await send('Page.enable');
+
+  return {
+    send,
+    once,
+    close() { try { ws.close(); } catch (_) { /* gone */ } try { child.kill('SIGKILL'); } catch (_) { /* gone */ } },
+  };
+}
+
+/**
+ * Take one screenshot: size the viewport, load the page, let it settle, and
+ * capture at SCALE for the downscale to sharpen.
+ */
+async function shoot(browser, url, out, w, h) {
+  await browser.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: SCALE, mobile: false });
+  const loaded = browser.once('Page.loadEventFired');
+  await browser.send('Page.navigate', { url });
+  await Promise.race([loaded, new Promise((r) => setTimeout(r, 15000))]);
+  await new Promise((r) => setTimeout(r, SETTLE_MS));
+  const shot = await browser.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  await writeFile(out, Buffer.from(shot.data, 'base64'));
 }
 
 /* ---- render ---- */
 
 await mkdir(OUT, { recursive: true });
 const profile = path.join(stage, 'chrome-profile');
+await mkdir(profile, { recursive: true });
+const browser = await startChrome(profile);
 let made = 0;
 
-for (const [tpl, w, h, outName] of ASSETS) {
-  if (filter && !tpl.includes(filter) && !outName.includes(filter)) continue;
-  const out = path.join(OUT, `${outName}.png`);
-  await rm(out, { force: true });
-  await shoot(`http://127.0.0.1:${PORT}/${tpl}.html`, out, w, h);
-  await downscale(out, w, h);
-  console.log(`rendered store/assets/${outName}.png  ${w}x${h}`);
-  made++;
+try {
+  for (const [tpl, w, h, outName] of ASSETS) {
+    if (filter && !tpl.includes(filter) && !outName.includes(filter)) continue;
+    const out = path.join(OUT, `${outName}.png`);
+    await rm(out, { force: true });
+    await shoot(browser, `http://127.0.0.1:${PORT}/${tpl}.html`, out, w, h);
+    await downscale(out, w, h);
+    console.log(`rendered store/assets/${outName}.png  ${w}x${h}`);
+    made++;
+  }
+} finally {
+  browser.close();
 }
 
 server.close();

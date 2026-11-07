@@ -33,15 +33,25 @@ traps. For how the extension works and how to build it, read the
    with itself, not that Chrome and Firefox agree with it. This is the only
    item here that can actually fail, so it goes first.
 
-2. **Re-render the screenshots**, then upload them on the Store listing tab.
+2. **Upload the screenshots and promo tiles** from `store/assets/` on the Store
+   listing tab. They were re-rendered from 1.4.0 on 6 November 2026 and show
+   the current UI; the live listing still carries the 1.0.3 images. A listing
+   edit gets a light review and needs no version bump. To render them again
+   after a UI change:
 
    ```bash
    npm run store-assets   # needs a real Chrome on the host
    ```
 
-   The four images in `store/assets/` predate every control added since 1.1.0,
-   so the live listing shows a version of xIT that no longer exists. A listing
-   edit gets a light review and needs no version bump.
+   The tool drives Chrome over its DevTools protocol. It used to use Chrome's
+   own `--screenshot` flag, and in Chrome 156 that captured the content
+   script's open menu as nothing at all while the DOM said it was open and
+   visible; the live capture does not have that gap. Two of the stubs had
+   also fallen behind the product: the first-run picker was covering the
+   Settings page, and the mock X page did not load `lib/i18n.js`, which the
+   content script has needed since 1.3.0. Both are fixed, and the stub now
+   serves the real `_locales` catalogue so that nothing built in JavaScript
+   comes out blank.
 
 3. **Upload `dist/xit-chrome-1.4.0.zip`.** It supersedes the unuploaded 1.0.4
    to 1.3.9 packages. Since the live listing is 1.0.3, the changes a reviewer

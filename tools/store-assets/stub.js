@@ -5,10 +5,38 @@
   if (params.get('custom') === '1') {
     seed.custom = [{ id: 'c-my-instance', name: 'My instance', group: 'custom', template: 'https://links.example.net/{path}{query}', requires: [], note: '' }];
   }
-  let store = { settings: Object.keys(seed).length ? seed : undefined };
+  // The first-run picker opens itself on a fresh profile. A store image is
+  // of the page behind it, so this profile has been through it already.
+  seed.pickerDone = true;
+  let store = { settings: seed };
+
+  // The shipped catalogue, read synchronously because getMessage is. The
+  // staging root is a copy of src/, so this is the same file the build packs.
+  // Without it every string built in JavaScript would come out empty, and the
+  // content script's button and menu are nothing but such strings.
+  const catalogue = (() => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '_locales/en/messages.json', false);
+      xhr.send();
+      return xhr.status === 200 ? JSON.parse(xhr.responseText) : {};
+    } catch (_) { return {}; }
+  })();
+  function getMessage(key, subs) {
+    const entry = catalogue[key];
+    if (!entry) return '';
+    const list = subs == null ? [] : [].concat(subs);
+    const numbered = (text) => text.replace(/\$(\d+)/g, (_, n) => list[Number(n) - 1] == null ? '' : String(list[Number(n) - 1]));
+    let text = entry.message;
+    for (const [name, ph] of Object.entries(entry.placeholders || {})) {
+      text = text.split(new RegExp('\\$' + name + '\\$', 'gi')).join(numbered(ph.content || ''));
+    }
+    return numbered(text).replace(/\$\$/g, '$');
+  }
   const ls = [];
   const session = {};
   window.chrome = {
+    i18n: { getMessage },
     runtime: {
       onMessage: { addListener: () => {} },
       sendMessage: (message, cb) => {
