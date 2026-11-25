@@ -78,6 +78,9 @@ export async function loadPage(page, options = {}) {
       query: async () => [{ id: 1, index: 0, url: options.tabUrl || 'https://x.com/jack/status/20' }],
       create: () => {},
     },
+    // What the browser says is bound, when a test says. Left out otherwise,
+    // as an API a page cannot count on.
+    ...(options.commands ? { commands: { getAll: async () => JSON.parse(JSON.stringify(options.commands)) } } : {}),
     permissions: {
       contains: async () => true,
       request: async () => true,
@@ -94,6 +97,7 @@ export async function loadPage(page, options = {}) {
          * tests: the picker's request was well formed and its outcome wrong.
          */
         if (message && message.type === 'xit:mutate-settings') {
+          if (options.failWrites) return { ok: false, error: 'disk unavailable' };
           try {
             return { ok: true, settings: await writer.XITStore.mutate(message.operation) };
           } catch (error) {
@@ -121,7 +125,10 @@ export async function loadPage(page, options = {}) {
 
   const context = vm.createContext({
     console, URL, URLSearchParams, JSON, Set, Map, Date, Promise,
-    setTimeout, clearTimeout, setInterval, clearInterval, setImmediate,
+    // A test that needs to see what the page leaves on a timer can supply its
+    // own; the default is the real one.
+    setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout,
+    setInterval, clearInterval, setImmediate,
     chrome: api,
     document: dom.document,
     window: dom.window,

@@ -34,7 +34,6 @@ const SKIP = new Set(['lib/redirectors.js', 'lib/i18n.js']);
 /** Literals that are not prose, by file, with why. */
 const ALLOWED = {
   'options/options.js': {
-    'Alt+Shift+C': 'a key combination, the same in every language',
     'about:addons': 'an address the user copies',
   },
   'background.js': {
@@ -91,6 +90,8 @@ function findings(file) {
       // The thing being looked up, not the thing being shown: an element id,
       // a selector, an attribute or event name, a tag.
       if (LOOKUP.test(line.slice(0, match.index))) continue;
+      // A value being compared is a code, not a sentence.
+      if (/[!=]==?\s*$/.test(line.slice(0, match.index)) || /^\s*[!=]==?/.test(line.slice(match.index + match[0].length))) continue;
       if (/^[.#[][\w-]/.test(text)) continue;
       const fragment = /^\s|\s$|^[.,;:!?]\s/.test(text);
       // On a line that shows text, a lone identifier is still a key or an id;

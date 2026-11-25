@@ -577,6 +577,24 @@
     }
   }
 
+  /*
+   * Q7: what the browser actually has bound. The panel used to state the
+   * suggested key, which a browser drops without a word when it clashes,
+   * and to say the open command was unbound whatever the user had done.
+   * Without the commands API the markup's own text stands.
+   */
+  async function renderShortcuts() {
+    let commands;
+    try {
+      if (!api.commands || !api.commands.getAll) return;
+      commands = await api.commands.getAll();
+    } catch (_) { return; }
+    for (const [id, name] of [['kbd', 'copy-current-tweet'], ['kbd-open', 'open-current-tweet']]) {
+      const command = (commands || []).find((c) => c.name === name);
+      $(id).textContent = command && command.shortcut ? command.shortcut : XITI18N.t('shortcutNotSet');
+    }
+  }
+
   /* ---- render + wire ---- */
 
   function renderCopyFormat() {
@@ -691,9 +709,8 @@
     $('reset-cancel').addEventListener('click', () => $('confirm-reset').close());
     $('reset-go').addEventListener('click', async () => {
       $('confirm-reset').close();
-      settings = await XITStore.reset();
-      render();
-      saved(XITI18N.t('savedReset'));
+      // B20: through commit(), which says what went wrong if the write fails.
+      if (await commit(XITStore.reset())) saved(XITI18N.t('savedReset'));
     });
 
     $('check-hosts').addEventListener('click', () => runCheck(
@@ -715,8 +732,11 @@
     // either of these pages itself, which is why this is a copy button and
     // not a link.
     const firefox = navigator.userAgent.includes('Firefox');
+    await renderShortcuts();
+    // Bindings are changed on the browser's own page, in another tab, so
+    // coming back to this one is when they may have moved.
+    window.addEventListener('focus', () => { renderShortcuts(); });
     if (firefox) {
-      $('kbd').textContent = 'Alt+Shift+C';
       $('shortcut-url').textContent = 'about:addons';
       $('shortcut-note').textContent = XITI18N.t('shortcutNoteFirefox');
     }
@@ -727,6 +747,9 @@
     });
     $('list-sort').addEventListener('change', (ev) => commit({ listSort: ev.target.value }));
     $('copy-shortcut-url').addEventListener('click', async (ev) => {
+      // B18: taken before the first await. A browser clears currentTarget
+      // once dispatch is over, so reading it afterwards threw on every click.
+      const button = ev.currentTarget;
       const address = $('shortcut-url').textContent;
       try {
         await navigator.clipboard.writeText(address);
@@ -741,7 +764,7 @@
         selection.addRange(range);
         saved(XITI18N.t('addressCopyFailed'));
       }
-      ev.currentTarget.blur();
+      button.blur();
     });
 
     // First run. Opened from here rather than on install, so somebody who

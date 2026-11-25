@@ -154,7 +154,10 @@ class Element {
   }
 
   dispatch(type, event) {
-    const ev = { type, target: this, preventDefault() {}, stopPropagation() {}, ...(event || {}) };
+    // Descriptors, not a spread, so a getter on the event a test passes stays
+    // a getter: a browser's currentTarget changes once dispatch is over.
+    const ev = Object.defineProperties({ type, target: this, preventDefault() {}, stopPropagation() {} },
+      Object.getOwnPropertyDescriptors(event || {}));
     for (const handler of this.listeners.get(type) || []) handler(ev);
     return ev;
   }
@@ -274,7 +277,7 @@ export function makeDom() {
   document.body = document.documentElement.appendChild(new Element(document, 'body'));
   return {
     document,
-    window: { close() {}, getSelection: () => ({ removeAllRanges() {}, addRange() {} }) },
+    window: { close() {}, addEventListener() {}, getSelection: () => ({ removeAllRanges() {}, addRange() {} }) },
     CSS: { escape: (value) => String(value).replace(/["\\]/g, '\\$&') },
     /** Elements created since the last reset. */
     created: () => counter.created,

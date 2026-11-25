@@ -228,3 +228,59 @@ test('the preview sentence puts the converted link in bold, wherever the message
   assert.equal(preview.textContent, 'x.com/jack/status/20 becomes https://fxtwitter.com/jack/status/20');
   assert.equal(preview.querySelector('b').textContent, 'https://fxtwitter.com/jack/status/20');
 });
+
+test('the shortcuts panel shows what the browser actually has bound', async () => {
+  /*
+   * Q7. The panel said Alt+Shift+C whatever the browser had done, although a
+   * suggested key that clashes is dropped at install without a word, and it
+   * said the open command was not bound even after somebody bound it. Both
+   * are read from the browser's own list now.
+   *
+   * Writing either binding into the markup again makes this fail.
+   */
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true }, commands: [
+    { name: 'copy-current-tweet', shortcut: '' },
+    { name: 'open-current-tweet', shortcut: 'Ctrl+Shift+O' },
+  ] });
+  assert.equal(page.$('kbd').textContent, 'not set', 'a dropped suggestion says so');
+  assert.equal(page.$('kbd-open').textContent, 'Ctrl+Shift+O', 'and a binding the user made is shown');
+});
+
+test('Copy address finishes after the clipboard answers', async () => {
+  /*
+   * B18. The handler blurred ev.currentTarget after awaiting the clipboard,
+   * and a browser sets currentTarget to null once dispatch is over, so every
+   * click ended in a TypeError and the button kept its focus ring. The event
+   * here behaves the same way.
+   *
+   * Reading ev.currentTarget after the await again makes this fail.
+   */
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true } });
+  const button = page.$('copy-shortcut-url');
+  button.focus();
+  let dispatching = true;
+  const ev = { get currentTarget() { return dispatching ? button : null; } };
+  const errors = [];
+  const onError = (error) => errors.push(error);
+  process.on('unhandledRejection', onError);
+  button.dispatch('click', ev);
+  dispatching = false;
+  await page.settle(10);
+  process.off('unhandledRejection', onError);
+  assert.deepEqual(errors, [], 'the handler finishes without throwing');
+  assert.notEqual(page.document.activeElement, button, 'and lets go of focus');
+});
+
+test('a failed write in Settings says so instead of failing silently', async () => {
+  // B20: Reset had no error handling, so a failed write left the dialog's
+  // promise rejected and the page saying nothing.
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true }, failWrites: true });
+  const errors = [];
+  const onError = (error) => errors.push(error);
+  process.on('unhandledRejection', onError);
+  page.$('reset-go').dispatch('click');
+  await page.settle(10);
+  process.off('unhandledRejection', onError);
+  assert.deepEqual(errors, [], 'nothing is left unhandled');
+  assert.match(page.$('saved').textContent, /disk unavailable/, 'and the page says what went wrong');
+});

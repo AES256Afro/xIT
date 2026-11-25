@@ -11,6 +11,10 @@
   const XITStore = globalThis.XITStore;
 
   let settings = null;
+  // B19: resolves once start() has read the settings. A keyboard command can
+  // reach a tab before then, just after the page loads, and has to wait.
+  let markReady;
+  const ready = new Promise((resolve) => { markReady = resolve; });
   let extraHosts = new Set();
   let mainWorldReady = false;
   // The main world refuses a template that is not one of the bundled presets,
@@ -65,17 +69,28 @@
   let toastEl = null;
   let toastTimer = 0;
 
-  function toast(text, kind) {
-    // B16: the switch is "Confirm copies with a toast", so it hides
-    // confirmations only. A failure or a substituted link is still shown.
-    if (settings && settings.toast === false && (kind || 'ok') === 'ok') return;
+  /*
+   * U13: the live region the toast speaks through. A screen reader announces
+   * a change to a region that already exists, and tends to miss one that
+   * arrives together with its first text, so start() makes it empty and
+   * toast() only fills it. Put back if the page ever detaches it.
+   */
+  function toastRegion() {
     if (!toastEl) {
       toastEl = document.createElement('div');
       toastEl.className = 'xit-toast';
       toastEl.setAttribute('role', 'status');
       toastEl.setAttribute('aria-live', 'polite');
-      document.body.appendChild(toastEl);
     }
+    if (!toastEl.isConnected) document.body.appendChild(toastEl);
+    return toastEl;
+  }
+
+  function toast(text, kind) {
+    // B16: the switch is "Confirm copies with a toast", so it hides
+    // confirmations only. A failure or a substituted link is still shown.
+    if (settings && settings.toast === false && (kind || 'ok') === 'ok') return;
+    toastRegion();
     toastEl.textContent = text;
     toastEl.setAttribute('data-kind', kind || 'ok');
     // Force a frame so the transition runs on repeat copies.
@@ -734,8 +749,7 @@
      * background to add.
      */
     if (msg.type === 'xit:copy-current') {
-      const article = currentArticle();
-      copyWith(XITStore.defaultRedirector(settings), sourceUrlFor(article))
+      ready.then(() => copyWith(XITStore.defaultRedirector(settings), sourceUrlFor(currentArticle())))
         .then((ok) => sendResponse({ ok, handled: true }));
       return true;
     }
@@ -746,9 +760,10 @@
     // depends on the outcome, so the duplicate conversion is gone and a
     // refusal is now explained instead of being silent.
     if (msg.type === 'xit:open-current') {
-      const article = currentArticle();
-      openWith(XITStore.defaultRedirector(settings), sourceUrlFor(article));
-      sendResponse({ handled: true });
+      ready.then(() => {
+        openWith(XITStore.defaultRedirector(settings), sourceUrlFor(currentArticle()));
+        sendResponse({ handled: true });
+      });
       return true;
     }
 
@@ -773,7 +788,9 @@
   async function start() {
     settings = await XITStore.load();
     extraHosts = XITStore.extraHosts(settings);
+    markReady();
 
+    toastRegion();
     syncTheme();
     pushConfig();
     queueScan();

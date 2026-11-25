@@ -765,3 +765,79 @@ test('a host that redirects somewhere else is reported as answering', async () =
   assert.equal(res.results.vxtwitter.state, 'ok', 'a redirect means the host answered');
   assert.deepEqual(h.fetched.map((f) => f.url), ['https://vxtwitter.com/'], 'and nothing else was asked');
 });
+
+test('a copy that fails off X marks the toolbar icon on that tab', async () => {
+  /*
+   * Q8. Off X there is no content script and so no toast, and when the
+   * fallback write fails too, on a page the browser will not script, the
+   * failure went nowhere: the user pasted whatever the clipboard held
+   * before. The toolbar icon on that tab now says so for a few seconds,
+   * which needs nothing injected into the page.
+   *
+   * Taking the flash out of copyInTab makes this fail.
+   */
+  const h = harness();
+  await h.settle();
+  h.dropContentScript();
+  h.failInjection();
+  h.events.clicked({ menuItemId: 'xit-link-copy:example', linkUrl: 'https://x.com/jack/status/20' }, { id: 7, index: 2 });
+  await h.settle();
+  const marks = h.badgeCalls.filter((c) => c.tabId === 7);
+  assert.ok(marks.some((c) => c.text === '!'), 'the icon is marked');
+  assert.ok(marks.some((c) => /copy/i.test(c.title || '')), 'and its tooltip says what failed');
+});
+
+test('a copy that works leaves the toolbar icon alone', async () => {
+  const h = harness();
+  await h.settle();
+  h.dropContentScript();
+  h.events.clicked({ menuItemId: 'xit-link-copy:example', linkUrl: 'https://x.com/jack/status/20' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.injected.length, 1, 'the fallback write ran');
+  assert.deepEqual(h.badgeCalls, []);
+});
+
+test('a content script can pin and choose a default, and change nothing else', async () => {
+  /*
+   * S7. The settings writer took any operation from any of our senders,
+   * content scripts included, and the content script only ever pins an entry
+   * or picks the default from the tweet menu. A renderer for x.com that had
+   * been compromised could have replaced the whole configuration, a custom
+   * default aimed at its own host included. Extension pages keep every
+   * operation; a content script gets the two it needs.
+   *
+   * Senders are told apart by URL. Settings opens in a tab of its own, so a
+   * first version that tested for sender.tab locked Settings out of every
+   * save; the Chrome and Firefox suites caught it, and the Settings sender
+   * below, which has a tab, is here so this file catches it too.
+   *
+   * Dropping the sender check from the mutate handler makes this fail.
+   */
+  const h = harness();
+  await h.settle();
+  const send = async (operation, sender) => {
+    let reply = null;
+    h.events.message({ type: 'xit:mutate-settings', operation }, sender, (value) => { reply = value; });
+    await h.settle();
+    return reply;
+  };
+  const tab = { tab: { id: 7, index: 2 }, url: 'https://x.com/jack/status/20' };
+  const settingsPage = { tab: { id: 8, index: 3 }, url: 'chrome-extension://test/options/options.html' };
+  const popup = { url: 'chrome-extension://test/popup/popup.html' };
+  const writes = () => h.rewrites.slice();
+
+  const before = writes().length;
+  assert.equal((await send({ type: 'replace', settings: {} }, tab)).ok, false, 'a tab cannot replace settings');
+  assert.equal((await send({ type: 'add-custom', entry: { name: 'x', template: 'https://evil.example/{path}' } }, tab)).ok, false);
+  assert.equal((await send({ type: 'patch', patch: { defaultRedirector: 'fxtwitter', custom: [] } }, tab)).ok, false,
+    'nor slip another field in beside the default');
+  assert.equal(writes().length, before, 'and none of those reached the writer');
+
+  assert.equal((await send({ type: 'pin', id: 'fxtwitter', pinned: true }, tab)).ok, true, 'a tab can pin');
+  assert.equal((await send({ type: 'patch', patch: { defaultRedirector: 'vxtwitter' } }, tab)).ok, true, 'and choose the default');
+  assert.equal((await send({ type: 'replace', settings: {} }, settingsPage)).ok, true,
+    'Settings, which has a tab of its own, can still do anything');
+  assert.equal((await send({ type: 'reset' }, popup)).ok, true, 'and so can the popup');
+  assert.equal((await send({ type: 'replace', settings: {} }, {})).ok, false,
+    'a sender that cannot show it is ours is treated as a page');
+});

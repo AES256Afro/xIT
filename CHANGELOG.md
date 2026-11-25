@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- The copy confirmation and error banners on X are easier to read. White text sat on a blue and a red that fell short of the contrast needed for text that size; both are darker now.
+- Screen readers announce the first banner on a page too. The announcement area used to be created at the same moment as its first message, which screen readers tend to miss; it now exists from the start.
+- Settings shows the keyboard shortcuts the browser actually has, instead of the suggested ones. A suggested key that clashes with another is dropped at install without a word, and Settings used to show it anyway. A shortcut you set yourself now appears too, and the panel updates when you come back from the browser's shortcuts page.
+- A right-click copy that fails on a page xIT cannot run on, such as a browser settings page, now marks the toolbar button with a red "!" for a few seconds, and its tooltip says the copy did not happen. It used to fail silently and leave the clipboard as it was.
+- Errors in the popup stay until something replaces them, instead of disappearing after a couple of seconds. Confirmations still clear themselves.
+- The copy shortcut works straight after a page loads. Pressed before xIT had finished starting up on that tab, it used to do nothing.
+- If a setting cannot be saved, Settings and the popup now say so, and a popup switch goes back to what is actually saved. Reset to defaults used to fail silently.
+- The Copy address button in Settings no longer keeps its focus outline after copying.
+- A custom template can no longer put a token in the host, such as `https://{user}.example.com/{id}`. The host is the site your links are sent to, so it is fixed; tokens belong in the path, query or fragment. A custom redirector you already have with a token in its host is removed on upgrade, as any template that fails validation is.
+- Web pages can no longer ask xIT to change more than the two settings the tweet menu needs: pins and the default redirector. Settings and the popup are unaffected.
+
 ## 1.4.1
 
 - Choosing redirectors no longer switches off the ones you added yourself. Saving the "Choose your redirectors" dialog rebuilt your list from the entries it shows, which are only the ones xIT bundles or catalogues, so every custom redirector was turned off and a custom default was replaced with FxTwitter. Your own entries, your default and your pins now stay as they were.

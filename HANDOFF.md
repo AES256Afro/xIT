@@ -163,22 +163,14 @@ what ships.
 The one status list. AUDIT-LOOP.md is the history of the first audit; this
 is what is still open from it and from the eight-stage audit of 25 November
 2026. Severities are that audit's. Closed so far from the second audit: B12
-to B17, B21, U12, C16, C19, S8, R2, R3, R5, and Q9 and P7 with them.
+to B21, D1, Q7, Q8, Q10, U12, U13, C16, C19, S7 to S9, R2, R3, R5, and Q9 and
+P7 with them. B22 needed no change: the menu rebuild in diagnostics is the
+probe that makes the report's menu status current, and is commented as such.
 
 | Next | ID | Sev | What is open |
 |---|---|---|---|
 | Publish (M4) | | | 1.4.1 is built. Upload it to Firefox, then Chrome, and correct Chrome's single-purpose field. |
-| M5 | D1 | High | The in-page toast fails contrast: white on the accent is 3.00:1, on the error red 4.11:1. |
-| M5 | Q7 | High | Settings states Alt+Shift+C even when the browser dropped that binding. Read `commands.getAll()`. |
-| M5 | U13 | Medium | The toast's live region is created as its first text arrives, so a screen reader likely misses it. |
-| M5 | Q8 | Medium | Off X, a failed right-click copy gives no signal. A brief toolbar badge would. |
-| M5 | Q10 | Low | Popup errors clear themselves after 2.6 seconds. |
-| M5 | B18 | Low | Settings' Copy address reads `currentTarget` after an await and throws. |
-| M5 | B19 | Low | A keyboard command reaching a tab before its settings load throws. |
-| M5 | B20 | Low | Reset and the popup's switches and star have no error handling. |
-| M5 | B22 | Low | Copy diagnostics rebuilds the context menus as a side effect. |
-| M5 | S7 | Low | The settings writer accepts every operation from a content script; it needs only pin and default. |
-| M5 | S9 | Low | `validateTemplate` accepts tokens in the host, such as `https://{user}.example.com/`. |
+| Needs a person (M5) | U4, U13 | | One pass with VoiceOver or NVDA over the tweet menu, the popup and Settings. The structure is tested; whether it is usable by ear never has been. |
 | M6 | C14, O6 | Medium | Every service worker wake rebuilds the whole menu and reruns three legacy cleanups. |
 | M6 | R1 | Medium | Comments tell audit history instead of describing the code as it is. |
 | M6 | C15 | Low | Four separate clipboard writers with different fallbacks. |
@@ -202,7 +194,7 @@ documented in the README, so it is not listed.
 ## Verifying a change
 
 ```bash
-npm test              # 179 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
+npm test              # 191 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules

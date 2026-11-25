@@ -109,3 +109,29 @@ test('the in-page menu text colours clear WCAG AA in both themes', () => {
     atLeast(t['xit-fg-strong'], t['xit-panel'], 4.5, `${name} --xit-fg-strong on the panel`);
   }
 });
+
+test('the in-page toast is readable on every fill it uses', () => {
+  /*
+   * D1. The toast is how every copy, failure and substitution is reported,
+   * and its fills were never measured: white 14px text sat on the accent
+   * blue at 3.00:1 and on the error red at 4.11:1. The fills are tokens now,
+   * and the toast rules have to use them, or a fix here would not reach the
+   * banner a person actually reads.
+   *
+   * Putting the toast back on --xit-accent, or a literal red, makes this fail.
+   */
+  const text = css('content/inject.css');
+  const t = tokens(text, ':root {');
+  for (const kind of ['ok', 'error', 'warn']) {
+    atLeast(t['xit-toast-fg'], t['xit-toast-' + kind], 4.5, `toast text on --xit-toast-${kind}`);
+  }
+  const rule = (selector) => {
+    const at = text.indexOf(selector + ' {');
+    assert.notEqual(at, -1, 'missing rule ' + selector);
+    return text.slice(at, text.indexOf('}', at));
+  };
+  assert.match(rule('.xit-toast'), /background:\s*var\(--xit-toast-ok\)/);
+  assert.match(rule('.xit-toast'), /color:\s*var\(--xit-toast-fg\)/);
+  assert.match(rule('.xit-toast[data-kind="error"]'), /background:\s*var\(--xit-toast-error\)/);
+  assert.match(rule('.xit-toast[data-kind="warn"]'), /background:\s*var\(--xit-toast-warn\)/);
+});

@@ -297,11 +297,40 @@ async function copyInTab(tabId, text, showToast, note) {
       func: clipboardPayload,
       args: [text],
     });
-    return !!(results && results[0] && results[0].result);
+    if (results && results[0] && results[0].result) return true;
   } catch (e) {
     console.warn('[xit] clipboard write failed', e);
-    return false;
   }
+  await flashFailure(tabId);
+  return false;
+}
+
+/*
+ * Q8: the one signal xIT can give on a page it does not script. A failed
+ * copy there used to go nowhere, and the user pasted whatever the clipboard
+ * held before. The toolbar icon on that tab carries a mark and a tooltip for
+ * a few seconds instead; nothing is injected to show it.
+ */
+const FAILURE_BADGE_MS = 4000;
+
+async function flashFailure(tabId) {
+  if (!api.action || !api.action.setBadgeText || tabId == null) return;
+  try {
+    await api.action.setBadgeBackgroundColor({ tabId, color: '#c4141f' });
+    await api.action.setBadgeText({ tabId, text: '!' });
+    await api.action.setTitle({ tabId, title: XITI18N.t('badgeCopyFailed') });
+    setTimeout(() => {
+      // The tab may have closed in the meantime, which is fine. An empty
+      // title does not reliably restore the default in Chrome, so the
+      // manifest's own title is set back.
+      try {
+        api.action.setBadgeText({ tabId, text: '' }).catch(() => {});
+        const manifest = api.runtime.getManifest();
+        const title = (manifest.action && manifest.action.default_title) || XITI18N.t('extensionName');
+        api.action.setTitle({ tabId, title }).catch(() => {});
+      } catch (_) { /* nothing left to restore */ }
+    }, FAILURE_BADGE_MS);
+  } catch (_) { /* a closed tab has no badge to set */ }
 }
 
 /* -------------------------------------------------------------------- *
@@ -423,6 +452,9 @@ async function openOriginal(input, tab) {
 // Only fixed status fields enter the report. Do not include raw errors,
 // user-agent strings, tab URLs, custom templates, or copied text.
 async function diagnostics() {
+  // Deliberate, not a side effect to remove: rebuilding is the probe that
+  // makes the contextMenus field describe now rather than the last build.
+  // A menu that cannot be created right now reports 'error' (audit B22).
   await init('diagnostics').catch(() => {});
   const settings = await XITStore.load();
   const report = { extension: 'xIT', version: api.runtime.getManifest().version };
@@ -544,6 +576,20 @@ async function isOwnDestination(url) {
   return XITStore.extraHosts(settings).has(host) || XITStore.extraHosts(settings).has(XIT.bareHost(host));
 }
 
+/** Is this message from one of our own pages, rather than a content script? */
+function fromExtensionPage(sender) {
+  return String((sender && sender.url) || '').startsWith(api.runtime.getURL(''));
+}
+
+/** The settings writes a content script is allowed to ask for (S7). */
+function tabMayMutate(operation) {
+  if (!operation || typeof operation !== 'object') return false;
+  if (operation.type === 'pin') return true;
+  if (operation.type !== 'patch' || !operation.patch || typeof operation.patch !== 'object') return false;
+  const keys = Object.keys(operation.patch);
+  return keys.length === 1 && keys[0] === 'defaultRedirector';
+}
+
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
   // Every sender is one of our own pages or content scripts. There is no
@@ -566,6 +612,15 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'xit:mutate-settings') {
+    // S7: a content script lives in a page's renderer, which is the least
+    // trusted place any of our code runs. It only ever pins an entry or picks
+    // the default from the tweet menu, so from a web page that is all it may
+    // do. Told apart by URL, not by sender.tab: Settings opens in a tab of its
+    // own, and testing for a tab locked it out of every save.
+    if (!fromExtensionPage(sender) && !tabMayMutate(msg.operation)) {
+      sendResponse({ ok: false, error: XITI18N.t('errUnknownOperation') });
+      return;
+    }
     XITStore.mutate(msg.operation).then(
       (settings) => sendResponse({ ok: true, settings }),
       (error) => sendResponse({ ok: false, error: error.message })

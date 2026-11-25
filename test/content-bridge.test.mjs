@@ -8,7 +8,11 @@ import { makeDom } from './helpers/dom.mjs';
 
 const script = (name) => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8');
 
-async function bridge({ mainFirst = true, toast = false } = {}) {
+async function bridge({ mainFirst = true, toast = false, holdLoad = false } = {}) {
+  // holdLoad keeps the content script's first settings read waiting until a
+  // test calls release(), which is how a message can arrive before it is ready.
+  let release = () => {};
+  const loadGate = holdLoad ? new Promise((resolve) => { release = resolve; }) : null;
   const listeners = [];
   // The content script's own runtime messages. Nothing captured these before,
   // so removing one of its handlers broke no test: a gap found by reverting
@@ -50,7 +54,7 @@ async function bridge({ mainFirst = true, toast = false } = {}) {
     MutationObserver: class { observe() {} },
     requestAnimationFrame() {},
     XITStore: {
-      async load() { return settings; },
+      async load() { if (loadGate) await loadGate; return settings; },
       extraHosts() { return new Set(); },
       defaultRedirector(s) {
         if (s.customTemplate) return { name: 'Mine', template: s.customTemplate, custom: true };
@@ -114,6 +118,14 @@ async function bridge({ mainFirst = true, toast = false } = {}) {
     drain();
     await setImmediate();
   }
+  /** Deliver a message without waiting, and report whether a listener threw. */
+  function sendNow(message, reply) {
+    const out = { threw: null };
+    for (const listener of onMessage) {
+      try { listener(message, {}, reply); } catch (error) { out.threw = error; }
+    }
+    return out;
+  }
   /** Deliver a runtime message to the content script, as the background does. */
   async function send(message) {
     const replies = [];
@@ -121,8 +133,9 @@ async function bridge({ mainFirst = true, toast = false } = {}) {
     await setImmediate();
     return replies;
   }
-  return { clipboard, copied, fallbackCopied, drain, clickNativeCopy, nativeCopy, send,
-    toasts: () => dom.document.body.querySelectorAll('.xit-toast').map((el) => el.textContent),
+  return { release, sendNow, dom, clipboard, copied, fallbackCopied, drain, clickNativeCopy, nativeCopy, send,
+    // The live region exists, empty, from startup (U13); only text is a toast.
+    toasts: () => dom.document.body.querySelectorAll('.xit-toast').map((el) => el.textContent).filter(Boolean),
     push(data) { pending.push(data); drain(); },
     update(patch) { changeSettings({ ...settings, ...patch }); drain(); } };
 }
@@ -270,4 +283,45 @@ test('turning confirmations off hides confirmations, not problems', async () => 
 
   await b.send({ type: 'xit:copy-text', text: 'https://x.com/jack', note: 'Copied the clean x.com link instead.' });
   assert.deepEqual(b.toasts(), ['Copied the clean x.com link instead.'], 'so does a substitution');
+});
+
+test('the toast\'s live region is on the page before its first message', async () => {
+  /*
+   * U13. The toast element was created in the same moment its first text
+   * was set, and screen readers announce changes to a live region that
+   * already exists, not one that arrives with its content. It is now made,
+   * empty, when the content script starts.
+   *
+   * Creating it lazily inside toast() again makes this fail.
+   */
+  const b = await bridge({ toast: true });
+  const region = b.dom.document.body.querySelectorAll('.xit-toast');
+  assert.equal(region.length, 1, 'one live region, before anything is announced');
+  assert.equal(region[0].getAttribute('role'), 'status');
+  assert.equal(region[0].getAttribute('aria-live'), 'polite');
+  assert.equal(region[0].textContent, '', 'and empty');
+  await b.send({ type: 'xit:toast', text: 'Something to say' });
+  assert.equal(b.dom.document.body.querySelectorAll('.xit-toast').length, 1, 'the same region is reused');
+});
+
+test('a keyboard command that arrives before settings load waits for them', async () => {
+  /*
+   * B19. The background can deliver the shortcut to a tab whose content
+   * script has not finished reading settings yet, just after a page load.
+   * The handler read settings.stripTracking on null, threw, and never
+   * replied, so the shortcut did nothing. It now waits for startup.
+   *
+   * Running the handler straight away again makes this fail.
+   */
+  const b = await bridge({ holdLoad: true });
+  const replies = [];
+  const sent = b.sendNow({ type: 'xit:copy-current' }, (value) => replies.push(value));
+  await setImmediate();
+  assert.equal(sent.threw, null, 'the handler does not throw while settings are loading');
+  assert.deepEqual(replies, [], 'and has not answered yet');
+  b.release();
+  for (let i = 0; i < 6; i++) await setImmediate();
+  assert.equal(replies.length, 1, 'it answers once settings are in');
+  assert.equal(replies[0].handled, true);
+  assert.equal(b.fallbackCopied.at(-1), 'https://fxtwitter.com/jack/status/20');
 });

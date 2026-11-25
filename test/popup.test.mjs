@@ -151,3 +151,46 @@ test('on an X page that is not a tweet, the popup offers nothing to copy and say
     assert.equal(row.querySelector('[data-action="copy"]').disabled, true, 'no row should offer a copy');
   }
 });
+
+test('an error in the popup stays until something replaces it', async () => {
+  /*
+   * Q10. Every status line, errors included, cleared itself after 2.6
+   * seconds, often before it had been read. A confirmation can still go;
+   * a problem stays until the next message takes its place.
+   *
+   * Clearing errors on the timer again makes this fail.
+   */
+  const pending = [];
+  const page = await loadPage('popup/popup.js', {
+    tabUrl: 'https://example.com/',
+    setTimeout: (fn) => { pending.push(fn); return pending.length; },
+    clearTimeout: () => {},
+  });
+  page.type('manual', 'https://example.com/not-a-tweet');
+  page.$('manual').dispatch('keydown', { key: 'Enter' });
+  await page.settle();
+  const said = page.$('status').textContent;
+  assert.ok(said, 'the popup says why it could not copy');
+  assert.equal(page.$('status').getAttribute('data-kind'), 'error');
+  for (const fn of pending.splice(0)) fn();
+  assert.equal(page.$('status').textContent, said, 'and the timer does not take it away');
+});
+
+test('a popup switch that fails to save goes back and says why', async () => {
+  /*
+   * B20. The popup's switches and its star awaited the save with nothing to
+   * catch a failure, so a switch stayed flipped to a state that was never
+   * saved and the popup said nothing.
+   *
+   * Taking the error handling back out of the switch makes this fail.
+   */
+  const page = await loadPage('popup/popup.js', { tabUrl: TWEET, failWrites: true });
+  const box = page.$('t-strip');
+  const before = box.checked;
+  box.checked = !before;
+  box.dispatch('change');
+  await page.settle(10);
+  assert.equal(box.checked, before, 'the switch shows what is actually saved');
+  assert.match(page.$('status').textContent, /disk unavailable/);
+  assert.equal(page.$('status').getAttribute('data-kind'), 'error');
+});

@@ -276,6 +276,9 @@
     if (t.length > MAX_TEMPLATE) return { ok: false, error: 'Template is too long: ' + MAX_TEMPLATE + ' characters at most.' };
     if (!/^https:\/\//i.test(t)) return { ok: false, error: 'Must start with https://' };
     if (/[\\\u0000-\u0020]/.test(t)) return { ok: false, error: 'Use URL encoding for spaces; backslashes and control characters are not allowed.' };
+    // S9: the host is fixed. A token there lets the link being copied choose
+    // where it goes, and templateURL already refuses one, so the two agree.
+    if (/[{}]/.test(/^https:\/\/([^/?#]*)/i.exec(t)[1])) return { ok: false, error: 'Tokens go in the path, query or fragment, not in the host.' };
     const used = [];
     const bad = [];
     t.replace(/\{(\w+)\}/g, (m, k) => {

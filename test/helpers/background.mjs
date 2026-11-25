@@ -35,10 +35,15 @@ export function harness(firefox = false) {
   const opened = [];
   const injected = [];
   let noContentScript = false;
+  let injectionFails = false;
+  // Per-tab badge calls, in order, so a test can see a flash and its clearing.
+  const badgeCalls = [];
   let redirector = { name: 'Example', template: 'https://example.com/{path}' };
   let byId = {};
   const event = (name) => ({ addListener(fn) { events[name] = fn; } });
-  const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup') };
+  const runtime = { onMessage: event('message'), onInstalled: event('installed'), onStartup: event('startup'),
+    getManifest: () => ({ version: '0.0.0-test', action: { default_title: 'xIT' } }),
+    getURL: (path) => 'chrome-extension://test/' + (path || '') };
   let failRemoval = false;
   const grantedOrigins = new Set();
   const fetched = [];
@@ -80,7 +85,11 @@ export function harness(firefox = false) {
       remove: async (keys) => { for (const k of [].concat(keys)) delete local[k]; },
       set: async (value) => { localSets++; Object.assign(local, value); },
     } },
-    action: { setBadgeText: async ({ text }) => { badge.text = text; } },
+    action: {
+      setBadgeText: async ({ text, tabId }) => { if (tabId === undefined) badge.text = text; else badgeCalls.push({ tabId, text }); },
+      setBadgeBackgroundColor: async ({ tabId, color }) => { badgeCalls.push({ tabId, color }); },
+      setTitle: async ({ tabId, title }) => { badgeCalls.push({ tabId, title }); },
+    },
     tabs: {
       sendMessage: async (tabId, message) => {
         if (noContentScript) throw new Error('could not establish connection');
@@ -93,7 +102,13 @@ export function harness(firefox = false) {
       query: async (q) => (q && q.active ? [activeTab] : []),
     },
     scripting: {
-      executeScript: async ({ args }) => { injected.push(args); return [{ result: true }]; },
+      executeScript: async ({ args }) => {
+        injected.push(args);
+        // A page the browser will not script, such as the Web Store or a
+        // chrome:// page, rejects outright.
+        if (injectionFails) throw new Error('Cannot access contents of the page');
+        return [{ result: true }];
+      },
     },
     permissions: { contains: async ({ origins }) => origins.every((o) => grantedOrigins.has(o)) },
     declarativeNetRequest: {
@@ -208,6 +223,8 @@ export function harness(firefox = false) {
     answer(map) { answers = { ...answers, ...map }; },
     fetched,
     dropContentScript() { noContentScript = true; },
+    failInjection() { injectionFails = true; },
+    badgeCalls,
     command: (name) => ctx.handleCommand(name),
     answerTab(reply) { tabReply = reply; },
     setActiveTab(tab) { activeTab = tab; },

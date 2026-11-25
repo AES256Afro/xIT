@@ -459,3 +459,25 @@ test('a link that is neither a tweet nor a profile is not converted', () => {
   assert.equal(XIT.convert('https://x.com/jack', fx).ok, true);
   assert.equal(XIT.convert('https://x.com/i/web/status/20', fx).ok, true);
 });
+
+test('a template cannot put a token in the host', () => {
+  /*
+   * S9. validateTemplate filled each token with "x" and checked the result
+   * parsed, so https://{user}.example.com/{id} and even https://{path}
+   * passed, and the host a link went to was chosen by the link being
+   * copied. templateURL already refused braces in the authority; validation
+   * now agrees with it.
+   *
+   * Taking the authority check out of validateTemplate makes this fail.
+   */
+  for (const t of ['https://{user}.example.com/{id}', 'https://{path}', 'https://{host}/{path}',
+    'https://mine.example{path}', 'https://mine.example:{id}/{path}']) {
+    const v = XIT.validateTemplate(t);
+    assert.equal(v.ok, false, t + ' should be refused');
+    assert.ok(v.error, t + ' should say why');
+  }
+  for (const t of ['https://mine.example/{path}{query}', 'https://mine.example:8443/{path}',
+    'https://[::1]:8080/{path}', 'https://mine.example/u/{user}?id={id}#{hash}']) {
+    assert.equal(XIT.validateTemplate(t).ok, true, t + ' should still be fine');
+  }
+});

@@ -271,6 +271,10 @@
     "message": "Nothing to add.",
     "description": "Settings: status line when a merge brought nothing across."
   },
+  "shortcutNotSet": {
+    "message": "not set",
+    "description": "Settings: shown in place of a keyboard shortcut when the browser has none bound for that command, for example because the suggested key clashed and was dropped at install. Lower case: it completes a sentence that ends in a colon."
+  },
   "checkInProgress": {
     "message": "Checking…",
     "description": "Settings: label on the Check button while a check is running."
@@ -525,6 +529,10 @@
       }
     }
   },
+  "badgeCopyFailed": {
+    "message": "xIT could not copy the link on this page.",
+    "description": "Toolbar button tooltip, shown for a few seconds after a copy from the right-click menu failed on a page xIT does not run on, such as a browser settings page or an extension store. The button also shows a red \"!\" for the same time."
+  },
   "menuNoTweetInSelection": {
     "message": "No tweet link in what you selected.",
     "description": "Right-click menu: toast when the selected text holds no link to a tweet, so there was nothing to copy. Shown only on X, since xIT has no toast on pages it does not script."
@@ -541,6 +549,10 @@
   "bgNeedATweet": {
     "message": "Open a tweet or paste an X link first.",
     "description": "Shown when an action is asked for with no tweet link to work on."
+  },
+  "errUnknownOperation": {
+    "message": "Unknown settings operation.",
+    "description": "Shown in Settings when a change to stored settings is rejected: the request named an operation this version does not have."
   },
   "bgNotYourRedirector": {
     "message": "That is not one of your redirectors.",
@@ -578,10 +590,6 @@
   "errNeedName": {
     "message": "Give the redirector a name.",
     "description": "Shown when a redirector is added or edited with no name. Used only when the template itself was valid, so there is no more specific complaint to make."
-  },
-  "errUnknownOperation": {
-    "message": "Unknown settings operation.",
-    "description": "Shown in Settings when a change to stored settings is rejected: the request named an operation this version does not have."
   },
   "errSaveFailed": {
     "message": "Could not save settings.",
@@ -828,7 +836,11 @@
     "description": "Settings, Keyboard shortcuts: <p> whose {1}, {2}... are markup kept in place."
   },
   "shortcutOpenHint": {
-    "message": "Open the tweet under the pointer with the default redirector: not bound. Both browsers hand out the obvious combinations already, so rather than pick one that silently loses, this one is left for you to choose.",
+    "message": "Open the tweet under the pointer with the default redirector: {1}.",
+    "description": "Settings, Keyboard shortcuts: <p> whose {1}, {2}... are markup kept in place."
+  },
+  "shortcutOpenWhy": {
+    "message": "The open command has no suggested key. Both browsers hand out the obvious combinations already, so rather than pick one that silently loses, it is left for you to choose.",
     "description": "Settings, Keyboard shortcuts: text of the <p>."
   },
   "shortcutChangeHint": {

@@ -21,7 +21,9 @@
     el.textContent = text || '';
     el.setAttribute('data-kind', kind || 'ok');
     clearTimeout(statusTimer);
-    if (text) statusTimer = setTimeout(() => { el.textContent = ''; }, 2600);
+    // Q10: a confirmation can go on its own; a problem stays until the next
+    // message replaces it, so it is still there when somebody looks.
+    if (text && kind !== 'error') statusTimer = setTimeout(() => { el.textContent = ''; }, 2600);
   }
 
   /*
@@ -171,9 +173,7 @@
         defBtn.setAttribute('aria-label', defBtn.title);
         defBtn.setAttribute('aria-pressed', String(r.id === settings.defaultRedirector));
         defBtn.addEventListener('click', async () => {
-          settings = await XITStore.save({ defaultRedirector: r.id });
-          status(XITI18N.t('popupNowDefault', [r.name]));
-          refreshPreview();
+          if (await commit(XITStore.save({ defaultRedirector: r.id }))) status(XITI18N.t('popupNowDefault', [r.name]));
         });
 
         const pinned = settings.pinnedIds.includes(r.id);
@@ -214,11 +214,16 @@
     updateRows(parts);
   }
 
+  /** Apply a settings write and redraw. False, with the reason shown, if it failed. */
   async function commit(operation) {
     try {
       settings = await operation;
       refreshPreview();
-    } catch (error) { status(XITI18N.t('errSave', [error.message]), 'error'); }
+      return true;
+    } catch (error) {
+      status(XITI18N.t('errSave', [error.message]), 'error');
+      return false;
+    }
   }
 
   /* ---- host permission gate (mostly Firefox) ---- */
@@ -319,8 +324,9 @@
 
     const toggle = (id, key) => {
       $(id).addEventListener('change', async (ev) => {
-        settings = await XITStore.save({ [key]: ev.target.checked });
-        refreshPreview();
+        // B20: a switch that could not be saved goes back to what is saved.
+        const box = ev.target;
+        if (!await commit(XITStore.save({ [key]: box.checked }))) box.checked = !box.checked;
       });
     };
     toggle('t-button', 'copyButton');
