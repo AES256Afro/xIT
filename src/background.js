@@ -164,7 +164,15 @@ async function checkHost(template) {
     // status is real. Without it this would be an opaque no-cors response,
     // where a 503 is indistinguishable from a 200: that version would have
     // called the host that retired unrollnow healthy.
-    const res = await fetch(origin, { method: 'HEAD', redirect: 'follow', cache: 'no-store', signal: control.signal });
+    //
+    // B15: redirects are not followed. vxtwitter.com sends its front page to
+    // github.com, which no permission covers, so following it ended in a
+    // refused cross-origin response and a working host shown as silent. It
+    // also sent a request to a host the privacy policy says xIT never asks
+    // (S8). A redirect is an answer: the browser returns it as an opaque
+    // response with status 0, and that is all this needs to know.
+    const res = await fetch(origin, { method: 'HEAD', redirect: 'manual', cache: 'no-store', signal: control.signal });
+    if (res.type === 'opaqueredirect') return { state: 'ok' };
     const status = res.status;
     // 405 means the host is there and simply does not take HEAD.
     if (status === 405) return { state: 'ok', status };

@@ -10,19 +10,12 @@ its items were closed. The git history holds it if it is ever wanted.
 
 ## Status
 
-| Category | Sweeps run | Clean streak | State |
-|---|---|---|---|
-| Code | 2 | 0 | active |
-| Bug | 2 | 0 | active |
-| Security | 2 | 0 | active |
-| Readability / usability / visual | 2 | 0 | active |
-| Quality of life | 2 | 0 | active |
-| Platform features | 2 | 0 | active |
-| Optimisation | 2 | 0 | active |
-
-No category is eligible to retire: every one produced findings on sweep 2 as
-well, so every clean streak is still 0 and three consecutive clean sweeps are
-still owed by all seven.
+Closed. This loop stopped after two sweeps of each category and was
+superseded by an eight-stage audit on 25 November 2026, in which every
+category reached three clean sweeps. What is still open from either audit is
+the table under [Open findings](HANDOFF.md#open-findings) in HANDOFF.md. This
+file is kept as the record of what was found and why each fix took the shape
+it did.
 
 ## What sweep 1 produced
 

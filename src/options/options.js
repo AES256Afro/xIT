@@ -27,6 +27,21 @@
     } catch (e) { $('saved').textContent = XITI18N.t('errSave', [e.message]); return false; }
   }
 
+  /**
+   * C16: "x.com/jack/status/20 becomes <b>result</b>". The sentence is one
+   * message with {1} where the bold result goes, as data-i18n-parts does in
+   * markup, so a translator can put it wherever the language needs it.
+   */
+  function sampleSentence(node, result) {
+    node.textContent = '';
+    const b = document.createElement('b');
+    b.textContent = result;
+    XITI18N.t('sampleBecomes', undefined, '{1}').split('{1}').forEach((piece, index) => {
+      if (index) node.append(b);
+      if (piece) node.append(document.createTextNode(piece));
+    });
+  }
+
   function sampleFor(redirector) {
     const out = XIT.convert(SAMPLE, redirector, { stripTracking: settings.stripTracking });
     return out.ok ? out.url : out.reason;
@@ -52,11 +67,7 @@
     sel.value = settings.defaultRedirector;
 
     const d = XITStore.defaultRedirector(settings);
-    const prev = $('default-preview');
-    prev.textContent = '';
-    const b = document.createElement('b');
-    b.textContent = sampleFor(d);
-    prev.append(document.createTextNode('x.com/jack/status/20 becomes '), b);
+    sampleSentence($('default-preview'), sampleFor(d));
   }
 
   /* ---- reachability check (P4, Q5) ---- */
@@ -94,8 +105,7 @@
     badge.dataset.state = result.state;
     badge.textContent = CHECK_LABEL[result.state] || result.state;
     if (result.status) badge.textContent += ' (' + result.status + ')';
-    badge.title = XITI18N.t('checkedAt', [new Date(result.at).toLocaleString()])
-      + '. A response does not prove the host can still display tweets.';
+    badge.title = XITI18N.t('checkedAtNote', [new Date(result.at).toLocaleString()]);
     row.appendChild(badge);
   }
 
@@ -159,7 +169,7 @@
     button.className = 'row-btn';
     button.dataset.action = action;
     button.textContent = text;
-    button.setAttribute('aria-label', text + ' ' + XITStore.findRedirector(settings, id).name);
+    button.setAttribute('aria-label', XITI18N.t('rowActionNamed', [text, XITStore.findRedirector(settings, id).name]));
     button.addEventListener('click', handler);
     row.appendChild(button);
     return button;
@@ -227,7 +237,7 @@
       if (g.blurb) {
         const blurb = document.createElement('p');
         blurb.className = 'rgroup-blurb';
-        blurb.textContent = g.blurb;
+        blurb.textContent = XITI18N.of('blurb', g.id, g.blurb);
         wrap.appendChild(blurb);
       }
       for (const r of g.entries) {
@@ -253,7 +263,7 @@
         if (r.id === settings.defaultRedirector) {
           const badge = document.createElement('span');
           badge.className = 'ritem-badge badge-default';
-          badge.textContent = 'default';
+          badge.textContent = XITI18N.t('badgeDefault');
           row.appendChild(badge);
         }
         const actions = document.createElement('div');
@@ -343,10 +353,7 @@
     if (!v.ok) { box.textContent = ''; $('custom-error').textContent = v.error; return; }
     $('custom-error').textContent = '';
     const out = XIT.convert(SAMPLE, { name: 'Custom', template: tpl }, { stripTracking: settings.stripTracking });
-    box.textContent = '';
-    const b = document.createElement('b');
-    b.textContent = out.ok ? out.url : out.reason;
-    box.append(document.createTextNode('x.com/jack/status/20 becomes '), b);
+    sampleSentence(box, out.ok ? out.url : out.reason);
   }
 
   /* ---- first-run picker ---- *
@@ -408,8 +415,8 @@
       const pin = document.createElement('button');
       pin.type = 'button';
       pin.className = 'row-btn';
-      pin.textContent = pinned ? 'Unpin' : 'Pin';
-      pin.setAttribute('aria-label', (pinned ? 'Unpin ' : 'Pin ') + r.name);
+      pin.textContent = XITI18N.t(pinned ? 'rowUnpin' : 'rowPin');
+      pin.setAttribute('aria-label', XITI18N.t(pinned ? 'popupUnpinNamed' : 'popupPinNamed', [r.name]));
       pin.setAttribute('aria-pressed', String(pinned));
       pin.disabled = !pick.enabled.has(r.id);
       pin.addEventListener('click', () => {

@@ -1,6 +1,6 @@
 # xIT Privacy Policy
 
-**Last updated: 4 November 2026**
+**Last updated: 25 November 2026**
 
 xIT has no analytics or telemetry and does not sell personal information.
 
@@ -49,7 +49,9 @@ nothing when settings change, and nothing when you copy a link.
 
 The request carries no information about you, the link you were looking at, or
 what you copied. It goes to the redirector's own origin, for example
-`https://fxtwitter.com/`, and nowhere else.
+`https://fxtwitter.com/`, and nowhere else. If that host answers with a
+redirect to another site, xIT counts the redirect as an answer and does not
+follow it.
 
 Reading the answer requires permission to access that host, so xIT asks for it
 at the moment you press the button, for those hosts only, and the browser shows
@@ -66,7 +68,9 @@ your settings and never leaves your device.
 
 Versions 1.0.7 and 1.0.8 made no network requests at all. Version 1.0.6 had
 a check that could not read status codes, so a host returning a server error
-was reported as healthy.
+was reported as healthy. Versions 1.1.0 to 1.4.0 followed redirects, so
+checking vxTwitter, whose front page redirects to github.com, also sent that
+one request on to github.com. It carried nothing about you either.
 
 ## What happens when you copy a link
 

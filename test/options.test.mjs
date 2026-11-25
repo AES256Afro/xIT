@@ -219,3 +219,12 @@ test('a switch in Settings is saved, not only requested', async () => {
   assert.equal(page.local.settings.toast, false);
   assert.equal(page.$('t-toast').checked, false, 'the page renders what was saved');
 });
+
+test('the preview sentence puts the converted link in bold, wherever the message places it', async () => {
+  // C16: the sentence used to be English glued to a <b>. It is one catalogue
+  // message now, with {1} marking where the bold link goes.
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true } });
+  const preview = page.$('default-preview');
+  assert.equal(preview.textContent, 'x.com/jack/status/20 becomes https://fxtwitter.com/jack/status/20');
+  assert.equal(preview.querySelector('b').textContent, 'https://fxtwitter.com/jack/status/20');
+});

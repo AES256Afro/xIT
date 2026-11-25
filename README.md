@@ -304,7 +304,11 @@ it in a bare context to read the host lists. Its own prose, group headings and
 redirector notes, is therefore looked up at the point of display by the entry's
 id. The failure messages it returns from `convert()` and `validateTemplate()`
 are the one part still inline English, recorded as C12 in
-[`AUDIT-LOOP.md`](AUDIT-LOOP.md).
+[HANDOFF.md](HANDOFF.md#open-findings).
+
+`test/inline-strings.test.mjs` reads the scripts for English typed straight
+into text, titles and accessible names, so a string that bypasses the
+catalogue fails the suite instead of shipping.
 
 Store screenshots are rendered by headless Chrome from the *real* popup, options
 page and content script, with only the extension APIs stubbed, so they cannot
@@ -332,9 +336,13 @@ through untouched), and talks to the rest over `postMessage`.
 - The in-tweet button depends on X's DOM. X ships layout changes regularly; if
   the button disappears, the selector in `isTweetActionBar` is the place to look.
   The native "Copy link" hijack does not depend on the DOM and will keep working.
-- `world: "MAIN"` content scripts need Chrome 111+ / Firefox 128+. On older
-  builds the extension falls back to intercepting the "Copy link" menu item
-  directly, which is more fragile but functional.
+- X's own "Copy link" is rewritten by a script in the page's own context
+  (`world: "MAIN"`, available from the minimum versions, Chrome 111 and
+  Firefox 128). It rewrites only to a redirector xIT ships. With a custom
+  default it hands the unchanged link to the content script instead, which
+  applies your template only straight after a real click, so this works in
+  every language X offers. Matching the menu item's English label is left only
+  for a page where that script never reports in.
 - Firefox temporary add-ons disappear on restart.
 
 ## Handoff

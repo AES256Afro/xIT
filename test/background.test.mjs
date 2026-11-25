@@ -743,3 +743,25 @@ test('an Open that the redirector cannot take opens nothing and leaves the clipb
   assert.equal(said.length, 1, 'the tab is told why');
   assert.match(said[0].text, /specific tweet/);
 });
+
+test('a host that redirects somewhere else is reported as answering', async () => {
+  /*
+   * B15 and S8. vxTwitter, enabled on install, answers its front page with a
+   * redirect to github.com, and FixVX redirects to vxTwitter. The check
+   * followed redirects, so it went on to a host nobody had granted, the
+   * browser refused the cross-origin response, and a working redirector was
+   * shown as "No answer". It also meant the request reached a host the
+   * privacy policy says it never goes to. A redirect is an answer, so it is
+   * now read as one and not followed.
+   *
+   * Going back to redirect: 'follow' makes this fail.
+   */
+  const h = checkHarness();
+  await h.settle();
+  h.grant('https://vxtwitter.com/*');
+  h.answer({ 'https://vxtwitter.com/': 'elsewhere' });
+  const res = await h.check(['vxtwitter']);
+  assert.equal(res.ok, true);
+  assert.equal(res.results.vxtwitter.state, 'ok', 'a redirect means the host answered');
+  assert.deepEqual(h.fetched.map((f) => f.url), ['https://vxtwitter.com/'], 'and nothing else was asked');
+});

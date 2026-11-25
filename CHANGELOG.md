@@ -7,6 +7,9 @@
 - "Open with" in the right-click menu no longer replaces your clipboard. When the redirector could not take the link, for example a thread reader on a profile, it copied the x.com link instead of opening anything. It now opens nothing, copies nothing, and on X says why.
 - Turning off "Confirm copies with a toast" now hides confirmations only. It also used to hide the message that a copy failed, and the one saying a different link was copied than the one you asked for.
 - X's own Copy link now works with a custom default in every language X offers. It used to find X's menu item by the English words "Copy link", so on X in any other language a custom default quietly left the plain x.com link on the clipboard. The copy is now recognised from X's clipboard call itself, and is finished only right after a real click, so a script on the page cannot trigger it.
+- Check in Settings no longer reports vxTwitter or FixVX as not answering. Their front pages redirect elsewhere (vxTwitter's to github.com), the check followed the redirect to a site it had no permission for, and the browser refused the answer. A redirect is now counted as an answer and is not followed, so the check only ever contacts the redirector itself, as the privacy policy says.
+- Duplicating a custom redirector with a long name no longer produces a second entry with exactly the same name. The original name is shortened to make room for "copy" rather than the word being cut off.
+- The few remaining English phrases in Settings, such as the "becomes" preview line, the "default" badge and the pin buttons in the redirector picker, now come from the translation catalogue like everything else, and a test stops new ones from being added.
 
 ## 1.4.0
 

@@ -479,3 +479,25 @@ test('the form agrees with the stored name limit',()=>{
   assert.ok(caps.length>=2,'both name fields still declare one');
   for (const cap of caps) assert.equal(cap,a.MAX_NAME,'maxlength matches XITStore.MAX_NAME');
 });
+
+test('a duplicate of a long name keeps its suffix and fits the limit',async()=>{
+  /*
+   * B21. The duplicate was named original + " copy" and then cut to 48
+   * characters, so a long name lost the suffix and the copy was called
+   * exactly what the original was. The name is shortened first now, and the
+   * suffix comes from the catalogue (C16).
+   *
+   * Going back to appending and then capping makes this fail.
+   */
+  const h=harness(),a=h.context();
+  const long='A'.repeat(46);
+  let s=await a.addCustom({name:long,template:'https://example.com/{path}'});
+  s=await a.duplicateCustom(s.custom[0].id);
+  const copyName=s.custom[1].name;
+  assert.ok(copyName.length<=48,'the copy fits the name limit');
+  assert.match(copyName,/ copy$/,'and still says it is a copy');
+  assert.notEqual(copyName,s.custom[0].name);
+  s=await a.addCustom({name:'Mine',template:'https://example.org/{path}'});
+  s=await a.duplicateCustom(s.custom.at(-1).id);
+  assert.equal(s.custom.at(-1).name,'Mine copy','a short name is untouched');
+});

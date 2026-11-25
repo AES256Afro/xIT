@@ -75,7 +75,7 @@ Public front-ends can disappear without warning. You can switch your default or 
 
 **Single purpose**
 ```
-xIT rewrites X/Twitter (x.com and twitter.com) links to equivalent URLs on an alternative front-end chosen by the user, when the user copies a link, opens a context menu, or optionally, navigates to x.com.
+xIT rewrites links to X/Twitter posts and profiles (x.com and twitter.com) into the equivalent URL on a front-end the user chooses, at the moment the user copies or opens such a link: from the button on a post, X's own "Copy link", the right-click menu on a link or on selected text, the toolbar popup, or a keyboard shortcut. It never redirects page loads.
 ```
 
 **Permission justifications**, one per permission, all required fields:
@@ -153,9 +153,11 @@ Be ready for these; none are fatal, but they slow a first submission:
 
 1. **A permission the extension no longer uses to act.** `declarativeNetRequest`
    is declared but installs nothing; it exists only to clean up rules from
-   earlier versions. Say that plainly if asked, and drop the permission in the
-   release after users have had time to update.
+   earlier versions. Say that plainly if asked. It can be dropped one release
+   after a release carrying that cleanup has actually been published, not
+   after a waiting period: see S5 in HANDOFF.md.
 2. **Affecting a major site's behaviour.** Rewriting X's own "Copy link" is
    legitimate and disclosed, but say so plainly if asked: it is a user-invoked
-   convenience, applied only to a lone tweet URL, and switchable off.
+   convenience, applied only to a lone link to a post or a profile, and
+   switchable off. Links to other X pages pass through untouched.
 3. **First reviews are slow.** Days, occasionally weeks. Updates are faster.

@@ -22,8 +22,9 @@ traps. For how the extension works and how to build it, read the
 1. **`main` is ahead of 1.4.0.** The audit's first milestone fixed five
    defects in what lands on the clipboard (see CHANGELOG, Unreleased). They
    are not in `dist/xit-*-1.4.0.zip`. Uploading 1.4.0 as it stands is still
-   possible, but the better upload is the next version with those fixes in it,
-   once the store copy has been corrected (audit milestone M3).
+   possible, but the better upload is the next version with those fixes in it.
+   The store copy in `store/` was corrected on 25 November 2026 for that
+   upload: check the live listing's fields against it.
 
    The three browser suites ran on 25 November 2026 for the first time since
    1.0.3, against the code on `main`, and all pass: 6 Chrome checks and 9 QoL
@@ -176,12 +177,52 @@ what ships.
   free of browser APIs: `tools/build.mjs` evaluates it in a bare context and the
   unit tests load it alone. Moving them means returning a message code plus
   parameters, a library-contract change with roughly twenty assertions on it.
-  It is the only finding of either audit sweep still open.
+
+## Open findings
+
+The one status list. AUDIT-LOOP.md is the history of the first audit; this
+is what is still open from it and from the eight-stage audit of 25 November
+2026. Severities are that audit's. Closed so far from the second audit: B12
+to B17, B21, U12, C16, C19, S8, R2, R3, R5, and Q9 and P7 with them.
+
+| Next | ID | Sev | What is open |
+|---|---|---|---|
+| Publish (M4) | | | Bump the version, upload Chrome, submit Firefox, upload the store images. |
+| M5 | D1 | High | The in-page toast fails contrast: white on the accent is 3.00:1, on the error red 4.11:1. |
+| M5 | Q7 | High | Settings states Alt+Shift+C even when the browser dropped that binding. Read `commands.getAll()`. |
+| M5 | U13 | Medium | The toast's live region is created as its first text arrives, so a screen reader likely misses it. |
+| M5 | Q8 | Medium | Off X, a failed right-click copy gives no signal. A brief toolbar badge would. |
+| M5 | Q10 | Low | Popup errors clear themselves after 2.6 seconds. |
+| M5 | B18 | Low | Settings' Copy address reads `currentTarget` after an await and throws. |
+| M5 | B19 | Low | A keyboard command reaching a tab before its settings load throws. |
+| M5 | B20 | Low | Reset and the popup's switches and star have no error handling. |
+| M5 | B22 | Low | Copy diagnostics rebuilds the context menus as a side effect. |
+| M5 | S7 | Low | The settings writer accepts every operation from a content script; it needs only pin and default. |
+| M5 | S9 | Low | `validateTemplate` accepts tokens in the host, such as `https://{user}.example.com/`. |
+| M6 | C14, O6 | Medium | Every service worker wake rebuilds the whole menu and reruns three legacy cleanups. |
+| M6 | R1 | Medium | Comments tell audit history instead of describing the code as it is. |
+| M6 | C15 | Low | Four separate clipboard writers with different fallbacks. |
+| M6 | C17 | Low | No `engines` in package.json, no linter, no CI. |
+| M6 | C18 | Low | The package ships `icons/icon-512.png`, which nothing uses. |
+| M6 | R4 | Low | options.js is one 750-line closure. |
+| M7 | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. |
+| M7 | P6 | Medium | The right-click link menu does not appear on links already on a redirector. |
+| M7 | P10 | Medium | Nothing tells the maintainer a bundled redirector died. A weekly repository check would. |
+| M7 | U15 | Medium | Import's Replace everything cannot be undone. |
+| M7 | D3, D4, D5, V1 | Low | Toast placement, crowded popup rows, permanent "unknown" badges, a text star among SVG icons. |
+| M7 | P8, P9, P11 | Low | Convert every link in a selection; hide tweet-only redirectors on profiles; copy-time format. |
+| M7 | Q11, Q12, Q13, U16 | Low | Opt-in sync; undo Make default; dated export names; preview the popup's diagnostics. |
+| M7 | U9 | Low | From the first audit: pinning is explained in prose and never prompted. |
+| After publishing | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after a release carrying the cleanup is live. |
+| Unscheduled | C12 | | The converter's own failure messages are still inline English. |
+
+Q3 from the first audit, Undo ending at browser restart, is deliberate and
+documented in the README, so it is not listed.
 
 ## Verifying a change
 
 ```bash
-npm test              # 175 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
+npm test              # 179 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules

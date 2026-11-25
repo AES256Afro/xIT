@@ -211,6 +211,7 @@ export function libraryMessages() {
   for (const g of XIT.GROUPS) {
     if (!g.label) continue;
     out.set(familyKey('group', g.id), { message: g.label, description: `Heading for the "${g.id}" group of redirectors, in the lists and the right-click menu.` });
+    if (g.blurb) out.set(familyKey('blurb', g.id), { message: g.blurb, description: `Settings: one-line explanation under the "${g.id}" group heading in the redirector list.` });
   }
   for (const r of XIT.PRESETS.concat(XIT.CATALOGUE)) {
     if (!r.note) continue;

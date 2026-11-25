@@ -100,6 +100,12 @@
 
   const cap = (value, limit) => String(value == null ? '' : value).slice(0, limit);
 
+  /** "<name> copy", in the catalogue's words, never longer than MAX_NAME. */
+  function duplicateName(name) {
+    const room = MAX_NAME - XITI18N.t('duplicateName', [''], ' copy').length;
+    return XITI18N.t('duplicateName', [cap(name, room).trimEnd()], name + ' copy');
+  }
+
   // The shape a stored redirector id may have. normalize drops anything else,
   // so every route that invents or accepts an id has to agree with this: B9
   // was the merge accepting an id normalize would then throw away.
@@ -295,7 +301,11 @@
     } else if (['add-custom', 'edit-custom', 'duplicate-custom'].includes(operation.type)) {
       const original = current.custom.find((c) => c.id === operation.id);
       if (operation.type !== 'add-custom' && !original) throw new Error(XITI18N.t('errNoSuchCustom'));
-      const entry = operation.type === 'duplicate-custom' ? { ...original, name: original.name + ' copy' } : operation.entry || {};
+      // C16 and B21: the suffix comes from the catalogue, and the name it is
+      // added to is shortened first, so the cap on names can never cut the
+      // suffix off and leave two entries called the same thing.
+      const entry = operation.type === 'duplicate-custom'
+        ? { ...original, name: duplicateName(original.name) } : operation.entry || {};
       const name = String(entry.name || '').trim();
       const validation = XIT.validateTemplate(entry.template);
       if (!name || !validation.ok) throw new Error(validation.error || XITI18N.t('errNeedName'));

@@ -166,6 +166,15 @@ export function harness(firefox = false) {
     if (fetchHook) fetchHook(url);
     const answer = answers[url];
     if (answer === undefined || answer === 'throw') throw new Error('network');
+    // 'elsewhere' is a host whose front page redirects to an origin the
+    // extension has no permission for, as vxtwitter.com does to github.com.
+    // Followed, that is a cross-origin response the browser refuses, which
+    // surfaces as a TypeError just like no answer at all. Not followed, the
+    // browser hands back an opaque redirect: status 0, but proof of an answer.
+    if (answer === 'elsewhere') {
+      if (!options || options.redirect !== 'manual') throw new TypeError('Failed to fetch');
+      return { type: 'opaqueredirect', status: 0, ok: false };
+    }
     return { status: answer, ok: answer < 400 };
   }
   // The real library, with only the group list swapped for a test one. It

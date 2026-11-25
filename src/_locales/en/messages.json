@@ -12,6 +12,10 @@
       }
     }
   },
+  "sampleBecomes": {
+    "message": "x.com/jack/status/20 becomes {1}",
+    "description": "Settings: a preview sentence under the default redirector and the custom template field. {1} is where the converted link, shown in bold, is placed; keep it exactly as written and move it wherever the sentence needs it. The x.com address is an example and is not translated."
+  },
   "checkOk": {
     "message": "Responds",
     "description": "Settings: badge on a redirector whose host answered."
@@ -40,8 +44,8 @@
     "message": "Only the redirectors xIT ships can be checked, because access has to be declared in advance.",
     "description": "Settings: tooltip explaining the \"Cannot be checked\" badge."
   },
-  "checkedAt": {
-    "message": "Checked $when$",
+  "checkedAtNote": {
+    "message": "Checked $when$. A response does not prove the host can still display tweets.",
     "description": "Settings: tooltip on a reachability badge. $when$ is a date and time formatted by the browser.",
     "placeholders": {
       "when": {
@@ -65,6 +69,18 @@
     "message": "Check complete. A response does not prove the host can display tweets.",
     "description": "Settings: shown when a reachability check finishes."
   },
+  "rowActionNamed": {
+    "message": "$action$ $name$",
+    "description": "Settings: what a screen reader announces for a button in a redirector row, such as \"Edit My instance\". $action$ is the button's own label; $name$ is the redirector's name. Reorder them if the language needs to.",
+    "placeholders": {
+      "action": {
+        "content": "$1"
+      },
+      "name": {
+        "content": "$2"
+      }
+    }
+  },
   "listNoMatch": {
     "message": "Nothing matches \"$text$\".",
     "description": "Settings: shown when the redirector filter matches nothing. $text$ is what the user typed.",
@@ -73,6 +89,10 @@
         "content": "$1"
       }
     }
+  },
+  "badgeDefault": {
+    "message": "default",
+    "description": "Settings: small badge on the redirector row that is currently the default. Lower case in English because it reads as a tag, not a heading."
   },
   "rowUnpin": {
     "message": "Unpin",
@@ -134,6 +154,24 @@
   "sameServiceAs": {
     "message": "Same service as $name$",
     "description": "Settings: badge on a catalogue redirector that is another name for one already listed. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupUnpinNamed": {
+    "message": "Unpin $name$",
+    "description": "Popup: accessible name for a row's unpin button. $name$ is a redirector name.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupPinNamed": {
+    "message": "Pin $name$",
+    "description": "Popup: accessible name for a row's pin button. $name$ is a redirector name.",
     "placeholders": {
       "name": {
         "content": "$1"
@@ -360,24 +398,6 @@
       }
     }
   },
-  "popupUnpinNamed": {
-    "message": "Unpin $name$",
-    "description": "Popup: accessible name for a row's unpin button. $name$ is a redirector name.",
-    "placeholders": {
-      "name": {
-        "content": "$1"
-      }
-    }
-  },
-  "popupPinNamed": {
-    "message": "Pin $name$",
-    "description": "Popup: accessible name for a row's pin button. $name$ is a redirector name.",
-    "placeholders": {
-      "name": {
-        "content": "$1"
-      }
-    }
-  },
   "popupAccessGranted": {
     "message": "Access granted. Reload your X tab.",
     "description": "Popup: status line after the user grants access to x.com."
@@ -525,6 +545,15 @@
   "bgNotYourRedirector": {
     "message": "That is not one of your redirectors.",
     "description": "Shown when a request asks to open a destination that no configured redirector would have produced."
+  },
+  "duplicateName": {
+    "message": "$name$ copy",
+    "description": "Settings: the name given to a duplicated custom redirector. $name$ is the original name, shortened if needed so the result fits the 48-character limit.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
   },
   "errBadOperation": {
     "message": "Invalid settings operation.",
@@ -890,13 +919,25 @@
     "message": "Embed fixers",
     "description": "Heading for the \"embed\" group of redirectors, in the lists and the right-click menu."
   },
+  "blurb_embed": {
+    "message": "Tweets unfurl properly in Discord, Slack and Signal.",
+    "description": "Settings: one-line explanation under the \"embed\" group heading in the redirector list."
+  },
   "group_thread": {
     "message": "Thread tools",
     "description": "Heading for the \"thread\" group of redirectors, in the lists and the right-click menu."
   },
+  "blurb_thread": {
+    "message": "Unroll a long thread into one page.",
+    "description": "Settings: one-line explanation under the \"thread\" group heading in the redirector list."
+  },
   "group_custom": {
     "message": "Custom",
     "description": "Heading for the \"custom\" group of redirectors, in the lists and the right-click menu."
+  },
+  "blurb_custom": {
+    "message": "Your own instances and templates.",
+    "description": "Settings: one-line explanation under the \"custom\" group heading in the redirector list."
   },
   "note_fxtwitter": {
     "message": "The usual default. Rich embeds, video, multi-image.",
