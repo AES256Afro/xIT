@@ -286,3 +286,45 @@ test('a failed write in Settings says so instead of failing silently', async () 
   assert.deepEqual(errors, [], 'nothing is left unhandled');
   assert.match(page.$('saved').textContent, /disk unavailable/, 'and the page says what went wrong');
 });
+
+test('Replace everything can be undone from the Backup panel', async () => {
+  /*
+   * U15, the page's side. After a replace, the Backup panel offers to put
+   * back what was there before, and doing so restores it and hides the offer.
+   *
+   * Taking the undo bar out of the page makes this fail.
+   */
+  const page = await loadPage('options/options.js', { settings: {
+    pickerDone: true, toast: false,
+    custom: [{ id: 'c-mine', name: 'Mine', template: 'https://mine.example/{path}' }],
+    enabledIds: ['fxtwitter', 'c-mine'], defaultRedirector: 'c-mine',
+  } });
+  assert.equal(page.$('undo-import').hidden, true, 'nothing to undo yet');
+
+  const input = page.$('import-file');
+  input.files = [{ text: async () => JSON.stringify({ defaultRedirector: 'vxtwitter', enabledIds: ['vxtwitter'] }) }];
+  input.dispatch('change');
+  await page.settle(10);
+  page.$('import-replace').dispatch('click');
+  await page.settle(10);
+  assert.equal(page.local.settings.defaultRedirector, 'vxtwitter', 'the file replaced the settings');
+  assert.equal(page.$('undo-import').hidden, false, 'and the panel offers to undo it');
+
+  page.$('undo-import-go').dispatch('click');
+  await page.settle(10);
+  assert.equal(page.local.settings.defaultRedirector, 'c-mine', 'undo brings the default back');
+  assert.equal(page.local.settings.toast, false, 'and the switches');
+  assert.equal(page.$('undo-import').hidden, true, 'and the offer goes');
+});
+
+test('an exported settings file is named by version and date', async () => {
+  // Q13: every export was xit-settings.json, so backups overwrote each other
+  // or piled up as "(1)" and "(2)" with nothing to tell them apart.
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true } });
+  const anchors = [];
+  const make = page.document.createElement.bind(page.document);
+  page.document.createElement = (tag) => { const el = make(tag); if (tag === 'a') anchors.push(el); return el; };
+  page.$('export').dispatch('click');
+  assert.equal(anchors.length, 1);
+  assert.match(anchors[0].download, /^xit-settings-9\.9\.9-\d{4}-\d{2}-\d{2}\.json$/);
+});

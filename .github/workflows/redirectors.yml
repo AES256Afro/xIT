@@ -1,0 +1,49 @@
+# Every Monday, ask each redirector xIT ships whether it still answers, the
+# same check Settings runs on a button press. A host that fails opens an
+# issue, or adds to the one already open, so a service that went away is
+# heard about here before users hit it. No user data is involved: the
+# requests come from GitHub's runner and carry nothing but a HEAD.
+name: redirectors
+
+on:
+  schedule:
+    - cron: '17 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check every bundled and catalogue host
+        shell: bash
+        run: node tools/check-redirectors.mjs | tee report.txt
+      - name: Report a failure as an issue
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='A bundled redirector stopped answering'
+          {
+            echo 'The weekly redirector check failed.'
+            echo
+            echo '```'
+            cat report.txt
+            echo '```'
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > body.md
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file body.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file body.md
+          fi

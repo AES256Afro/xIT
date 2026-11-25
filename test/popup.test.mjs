@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadPage } from './helpers/page.mjs';
 
 const TWEET = 'https://x.com/jack/status/20';
@@ -193,4 +194,27 @@ test('a popup switch that fails to save goes back and says why', async () => {
   assert.equal(box.checked, before, 'the switch shows what is actually saved');
   assert.match(page.$('status').textContent, /disk unavailable/);
   assert.equal(page.$('status').getAttribute('data-kind'), 'error');
+});
+
+test('the popup\'s Make default star is the same drawn star as everywhere else', async () => {
+  // V1: it was a text "★" in the system font among drawn icons.
+  const page = await loadPage('popup/popup.js', { tabUrl: TWEET });
+  for (const button of page.$('list').querySelectorAll('[data-action="default"]')) {
+    assert.equal(button.textContent, '', 'no text glyph');
+    assert.equal(button.querySelectorAll('svg').length, 1, 'one drawn icon');
+    assert.ok(button.getAttribute('aria-label'), 'and still a name for a screen reader');
+  }
+});
+
+test('the popup shows the diagnostics report it copied', async () => {
+  // U16: Settings showed the report and the popup copied it blind, so the
+  // promise that it holds no links could only be checked from Settings.
+  // The test DOM does not parse markup, so the starting state is read there.
+  const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
+  assert.match(html, /<pre id="diagnostics-preview"[^>]*\shidden[\s>]/, 'hidden until there is a report');
+  const page = await loadPage('popup/popup.js', { tabUrl: TWEET });
+  page.$('copy-diagnostics').dispatch('click');
+  await page.settle(10);
+  assert.equal(page.$('diagnostics-preview').hidden, false, 'what was copied is on show');
+  assert.equal(page.$('diagnostics-preview').textContent, JSON.stringify({}, null, 2));
 });

@@ -16,9 +16,10 @@ Both copy routes give you the same rewritten link:
 - **X's own "Copy link".** The native share menu is patched so it returns the
   redirected URL too, with no change to how the menu looks or behaves.
 
-Plus a right-click menu on any tweet link anywhere on the web, the same menu
-on selected text that has a tweet URL somewhere in it, and keyboard shortcuts
-for copying or opening the tweet in view.
+Plus a right-click menu on any tweet link anywhere on the web, including links
+already on a redirector or a thread reader, the same menu on selected text that
+has a tweet URL somewhere in it, and keyboard shortcuts for copying or opening
+the tweet in view.
 
 A copied link can be written out as the bare URL, as a markdown link, or as the
 author's handle followed by the link. Opening a link in a tab is unaffected.
@@ -171,7 +172,8 @@ Importing offers a choice: **replace** takes the whole file, including their
 default, pins and switches, while **add** brings across only redirectors you do
 not already have and leaves every choice of yours alone. A redirector you
 already have under another name is matched on its template, so it is not
-duplicated.
+duplicated. A **replace** can be undone from the Backup panel until the browser
+restarts, the next import, or a reset.
 - Paste a link in the popup and press **Enter** to copy the previewed URL. The
   paste field receives focus when the current tab has no usable X link. The
   field reads a tweet URL out of surrounding text, so a whole line from a mail

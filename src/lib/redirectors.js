@@ -124,6 +124,14 @@
   // answering (503) and was retired in 1.0.8.
   const WITHDRAWN_HOSTS = new Set(['xcancel.com', 'twiiit.com', 'unrollnow.com']);
 
+  // Match patterns for every host xIT can read a link back from, besides X:
+  // what it ships, what it catalogues and what it withdrew. The right-click
+  // menus offer themselves on these too, so a link already on a redirector
+  // can be retargeted or opened on X. A two-part host gets its www form.
+  const MIRROR_PATTERNS = [...PRESET_HOSTS, ...WITHDRAWN_HOSTS]
+    .flatMap((h) => (h.split('.').length === 2 ? [h, 'www.' + h] : [h]))
+    .map((h) => '*://' + h + '/*');
+
   // A redirector whose paths are not a plain x.com mirror has to say how to
   // read a status ID back out of one, or a link already on it cannot be
   // retargeted: it would be parsed as a username and converted to nonsense.
@@ -462,7 +470,7 @@
   }
 
   root.XIT = {
-    GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
+    GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, MIRROR_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
     MAX_TEMPLATE,
     parse, findLink, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,

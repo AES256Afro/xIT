@@ -67,13 +67,22 @@ async function init() {
   render();
   XITStore.onChanged((next) => { settings = next; render(); });
   await renderUndo();
-  api.storage.onChanged.addListener((changes, area) => { if (area === 'session' && changes.removedCustom) renderUndo(); });
+  await renderImportUndo();
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'session') return;
+    if (changes.removedCustom) renderUndo();
+    if (changes.replacedSettings) renderImportUndo();
+  });
   api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.hostChecks) return;
     checks = changes.hostChecks.newValue || {};
     renderList();
   });
   $('undo-remove').addEventListener('click', async () => { await commit(XITStore.restoreCustom()); await renderUndo(); });
+  $('undo-import-go').addEventListener('click', async () => {
+    if (await commit(XITStore.restoreImport())) saved(XITI18N.t('savedImportUndone'));
+    await renderImportUndo();
+  });
   $('custom-cancel').addEventListener('click', cancelEdit);
 
   $('default-select').addEventListener('change', (ev) => commit({ defaultRedirector: ev.target.value }));
@@ -139,6 +148,7 @@ async function init() {
     $('confirm-reset').close();
     // Through commit(), which says what went wrong if the write fails.
     if (await commit(XITStore.reset())) saved(XITI18N.t('savedReset'));
+    await renderImportUndo();
   });
 
   $('check-hosts').addEventListener('click', () => runCheck(

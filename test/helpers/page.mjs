@@ -100,6 +100,7 @@ export async function loadPage(page, options = {}) {
     },
     runtime: {
       getURL: (path) => 'chrome-extension://test/' + path,
+      getManifest: () => ({ version: '9.9.9' }),
       sendMessage: async (message) => {
         sent.push(message);
         /*
@@ -137,7 +138,7 @@ export async function loadPage(page, options = {}) {
   writer.XITStore.startWriter();
 
   const context = vm.createContext({
-    console, URL, URLSearchParams, JSON, Set, Map, Date, Promise,
+    console, URL, URLSearchParams, JSON, Set, Map, Date, Promise, Blob,
     // A test that needs to see what the page leaves on a timer can supply its
     // own; the default is the real one.
     setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout,

@@ -14,12 +14,15 @@ on:
 permissions:
   contents: read
 
+# Pinned to 24.04: ubuntu-latest moved to 26.04, where Playwright 1.59.1
+# cannot install Chromium, and an image that moves under the job breaks it
+# again the next time it moves.
 jobs:
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm run check
@@ -27,11 +30,11 @@ jobs:
       - run: npm run i18n
 
   chrome:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: unit
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install Playwright for this run only

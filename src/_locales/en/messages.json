@@ -283,6 +283,10 @@
     "message": "Check which are reachable",
     "description": "Settings, Redirectors: text of the <button>."
   },
+  "savedImportUndone": {
+    "message": "Put back the settings you had before the import.",
+    "description": "Settings: status after Undo import restored what a Replace everything import had replaced."
+  },
   "customNeedName": {
     "message": "Give it a name.",
     "description": "Settings: shown when the custom redirector form is submitted with no name."
@@ -575,6 +579,10 @@
     "message": "Settings must be a JSON object.",
     "description": "Shown in Settings when a change to stored settings is rejected: an imported file was valid JSON but not an object."
   },
+  "errNoImportToUndo": {
+    "message": "There is no import to undo.",
+    "description": "Error when Undo import is pressed but nothing was replaced from a file in this browser session, or it was already undone."
+  },
   "errNoSuchCustom": {
     "message": "That custom redirector no longer exists.",
     "description": "Shown in Settings when a change to stored settings is rejected: the redirector being edited or removed is already gone."
@@ -865,6 +873,14 @@
   },
   "backupReset": {
     "message": "Reset to defaults",
+    "description": "Settings, Backup: text of the <button>."
+  },
+  "undoImportText": {
+    "message": "Your settings were replaced from a file. Undo puts back everything you had before it, including anything changed since.",
+    "description": "Settings, Backup: text of the <span>."
+  },
+  "undoImportButton": {
+    "message": "Undo import",
     "description": "Settings, Backup: text of the <button>."
   },
   "panelTrouble": {

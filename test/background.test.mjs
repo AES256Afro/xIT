@@ -901,3 +901,36 @@ test('Firefox rebuilds its menus on every start', async () => {
   await again.settle();
   assert.ok(again.createCount() > 0);
 });
+
+test('the link and page menus also appear on links already on a redirector', async () => {
+  /*
+   * P6. The link menu matched x.com and twitter.com only, so a link already
+   * on fxtwitter, a thread reader, or a withdrawn front-end, as found in a
+   * chat app or an archive, got no xIT menu, although the parser can read it
+   * back and Open on X exists for exactly that case. A custom redirector's
+   * host is included when it can be written as a match pattern; one that
+   * cannot, such as an address, is left out rather than risk the browser
+   * refusing the whole menu.
+   *
+   * Going back to the X patterns alone makes this fail.
+   */
+  const h = harness();
+  await h.settle();
+  for (const id of ['xit-link-root', 'xit-page-root']) {
+    const menu = h.menus.get(id);
+    const patterns = Array.from(menu.targetUrlPatterns || menu.documentUrlPatterns);
+    for (const want of ['*://x.com/*', '*://fxtwitter.com/*', '*://threadreaderapp.com/*',
+      '*://twitter-thread.com/*', '*://xcancel.com/*', '*://example.com/*']) {
+      assert.ok(patterns.includes(want), `${id} should match ${want}`);
+    }
+    assert.ok(patterns.every((p) => /^\*:\/\/[a-z0-9.-]+\/\*$/.test(p)), `${id} holds only plain host patterns`);
+  }
+});
+
+test('Open on X works from a link on a thread reader', async () => {
+  const h = harness();
+  await h.settle();
+  h.events.clicked({ menuItemId: 'xit-link-open-original', linkUrl: 'https://threadreaderapp.com/thread/20.html' }, { id: 7, index: 2 });
+  await h.settle();
+  assert.equal(h.opened.at(-1).url, 'https://x.com/i/web/status/20');
+});

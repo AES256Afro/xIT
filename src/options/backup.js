@@ -13,7 +13,10 @@ function exportSettings() {
   const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'xit-settings.json';
+  // Version and date in the name, so successive backups can be told apart
+  // and none overwrites another.
+  const day = new Date().toISOString().slice(0, 10);
+  a.download = 'xit-settings-' + api.runtime.getManifest().version + '-' + day + '.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   saved(XITI18N.t('savedExported'));
@@ -86,6 +89,11 @@ async function importSettings(file) {
   $('confirm-import').showModal();
 }
 
+/** Offer to undo a Replace everything while one can still be undone. */
+async function renderImportUndo() {
+  $('undo-import').hidden = !(await XITStore.getImportUndo());
+}
+
 async function applyImport(mode) {
   const raw = pendingImport;
   pendingImport = null;
@@ -95,7 +103,7 @@ async function applyImport(mode) {
   try {
     settings = await (mode === 'merge' ? XITStore.merge(raw) : XITStore.replace(raw));
     render();
-    if (mode !== 'merge') { saved(XITI18N.t('savedImported')); return; }
+    if (mode !== 'merge') { saved(XITI18N.t('savedImported')); await renderImportUndo(); return; }
     const gained = settings.custom.filter((c) => !before.has(c.id)).length;
     // The browser's message format has no plural rules, so the choice of
     // message is made here and a translator gets one message per form.

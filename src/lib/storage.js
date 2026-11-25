@@ -206,6 +206,7 @@
     const current = await load();
     let raw = current;
     let undo = null;
+    let replaced = null;
     if (!operation || typeof operation !== 'object') throw new Error(XITI18N.t('errBadOperation'));
     if (operation.type === 'patch') {
       const patch = operation.patch || {};
@@ -213,6 +214,12 @@
     } else if (operation.type === 'replace') {
       if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error(XITI18N.t('errNotJsonObject'));
       raw = operation.settings;
+      // Kept for the session so the replace can be undone, as a removal can.
+      replaced = current;
+    } else if (operation.type === 'restore-import') {
+      const before = await getImportUndo();
+      if (!before) throw new Error(XITI18N.t('errNoImportToUndo'));
+      raw = before;
     } else if (operation.type === 'merge') {
       // A merge brings across somebody else's redirectors and nothing else:
       // their default, pins and switches stay theirs, and which of the new
@@ -319,6 +326,12 @@
     } else if (['restore-custom', 'reset', 'replace'].includes(operation.type)) {
       await promisify((cb) => api.storage.session.remove('removedCustom', cb));
     }
+    // One import can be undone: the latest. A reset or the undo itself ends it.
+    if (replaced) {
+      await promisify((cb) => api.storage.session.set({ replacedSettings: replaced }, cb));
+    } else if (operation.type === 'restore-import' || operation.type === 'reset') {
+      await promisify((cb) => api.storage.session.remove('replacedSettings', cb));
+    }
     return next;
   }
 
@@ -347,6 +360,8 @@
   const setPinned = (id, pinned) => mutate({ type: 'pin', id, pinned });
   const movePinned = (id, direction) => mutate({ type: 'move-pin', id, direction });
   const getUndo = async () => (await promisify((cb) => api.storage.session.get('removedCustom', cb))).removedCustom || null;
+  const restoreImport = () => mutate({ type: 'restore-import' });
+  const getImportUndo = async () => (await promisify((cb) => api.storage.session.get('replacedSettings', cb))).replacedSettings || null;
 
   /** Every redirector definition, presets first, regardless of enabled state. */
   function allRedirectors(settings) {
@@ -382,8 +397,11 @@
    */
   function menuSignature(settings) {
     if (!settings || !settings.contextMenu) return 'off';
+    // The hosts count too: the menus offer themselves on the user's own
+    // redirectors' links, so a changed template changes where they appear.
     return JSON.stringify([settings.contextMenuAll, defaultRedirector(settings).name,
-      menuRedirectors(settings).map((r) => [r.id, r.name, (r.requires || []).join('+')])]);
+      menuRedirectors(settings).map((r) => [r.id, r.name, (r.requires || []).join('+')]),
+      [...extraHosts(settings)].sort()]);
   }
 
   /**
@@ -437,7 +455,7 @@
     api, DEFAULTS, SCHEMA_VERSION, MAX_NAME, MAX_NOTE,
     load, save, replace, merge, reset, setEnabled, addCustom, removeCustom, normalize, onChanged,
     startWriter, mutate,
-    editCustom, duplicateCustom, restoreCustom, getUndo, setPinned, movePinned, redirectorGroups,
+    editCustom, duplicateCustom, restoreCustom, getUndo, restoreImport, getImportUndo, setPinned, movePinned, redirectorGroups,
     menuRedirectors, menuSignature,
     allRedirectors, enabledRedirectors, findRedirector, defaultRedirector, extraHosts,
   };

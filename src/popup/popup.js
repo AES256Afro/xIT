@@ -62,6 +62,18 @@
     window.close();
   }
 
+  /** The Make default star, drawn like the star in the tweet menu. */
+  function starIcon() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'm12 3.6 2.5 5.3 5.8.8-4.2 4.1 1 5.8-5.1-2.8-5.1 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.6Zm0 4.6-1.1 2.4-2.6.4 1.9 1.8-.4 2.6L12 14.2l2.2 1.2-.4-2.6 1.9-1.8-2.6-.4L12 8.2Z');
+    svg.appendChild(path);
+    return svg;
+  }
+
   /* ---- current tab / source ---- */
 
   function describe(parts) {
@@ -149,7 +161,7 @@
         const defBtn = document.createElement('button');
         defBtn.className = 'mini';
         defBtn.dataset.action = 'default';
-        defBtn.textContent = '★';
+        defBtn.appendChild(starIcon());
         defBtn.title = XITI18N.t('popupMakeDefault', [r.name]);
         defBtn.setAttribute('aria-label', defBtn.title);
         defBtn.setAttribute('aria-pressed', String(r.id === settings.defaultRedirector));
@@ -289,7 +301,12 @@
       try {
         const result = await api.runtime.sendMessage({ type: 'xit:diagnostics' });
         if (!result || !result.ok) throw new Error(XITI18N.t('diagFailed'));
-        const ok = await writeClipboard(JSON.stringify(result.report, null, 2));
+        const text = JSON.stringify(result.report, null, 2);
+        // Shown as well as copied, so what it holds can be read before it is
+        // pasted anywhere.
+        $('diagnostics-preview').textContent = text;
+        $('diagnostics-preview').hidden = false;
+        const ok = await writeClipboard(text);
         status(ok ? XITI18N.t('popupDiagCopied') : XITI18N.t('popupCopyFailed'), ok ? 'ok' : 'error');
       } catch (error) { status(error.message, 'error'); }
       finally { button.disabled = false; }

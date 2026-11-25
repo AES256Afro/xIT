@@ -25,7 +25,23 @@ const MENU_ROOT_PAGE = 'xit-page-root';
 const MENU_ROOT_SEL = 'xit-sel-root';
 const LEGACY_SETTINGS = ['browseRedirect', 'browseRedirectorId', 'browseScope', 'browsePausedUntil'];
 
-const LINK_PATTERNS = XIT.HOST_PATTERNS;
+// X's own origins: what the extension holds permissions for and scripts.
+const X_PATTERNS = XIT.HOST_PATTERNS;
+
+/**
+ * Where the link and page menus offer themselves: X, every host xIT can read
+ * a link back from, and the user's own redirectors. A custom host goes in
+ * only when it is a plain name, because one malformed pattern makes the
+ * browser refuse the whole menu, and an address or a port cannot be written
+ * as a match pattern anyway.
+ */
+function menuPatterns(settings) {
+  const custom = [...XITStore.extraHosts(settings)]
+    .map((h) => String(h).toLowerCase())
+    .filter((h) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(h))
+    .map((h) => '*://' + h + '/*');
+  return [...new Set([...X_PATTERNS, ...XIT.MIRROR_PATTERNS, ...custom])];
+}
 
 /* -------------------------------------------------------------------- *
  * Context menus
@@ -61,8 +77,9 @@ async function buildMenus(settings) {
   // which can run to a couple of dozen items in one menu.
   const list = XITStore.menuRedirectors(settings);
   const grouped = !!settings.contextMenuAll;
-  const link = { contexts: ['link'], targetUrlPatterns: LINK_PATTERNS };
-  const page = { contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS };
+  const patterns = menuPatterns(settings);
+  const link = { contexts: ['link'], targetUrlPatterns: patterns };
+  const page = { contexts: ['page', 'frame'], documentUrlPatterns: patterns };
   /*
    * No URL patterns, deliberately. The whole point of the selection menu
    * is text on a page xIT knows nothing about, so there is nothing to match
@@ -459,7 +476,7 @@ async function diagnostics() {
     const match = /(?:Chrome|Chromium)\/([\d.]+)/.exec(globalThis.navigator && navigator.userAgent || '');
     report.browser = match ? 'Chromium ' + match[1] : 'Chromium';
   }
-  report.xAccess = await api.permissions.contains({ origins: LINK_PATTERNS }) ? 'granted' : 'incomplete';
+  report.xAccess = await api.permissions.contains({ origins: X_PATTERNS }) ? 'granted' : 'incomplete';
   const stored = await api.storage.local.get(['menuError']);
   // Should always be 0. Anything else means the 1.0.7 cleanup did not run.
   const dnr = api.declarativeNetRequest;
@@ -468,7 +485,7 @@ async function diagnostics() {
   report.copyButton = settings.copyButton;
   report.nativeCopy = settings.hijackNativeCopy;
   report.contentScript = 'no accessible X tab';
-  const tabs = await api.tabs.query({ url: LINK_PATTERNS });
+  const tabs = await api.tabs.query({ url: X_PATTERNS });
   if (tabs.length) {
     const tab = tabs.find((t) => t.active) || tabs[0];
     try {

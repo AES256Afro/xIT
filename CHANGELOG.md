@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The right-click menu now also appears on links that are already on a redirector, a thread reader or a front-end xIT no longer offers, so you can switch such a link to your default or open it on X. Links to your own custom redirectors count too.
+- Replacing all your settings from a file can be undone. The Backup panel offers to put back what you had, until the browser restarts, you import again, or you reset.
+- Exported settings files are named with the version and the date, so backups no longer overwrite each other.
+- The popup shows the diagnostics report it copies, as Settings does, so you can see it holds no links before pasting it anywhere.
+- The popup's Make default star is drawn like every other icon instead of being a text character.
+
 - The right-click menu is no longer rebuilt every time the browser wakes xIT in the background, which it does every half minute or so of idleness. Chrome keeps the menu across those restarts, so the rebuild was repeated work, and a right-click at that moment could find the menu half built. The one-time cleanups left over from old versions also run once per browser session now instead of on every wake.
 - The package no longer includes an unused 512-pixel icon.
 

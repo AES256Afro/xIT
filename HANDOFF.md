@@ -163,21 +163,20 @@ what ships.
 The one status list. AUDIT-LOOP.md is the history of the first audit; this
 is what is still open from it and from the eight-stage audit of 25 November
 2026. Severities are that audit's. Closed so far from the second audit: B12
-to B21, C14 to C19, D1, O6, Q7, Q8, Q10, U12, U13, S7 to S9, R1 to R5, and Q9
-and P7 with them. B22 needed no change: the menu rebuild in diagnostics is the
+to B21, C14 to C19, D1, O6, P6, P10, Q7, Q8, Q10, Q13, U12, U13, U15, U16, V1,
+S7 to S9, R1 to R5, and Q9 and P7 with them. D5 needed no change: the badge
+reads "Cannot be checked" with a tooltip saying why, which is accurate. B22 needed no change: the menu rebuild in diagnostics is the
 probe that makes the report's menu status current, and is commented as such.
 
 | Next | ID | Sev | What is open |
 |---|---|---|---|
 | Publish (M4) | | | 1.4.1 is built. Upload it to Firefox, then Chrome, and correct Chrome's single-purpose field. |
 | Needs a person (M5) | U4, U13 | | One pass with VoiceOver or NVDA over the tweet menu, the popup and Settings. The structure is tested; whether it is usable by ear never has been. |
-| M7 | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. |
-| M7 | P6 | Medium | The right-click link menu does not appear on links already on a redirector. |
-| M7 | P10 | Medium | Nothing tells the maintainer a bundled redirector died. A weekly repository check would. |
-| M7 | U15 | Medium | Import's Replace everything cannot be undone. |
-| M7 | D3, D4, D5, V1 | Low | Toast placement, crowded popup rows, permanent "unknown" badges, a text star among SVG icons. |
-| M7 | P8, P9, P11 | Low | Convert every link in a selection; hide tweet-only redirectors on profiles; copy-time format. |
-| M7 | Q11, Q12, Q13, U16 | Low | Opt-in sync; undo Make default; dated export names; preview the popup's diagnostics. |
+| M7, needs a design call | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. A new mark is a visual decision, best made looking at live X. |
+| M7, needs a design call | D3, D4 | Low | The toast may stack with X's own "Copied" toast (not seen on live X); the popup rows are crowded. |
+| M7 | P8, P9 | Low | Convert every link in a selection; hide tweet-only redirectors on profiles (Firefox's `menus.onShown`). |
+| M7 | P11 | Low | Choose the copy format at copy time. Shift-click was the proposal, but Shift and Alt already open the tweet menu, so it needs another gesture. |
+| M7 | Q11, Q12 | Low | Opt-in sync, which needs a PRIVACY.md change; undo for Make default from the tweet menu. |
 | M7 | U9 | Low | From the first audit: pinning is explained in prose and never prompted. |
 | After Firefox 1.4.1 is live | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after the cleanup is live in both stores. |
 | Unscheduled | C12 | | The converter's own failure messages are still inline English. |
@@ -188,7 +187,7 @@ documented in the README, so it is not listed.
 ## Verifying a change
 
 ```bash
-npm test              # 200 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route, the package
+npm test              # 209 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route, the package
 npm run check         # every script parses
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
@@ -226,10 +225,19 @@ uploaded. Build elsewhere with `XIT_DIST=/some/folder npm run build`, which is
 what the package test does, or copy the zips aside first, or rebuild them
 from the tagged commit.
 
-**CI runs on GitHub, not here.** `.github/workflows/test.yml` was written on
-25 November 2026 and had not run when this was written: its first push is its
-first run. It runs the syntax check, the unit suite, the catalogue check, and
+**CI runs on GitHub, not here.** `.github/workflows/test.yml` first ran on
+25 November 2026: the unit job passed and the Chrome job failed at install,
+because `ubuntu-latest` had moved to 26.04, where Playwright 1.59.1 cannot
+install Chromium. Both jobs are now pinned to `ubuntu-24.04`; that fix had not
+run when this was written. It runs the syntax check, the unit suite, the catalogue check, and
 the Chrome and QoL suites. The Firefox suite needs a desktop Firefox.
+
+**The weekly redirector check** is `.github/workflows/redirectors.yml`,
+Mondays, and can be started by hand from the Actions tab. It runs
+`tools/check-redirectors.mjs`, the same HEAD-per-host check Settings makes, and
+opens an issue titled "A bundled redirector stopped answering", or comments on
+the open one, when a host fails. It had not run on GitHub when this was
+written; the script itself was run by hand and all eight hosts answered.
 
 **Menus on a woken worker.** Chrome keeps context menus across service worker
 restarts, so a woken worker leaves them alone when the signature it stored in

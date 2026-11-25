@@ -501,3 +501,50 @@ test('a duplicate of a long name keeps its suffix and fits the limit',async()=>{
   s=await a.duplicateCustom(s.custom.at(-1).id);
   assert.equal(s.custom.at(-1).name,'Mine copy','a short name is untouched');
 });
+
+test('a custom redirector\'s host is part of the menu signature',async()=>{
+  // P6: the link menu matches the hosts of the user's own redirectors, so
+  // changing one has to rebuild the menu.
+  const h=harness(),a=h.context();
+  let s=await a.addCustom({name:'Mine',template:'https://one.example/{path}'});
+  const before=a.menuSignature(s);
+  s=await a.editCustom(s.custom[0].id,{name:'Mine',template:'https://two.example/{path}'});
+  assert.notEqual(a.menuSignature(s),before);
+});
+
+test('replacing settings from a file can be undone',async()=>{
+  /*
+   * U15. Import's Replace everything took the whole file, their default,
+   * pins, switches and redirectors, and nothing could bring yours back,
+   * though removing one redirector could be undone. The settings it
+   * replaced are now kept for the session, as a removal is.
+   *
+   * Taking the snapshot out of the replace branch makes this fail.
+   */
+  const h=harness(),a=h.context();
+  let s=await a.addCustom({name:'Mine',template:'https://mine.example/{path}'});
+  const mine=s.custom[0].id;
+  s=await a.save({defaultRedirector:mine,toast:false});
+  s=await a.replace({defaultRedirector:'vxtwitter',enabledIds:['vxtwitter']});
+  assert.equal(s.custom.length,0,'the file replaced everything');
+  assert.ok(await a.getImportUndo(),'and what it replaced is kept');
+  s=await a.restoreImport();
+  assert.equal(s.defaultRedirector,mine,'undo brings the default back');
+  assert.equal(s.toast,false,'and the switches');
+  assert.ok(s.custom.some((c)=>c.id===mine),'and the redirector');
+  assert.equal(await a.getImportUndo(),null,'and is used up');
+  await assert.rejects(a.restoreImport(),/no import to undo/i);
+});
+
+test('a reset or a second import ends the import undo',async()=>{
+  const h=harness(),a=h.context();
+  await a.save({toast:false});
+  await a.replace({toast:true});
+  await a.reset();
+  assert.equal(await a.getImportUndo(),null,'a reset is not undone by undoing an import');
+  await a.save({copyButton:false});
+  await a.replace({copyButton:true});
+  await a.replace({stripTracking:false});
+  const s=await a.restoreImport();
+  assert.equal(s.copyButton,true,'undo goes back one import, to what the second replaced');
+});

@@ -261,6 +261,8 @@ export function makeDom() {
       counter.created += 1;
       return new Element(document, tag);
     },
+    // Drawn icons. The namespace is not modelled: an svg is an element here.
+    createElementNS(_ns, tag) { return document.createElement(tag); },
     createTextNode(text) { return new TextNode(document, text); },
     createRange() { return { selectNodeContents() {} }; },
     getElementById(id) {
