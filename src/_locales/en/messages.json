@@ -321,6 +321,15 @@
       }
     }
   },
+  "popupOtherXPage": {
+    "message": "X page: /$path$",
+    "description": "Popup: label describing the current tab when it is an X page that is neither a tweet nor a profile, such as Home or a list. Nothing can be copied through a redirector from it. $path$ is the page path after the slash and is not translated.",
+    "placeholders": {
+      "path": {
+        "content": "$1"
+      }
+    }
+  },
   "popupNoSource": {
     "message": "Open a tweet, or paste a link below.",
     "description": "Popup: shown in place of the preview when there is nothing to convert."

@@ -375,6 +375,15 @@ async function handleMenuClick(info, tab) {
 
   const redirector = XITStore.findRedirector(settings, redirectorId);
   const out = XIT.convert(target, redirector, opts);
+  if (!out.ok && action === 'open') {
+    // B14: an Open that cannot happen says why and touches nothing else. The
+    // copy fallback below used to run here too, so asking to open a profile
+    // with a tweet-only redirector overwrote the clipboard and opened no tab.
+    console.warn('[xit]', out.reason);
+    if (tab) await tellTab(tab.id, out.reason);
+    return;
+  }
+
   if (!out.ok) {
     // The chosen redirector does not apply to this link. Fall back to the
     // canonical x.com URL, never the raw target, which still carries the

@@ -135,3 +135,19 @@ test('the paste field is unchanged for a value that is already a link', async ()
   page.type('manual', '');
   assert.equal(page.$('preview').textContent, 'https://fxtwitter.com/jack/status/20');
 });
+
+test('on an X page that is not a tweet, the popup offers nothing to copy and says so', async () => {
+  /*
+   * U12, the popup's side of B13. On Home the popup used to describe the
+   * page in hard-coded English and still enable Copy, which produced
+   * fxtwitter.com/home. The description now comes from the catalogue, and
+   * the buttons that would convert are disabled.
+   */
+  const page = await loadPage('popup/popup.js', { tabUrl: 'https://x.com/home' });
+  assert.equal(page.$('copy-default').disabled, true, 'Copy should be disabled');
+  assert.equal(page.$('open-default').disabled, true, 'Open should be disabled');
+  assert.equal(page.$('current-kind').textContent, 'X page: /home', 'the page is still named');
+  for (const row of rows(page)) {
+    assert.equal(row.querySelector('[data-action="copy"]').disabled, true, 'no row should offer a copy');
+  }
+});

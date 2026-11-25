@@ -85,7 +85,7 @@
     const handle = XIT.handleOf(parts);
     if (parts.kind === 'status') return XITI18N.t(handle ? 'popupTweetBy' : 'popupTweetNoAuthor', [handle]);
     if (parts.kind === 'profile') return XITI18N.t('popupProfileOf', [parts.user]);
-    return 'X page: /' + parts.path;
+    return XITI18N.t('popupOtherXPage', [parts.path]);
   }
 
   function refreshPreview() {

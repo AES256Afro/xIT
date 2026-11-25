@@ -171,3 +171,29 @@ test('a filter survives a render it did not ask for', async () => {
     'the filter should still be in force over the rows the render just made');
   assert.equal(page.$('list-filter').value, 'thread');
 });
+
+/* ---- B12: the picker and the user's own redirectors ---- */
+
+test('saving the picker keeps the redirectors it does not list', async () => {
+  /*
+   * B12. The picker lists only what xIT bundles or catalogues, and its Save
+   * built the enabled list from those ids alone. Every redirector the user
+   * had added themselves was switched off, and a custom default was moved to
+   * a bundled one, by a dialog that never showed either of them.
+   *
+   * Building enabledIds from the picker's own entries again makes this fail.
+   */
+  const page = await loadPage('options/options.js', { settings: {
+    custom: [{ id: 'c-mine', name: 'Mine', template: 'https://mine.example/{path}' }],
+    enabledIds: ['fxtwitter', 'c-mine'], defaultRedirector: 'c-mine', pinnedIds: ['c-mine'], pickerDone: false,
+  } });
+  page.$('picker-save').dispatch('click');
+  await page.settle(10);
+
+  const patch = page.sent.find((m) => m.type === 'xit:mutate-settings'
+    && m.operation.type === 'patch' && m.operation.patch.enabledIds).operation.patch;
+  assert.ok(patch.enabledIds.includes('c-mine'), 'the custom redirector should stay enabled');
+  assert.ok(patch.enabledIds.includes('fxtwitter'), 'the ticked bundled one should stay too');
+  assert.equal(patch.defaultRedirector, 'c-mine', 'a custom default should survive the picker');
+  assert.deepEqual([...patch.pinnedIds], ['c-mine'], 'and so should its pin');
+});

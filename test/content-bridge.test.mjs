@@ -100,6 +100,20 @@ async function bridge({ mainFirst = true, toast = false } = {}) {
     for (const { type, listener } of docListeners) if (type === 'click') listener(ev);
     await setImmediate();
   }
+  /**
+   * X's own "Copy link", as a user does it: a genuine click on the menu item,
+   * whose label is in whatever language X is in, then X's clipboard call,
+   * which goes through the main world's wrapper.
+   */
+  async function nativeCopy(url, { label = 'Copy link', trusted = true } = {}) {
+    const item = { textContent: label, closest: () => item };
+    const ev = { isTrusted: trusted, target: { closest: (sel) => (/menuitem|copy-link/.test(sel) ? item : null) },
+      preventDefault() {}, stopPropagation() {} };
+    for (const { type, listener } of docListeners) if (type === 'click') listener(ev);
+    await clipboard.writeText(url);
+    drain();
+    await setImmediate();
+  }
   /** Deliver a runtime message to the content script, as the background does. */
   async function send(message) {
     const replies = [];
@@ -107,7 +121,7 @@ async function bridge({ mainFirst = true, toast = false } = {}) {
     await setImmediate();
     return replies;
   }
-  return { clipboard, copied, fallbackCopied, drain, clickNativeCopy, send,
+  return { clipboard, copied, fallbackCopied, drain, clickNativeCopy, nativeCopy, send,
     toasts: () => dom.document.body.querySelectorAll('.xit-toast').map((el) => el.textContent),
     push(data) { pending.push(data); drain(); },
     update(patch) { changeSettings({ ...settings, ...patch }); drain(); } };
@@ -143,8 +157,46 @@ test('the main world refuses a template that is not a bundled preset', async () 
 test('a declined template falls back to the isolated world, so a custom default still works', async () => {
   const b = await bridge();
   b.update({ customTemplate: 'https://mine.example/{path}' });
-  await b.clickNativeCopy();
-  assert.equal(b.fallbackCopied.at(-1), 'https://mine.example/jack/status/20');
+  await b.nativeCopy('https://x.com/jack/status/20?s=20');
+  assert.equal(b.copied.at(-1), 'https://x.com/jack/status/20?s=20', 'the main world leaves X\'s copy alone');
+  assert.equal(b.fallbackCopied.at(-1), 'https://mine.example/jack/status/20', 'and the isolated world finishes it');
+});
+
+test('a custom default works on X in any language', async () => {
+  /*
+   * B17. The fallback found X's menu item by the English words "copy link",
+   * so on X in Spanish, Japanese or anything else a custom default silently
+   * left the plain x.com link on the clipboard. The main world now reports
+   * the declined copy itself, and no label is read.
+   *
+   * Restoring the text match as the only route makes this fail.
+   */
+  for (const label of ['Copiar enlace', 'リンクをコピー', 'Link kopieren']) {
+    const b = await bridge();
+    b.update({ customTemplate: 'https://mine.example/{path}' });
+    await b.nativeCopy('https://x.com/jack/status/20', { label });
+    assert.equal(b.fallbackCopied.at(-1), 'https://mine.example/jack/status/20', label);
+  }
+});
+
+test('a page script cannot make the isolated world copy without a real click', async () => {
+  // The report travels over postMessage, which any page script can send. With
+  // no genuine gesture just before it, it is ignored.
+  const b = await bridge();
+  b.update({ customTemplate: 'https://mine.example/{path}' });
+  b.push({ __xit: 'declined-copy', text: 'https://x.com/jack/status/20' });
+  await setImmediate();
+  assert.deepEqual(b.fallbackCopied, [], 'a forged report alone copies nothing');
+  await b.nativeCopy('https://x.com/jack/status/20', { trusted: false });
+  assert.deepEqual(b.fallbackCopied, [], 'nor does one after a scripted click');
+});
+
+test('a declined copy of a page that is not a tweet is left as X wrote it', async () => {
+  const b = await bridge({ toast: true });
+  b.update({ customTemplate: 'https://mine.example/{path}' });
+  await b.nativeCopy('https://x.com/i/lists/123');
+  assert.deepEqual(b.fallbackCopied, []);
+  assert.deepEqual(b.toasts(), [], 'and no error is shown for it');
 });
 
 test('a preset default is handled in the main world, not twice', async () => {
@@ -168,7 +220,7 @@ test('a page script cannot disarm the fallback by claiming the main world accept
   const b = await bridge();
   b.update({ customTemplate: 'https://mine.example/{path}' });
   b.push({ __xit: 'ready', declined: false });
-  await b.clickNativeCopy();
+  await b.nativeCopy('https://x.com/jack/status/20');
   assert.equal(b.fallbackCopied.at(-1), 'https://mine.example/jack/status/20');
 });
 
@@ -199,10 +251,23 @@ test('the content script shows a toast the background asks for, and nothing else
   assert.deepEqual(b.toasts(), ['No tweet link in what you selected.']);
 });
 
-test('a toast is suppressed when the user turned confirmations off', async () => {
-  // toast() opens with that check, and the background passes this message
-  // whatever the setting says, so the setting is honoured here or nowhere.
+test('turning confirmations off hides confirmations, not problems', async () => {
+  /*
+   * B16. The switch reads "Confirm copies with a toast", and toast() used to
+   * return early for every kind when it was off. That also hid the clipboard
+   * failure, the "copied the clean link instead" warning and the background's
+   * "no tweet link in what you selected", which are exactly the notices B1,
+   * B10 and P5 were fixed to show.
+   *
+   * Putting the early return back for every kind makes this fail.
+   */
   const b = await bridge({ toast: false });
-  await b.send({ type: 'xit:toast', text: 'nothing to see' });
-  assert.deepEqual(b.toasts(), []);
+  await b.send({ type: 'xit:copy-text', text: 'https://fxtwitter.com/jack/status/20' });
+  assert.deepEqual(b.toasts(), [], 'a plain confirmation stays hidden');
+
+  await b.send({ type: 'xit:toast', text: 'No tweet link in what you selected.' });
+  assert.deepEqual(b.toasts(), ['No tweet link in what you selected.'], 'a warning still shows');
+
+  await b.send({ type: 'xit:copy-text', text: 'https://x.com/jack', note: 'Copied the clean x.com link instead.' });
+  assert.deepEqual(b.toasts(), ['Copied the clean x.com link instead.'], 'so does a substitution');
 });

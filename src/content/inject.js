@@ -66,7 +66,9 @@
   let toastTimer = 0;
 
   function toast(text, kind) {
-    if (settings && settings.toast === false) return;
+    // B16: the switch is "Confirm copies with a toast", so it hides
+    // confirmations only. A failure or a substituted link is still shown.
+    if (settings && settings.toast === false && (kind || 'ok') === 'ok') return;
     if (!toastEl) {
       toastEl = document.createElement('div');
       toastEl.className = 'xit-toast';
@@ -611,7 +613,10 @@
 
   function nativeCopyFallback(ev) {
     if (!settings || !settings.hijackNativeCopy) return;
-    if (mainWorldReady && !mainWorldDeclined) return;
+    // B17: with the main world running, a declined copy is reported to us as
+    // a declined-copy message, whatever language X is in. This text match is
+    // only for a main world that never reported in at all.
+    if (mainWorldReady) return;
     const item = ev.target.closest && ev.target.closest('[role="menuitem"], [data-testid="copy-link-to-tweet"]');
     if (!item) return;
     const text = (item.textContent || '').trim().toLowerCase();
@@ -628,6 +633,31 @@
 
     // Close X's menu, which no longer gets its own click.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  }
+
+  /*
+   * B17: the time of the last genuine user gesture. A declined-copy report
+   * arrives over postMessage, which any page script can send, so it is acted
+   * on only within a moment of a real click or key press. isTrusted cannot be
+   * set by a script, and a page that has the user's click can already write
+   * to the clipboard itself, so the gate gives a page nothing it lacked.
+   */
+  const GESTURE_WINDOW_MS = 1500;
+  let lastGesture = 0;
+  function noteGesture(ev) {
+    if (ev && ev.isTrusted) lastGesture = Date.now();
+  }
+
+  function finishDeclinedCopy(text) {
+    if (!settings || !settings.hijackNativeCopy || !mainWorldDeclined) return;
+    if (Date.now() - lastGesture > GESTURE_WINDOW_MS) return;
+    const redirector = XITStore.defaultRedirector(settings);
+    // X copies links to lists, Spaces and the like through the same call.
+    // Those stay as X wrote them, quietly, exactly as the main world leaves
+    // them when it handles the copy itself (B13).
+    const out = XIT.convert(text, redirector, { stripTracking: settings.stripTracking, extraHosts });
+    if (!out.ok) return;
+    copyWith(redirector, text);
   }
 
   /* ---------------------------------------------------------------- *
@@ -671,6 +701,8 @@
       if (d.declined) mainWorldDeclined = true;
     } else if (d.__xit === 'copied' && typeof d.url === 'string') {
       toast(XITI18N.t('toastCopied', [shortLabel(d.url)]), 'ok');
+    } else if (d.__xit === 'declined-copy' && typeof d.text === 'string') {
+      finishDeclinedCopy(d.text);
     }
   }, false);
 
@@ -753,6 +785,7 @@
 
     document.addEventListener('pointerdown', rememberTweet, true);
     document.addEventListener('click', nativeCopyFallback, true);
+    for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, noteGesture, true);
 
     document.addEventListener('click', (ev) => {
       if (!menuEl || menuEl.hidden) return;

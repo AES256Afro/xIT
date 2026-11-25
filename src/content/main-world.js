@@ -64,6 +64,20 @@
     return XIT.formatCopy(out.url, out.parts, cfg.format);
   }
 
+  /*
+   * B17: a lone link the page copied that this world declined to rewrite,
+   * because the default is a custom redirector it cannot vouch for. The
+   * isolated world holds the real template and finishes the job, so it is
+   * told about the copy rather than the DOM being searched for X's menu item
+   * by its English label. The isolated world acts on this only straight after
+   * a genuine user click, which no page script can forge.
+   */
+  function declinedLink(text) {
+    if (!cfg.enabled || cfg.template || typeof text !== 'string') return null;
+    const t = text.trim();
+    return /^https?:\/\/\S+$/.test(t) ? t : null;
+  }
+
   const clip = navigator.clipboard;
 
   if (clip && typeof clip.writeText === 'function') {
@@ -76,6 +90,7 @@
           const next = transform(text);
           return orig(next).then((result) => {
             if (next !== text) post('copied', { url: next });
+            else if (declinedLink(text)) post('declined-copy', { text: declinedLink(text) });
             return result;
           });
         },
@@ -99,7 +114,7 @@
             try {
               const text = await (await plain.getType('text/plain')).text();
               const next = transform(text);
-              if (next === text) return { items };
+              if (next === text) return { items, declined: declinedLink(text) };
               const rec = {};
               await Promise.all(plain.types.map((ty) => (
                 ty === 'text/plain'
@@ -113,8 +128,9 @@
           };
           // A failed preparation can use the original data. A failed write
           // must propagate unchanged, without retrying or claiming success.
-          return prepare().then(({ items: prepared, next }) => origWrite(prepared).then((result) => {
+          return prepare().then(({ items: prepared, next, declined }) => origWrite(prepared).then((result) => {
             if (next !== undefined) post('copied', { url: next });
+            else if (declined) post('declined-copy', { text: declined });
             return result;
           }));
         },

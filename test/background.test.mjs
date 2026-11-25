@@ -919,3 +919,27 @@ test('a result that lands after its redirector was removed is not written', asyn
   assert.equal(h.local.hostChecks.fxtwitter, undefined,
     'but nothing is stored for a redirector that went away mid-check');
 });
+
+test('an Open that the redirector cannot take opens nothing and leaves the clipboard alone', async () => {
+  /*
+   * B14. The fallback for a redirector that declines a link copied the clean
+   * x.com link whatever the action was, so "Open with Thread Reader App" on a
+   * profile overwrote the clipboard and opened no tab. Somebody who asked to
+   * open something did not ask to lose what they had copied. The tab is told
+   * why instead.
+   *
+   * Letting open actions fall through to the copy fallback makes this fail.
+   */
+  const h = harness();
+  await h.settle();
+  h.setRedirector({ name: 'Thread Reader App', template: 'https://threadreaderapp.com/thread/{id}.html', requires: ['id'] });
+
+  h.events.clicked({ menuItemId: 'xit-link-open:threadreader', linkUrl: 'https://x.com/jack?s=20' }, { id: 7, index: 2 });
+  await h.settle();
+
+  assert.deepEqual(h.sent.filter((m) => m.type === 'xit:copy-text'), [], 'nothing should reach the clipboard');
+  assert.deepEqual(h.opened, [], 'and nothing is opened');
+  const said = h.sent.filter((m) => m.type === 'xit:toast');
+  assert.equal(said.length, 1, 'the tab is told why');
+  assert.match(said[0].text, /specific tweet/);
+});

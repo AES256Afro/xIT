@@ -445,7 +445,12 @@
     }
     // Keep the order the entries are offered in, so the lists stay stable.
     const order = pickerEntries().map((r) => r.id);
-    const enabledIds = order.filter((id) => pick.enabled.has(id));
+    // The picker lists only what xIT bundles or catalogues. Anything else the
+    // user enabled is their own redirector, which this dialog never showed,
+    // so it has no say over it: those stay exactly as they were (B12).
+    const offered = new Set(order);
+    const enabledIds = order.filter((id) => pick.enabled.has(id))
+      .concat(settings.enabledIds.filter((id) => !offered.has(id)));
     const pinnedIds = settings.pinnedIds.filter((id) => pick.pinned.has(id))
       .concat(order.filter((id) => pick.pinned.has(id) && !settings.pinnedIds.includes(id)));
     if (!enabledIds.length && !template) {

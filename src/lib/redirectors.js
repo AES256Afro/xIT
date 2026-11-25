@@ -334,6 +334,13 @@
     if (!redirector || !redirector.template) return { ok: false, reason: 'No redirector selected.' };
     const parts = parse(raw, o.extraHosts);
     if (!parts) return { ok: false, reason: 'Not an X/Twitter link.' };
+    // B13: only a tweet or a profile is something a redirector shows. Any
+    // other X page, such as Home, a list or a DM thread, came out as a
+    // broken link that every copy route reported as copied. findLink holds
+    // out for the same two kinds, so the routes agree on what counts.
+    if (parts.kind !== 'status' && parts.kind !== 'profile') {
+      return { ok: false, reason: 'Not a link to a tweet or a profile.' };
+    }
 
     const requires = redirector.requires || [];
     if (requires.includes('id') && !parts.id) {

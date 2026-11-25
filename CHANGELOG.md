@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Choosing redirectors no longer switches off the ones you added yourself. Saving the "Choose your redirectors" dialog rebuilt your list from the entries it shows, which are only the ones xIT bundles or catalogues, so every custom redirector was turned off and a custom default was replaced with FxTwitter. Your own entries, your default and your pins now stay as they were.
+- Only a tweet or a profile is converted. Any other X address, such as Home, a search, a list, a community, a Space or a message thread, used to come out as a broken redirector link with a "Copied" confirmation. That reached X's own Copy link on those pages, the tweet button when it could not find the tweet's link, and the popup. Those links now stay exactly as X wrote them, and the popup says the page cannot be converted instead of offering a Copy that does nothing useful.
+- "Open with" in the right-click menu no longer replaces your clipboard. When the redirector could not take the link, for example a thread reader on a profile, it copied the x.com link instead of opening anything. It now opens nothing, copies nothing, and on X says why.
+- Turning off "Confirm copies with a toast" now hides confirmations only. It also used to hide the message that a copy failed, and the one saying a different link was copied than the one you asked for.
+- X's own Copy link now works with a custom default in every language X offers. It used to find X's menu item by the English words "Copy link", so on X in any other language a custom default quietly left the plain x.com link on the clipboard. The copy is now recognised from X's clipboard call itself, and is finished only right after a real click, so a script on the page cannot trigger it.
+
 ## 1.4.0
 
 - Selected text can now be converted from the right-click menu. A tweet URL that sits in a page as plain text, which is how they arrive in a mailing-list archive, a code block or a pasted quote, had no route but the popup's paste field. Select it, right-click, and the xIT menu offers everything it offers on a real link. The first tweet URL in the selection is the one used.

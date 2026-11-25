@@ -62,3 +62,14 @@ test('prose, disabled configuration, and malformed configuration pass through',a
   assert.deepEqual(values,[text,'https://x.com/jack/status/20','https://x.com/jack/status/20']);
   assert.equal(h.copied().length,0);
 });
+
+test('X\'s own Copy link for a page that is not a tweet passes through untouched',async()=>{
+  // B13, in the main world. X uses the same clipboard call for "Copy link"
+  // on lists, communities and Spaces, and those were being rewritten to the
+  // redirector with a success toast.
+  const values=[];const h=harness({writeText:async text=>values.push(text)});
+  await h.clipboard.writeText('https://x.com/i/lists/123');
+  await h.clipboard.writeText('https://x.com/jack/status/20');
+  assert.deepEqual(values,['https://x.com/i/lists/123','https://fxtwitter.com/jack/status/20']);
+  assert.equal(h.copied().length,1,'only the tweet is announced as converted');
+});

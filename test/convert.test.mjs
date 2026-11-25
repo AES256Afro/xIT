@@ -434,3 +434,28 @@ test('findLink does not scan an unbounded amount of text', () => {
   assert.equal(XIT.findLink('x'.repeat(100) + ' ' + link), link, 'a little prose is fine');
   assert.equal(XIT.findLink('x'.repeat(5000) + ' ' + link), null, 'past the cap it is not read');
 });
+
+test('a link that is neither a tweet nor a profile is not converted', () => {
+  /*
+   * B13. convert() accepted any X URL, so a {path} template turned Home,
+   * search, lists, communities, Spaces and DM paths into links like
+   * fxtwitter.com/i/lists/123, and every copy route reported them as copied.
+   * findLink already held out for a tweet or a profile; convert now applies
+   * the same rule, so the routes cannot disagree about what is a link worth
+   * converting.
+   *
+   * Taking the kind check out of convert makes this fail.
+   */
+  const fx = XIT.PRESETS[0];
+  for (const url of ['https://x.com/home', 'https://x.com/i/lists/123', 'https://x.com/messages/123-456',
+    'https://x.com/search?q=a', 'https://x.com/i/communities/9', 'https://x.com/i/spaces/1abc',
+    'https://x.com/settings/account']) {
+    const out = XIT.convert(url, fx);
+    assert.equal(out.ok, false, url + ' should not convert');
+    assert.ok(out.reason, url + ' should say why');
+  }
+  // What it is for still works.
+  assert.equal(XIT.convert('https://x.com/jack/status/20', fx).ok, true);
+  assert.equal(XIT.convert('https://x.com/jack', fx).ok, true);
+  assert.equal(XIT.convert('https://x.com/i/web/status/20', fx).ok, true);
+});
