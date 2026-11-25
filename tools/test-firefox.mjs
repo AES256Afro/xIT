@@ -52,9 +52,14 @@ try {
   assert.equal(/browse|xcancel/.test(migration.stored),false,'stored settings must not name a withdrawn front-end');
   assert.equal(migration.menuError,undefined);
   check('Firefox removes rules and settings left by 1.0.3 and still creates the context menus');
-  const ui=await evaluate('({saved:document.getElementById("saved").textContent,rows:document.querySelectorAll(".ritem").length,redirectPanel:!!document.getElementById("t-browse"),hostChecks:document.querySelectorAll("[data-action=check]").length})');
-  assert.equal(ui.saved,'');assert.equal(ui.rows,8);assert.equal(ui.redirectPanel,false);assert.equal(ui.hostChecks,0);
-  check('Settings lists the eight redirectors with no page-redirect panel or host checks');
+  // Written for 1.0.7, when eight redirectors were listed and nothing could be
+  // checked. Since 1.1.0 the list holds the bundled set and the catalogue sits
+  // in the picker, whose rows are also .ritem, and every bundled host has a
+  // Check button. The expected numbers come from the shipped library, so the
+  // next change to the bundled set does not need this line edited again.
+  const ui=await evaluate('({saved:document.getElementById("saved").textContent,rows:document.querySelectorAll("#redirector-list .ritem").length,bundled:XIT.PRESETS.length,checkable:XIT.PRESETS.filter(p=>XIT.checkOrigin(p.template)).length,redirectPanel:!!document.getElementById("t-browse"),hostChecks:document.querySelectorAll("#redirector-list [data-action=check]").length})');
+  assert.equal(ui.saved,'');assert.equal(ui.rows,ui.bundled);assert.equal(ui.redirectPanel,false);assert.equal(ui.hostChecks,ui.checkable);
+  check('Settings lists the bundled redirectors, each checkable, with no page-redirect panel');
   const custom=await evaluate('(async()=>{let s=await XITStore.addCustom({name:"Firefox instance",template:"https://example.com/{path}"});const id=s.custom.at(-1).id;await XITStore.setPinned(id,true);await XITStore.removeCustom(id);s=await XITStore.restoreCustom();return {restored:s.custom.some(r=>r.id===id),pinned:s.pinnedIds.includes(id),undo:await XITStore.getUndo()}})()');
   assert.deepEqual(custom,{restored:true,pinned:true,undo:null});
   check('Native Firefox session storage restores a removed custom entry and its pin');

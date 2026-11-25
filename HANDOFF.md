@@ -19,19 +19,21 @@ traps. For how the extension works and how to build it, read the
 
 ## Do this next
 
-1. **Run the three browser suites on the host, before anything else.**
+1. **`main` is ahead of 1.4.0.** The audit's first milestone fixed five
+   defects in what lands on the clipboard (see CHANGELOG, Unreleased). They
+   are not in `dist/xit-*-1.4.0.zip`. Uploading 1.4.0 as it stands is still
+   possible, but the better upload is the next version with those fixes in it,
+   once the store copy has been corrected (audit milestone M3).
 
-   ```bash
-   npm i && npm run test:browser && npm run test:firefox && npm run test:qol
-   ```
-
-   They need Playwright, which the sandboxed development environment does not
-   have, so they have not run against any build since 1.0.3. That is every
-   version from 1.0.4 to 1.4.0, including all of the context menu trees, the
-   toast, and the popup and Settings render paths rewritten in 1.3.9 and 1.4.0.
-   The 153 unit tests are a hand-written harness: they prove the logic agrees
-   with itself, not that Chrome and Firefox agree with it. This is the only
-   item here that can actually fail, so it goes first.
+   The three browser suites ran on 25 November 2026 for the first time since
+   1.0.3, against the code on `main`, and all pass: 6 Chrome checks and 9 QoL
+   checks on Chromium 159, 6 Firefox checks on Firefox 155. Each suite had
+   fallen behind the product, and each needed a test-only fix: the first-run
+   picker (1.1.0) covered Settings, the filter (1.3.9) hides rows rather than
+   removing them, three bundled redirectors (1.1.0) no longer overflow the
+   dropdown, and the Firefox check still expected eight rows and no Check
+   buttons. No product code was wrong. How to run them is under
+   [Verifying a change](#verifying-a-change).
 
 2. **Upload the screenshots and promo tiles** from `store/assets/` on the Store
    listing tab. They were re-rendered from 1.4.0 on 6 November 2026 and show
@@ -179,7 +181,7 @@ what ships.
 ## Verifying a change
 
 ```bash
-npm test              # 153 tests: URL logic, settings writes, menus, clipboard, both page render paths
+npm test              # 175 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules
@@ -194,11 +196,25 @@ The checks use native extension APIs and mock X documents. They include regex
 compilation, installed rules, settings from separate pages, permission denial,
 error display, keyboard controls, scrolling, and article lifecycle changes.
 
-**The 1.4.0 build has passed unit tests only: 153 of them, all on Node.** None
-of the three browser suites has run against it, or against any build since
-1.0.3, because Playwright is not installed in the sandboxed environment this
-work is done in and Firefox cannot spawn its content processes there either.
-Treat all three as unverified from 1.0.4 onward and run them on the host.
+**The browser suites last ran on 25 November 2026, and all pass** against the
+code on `main` (1.4.0 plus the Unreleased fixes). There is no Playwright in
+this repo. Point the suites at any local install, and at a Chromium it has
+cached if its own revision is missing:
+
+```bash
+export PLAYWRIGHT_PATH=/path/to/node_modules/playwright/index.mjs
+export CHROME_PATH="$HOME/Library/Caches/ms-playwright/chromium-<rev>/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+npm run build && npm run test:browser && npm run test:qol && npm run test:firefox
+```
+
+They cannot run inside a sandboxed agent shell: Chromium is refused its
+crash handler and profile lock there, and Firefox its content processes.
+None of them exercises X's real share menu, so the native Copy link fixes
+(B13, B17) are proven by the unit suite only.
+
+**`npm run build` deletes every zip in `dist/` before it builds**, including
+`--no-zip` runs. A test build therefore removes a package waiting to be
+uploaded. Copy the zips aside first, or rebuild them from the tagged commit.
 
 What they covered when they last ran, which is worth knowing before reading a
 failure: the Chrome checks install a redirect rule the way earlier versions

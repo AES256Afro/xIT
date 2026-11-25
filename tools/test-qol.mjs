@@ -42,6 +42,9 @@ try {
     // assert at the end that nothing arrived.
     page.on('dialog', async d => { nativeDialogs.push(d.type() + ': ' + d.message()); await d.dismiss(); });
   }
+  // The first-run picker (1.1.0) opens over Settings on a fresh profile and
+  // takes every click. These checks are about what is behind it.
+  await save({ pickerDone: true });
   await options.goto(`chrome-extension://${id}/options/options.html`);
   await options.waitForSelector('#en-fxtwitter');
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
@@ -163,24 +166,26 @@ try {
   await popup.setViewportSize({ width: 400, height: 850 });
   await popup.screenshot({ path: path.join(root, '.harness/qol-popup.png'), fullPage: true });
   await options.locator('#redirector-list').screenshot({ path: path.join(root, '.harness/qol-redirectors.png') });
-  // U7: the filter narrows the list and is view state, not a setting.
-  const rows = () => options.evaluate(() => document.querySelectorAll('#redirector-list .ritem').length);
+  // U7: the filter narrows the list and is view state, not a setting. Since
+  // 1.3.9 (O5) it hides rows rather than removing them, so what is counted is
+  // the rows a person can see.
+  const rows = () => options.evaluate(() => document.querySelectorAll('#redirector-list .ritem:not([hidden])').length);
   const before = await rows();
   assert.ok(before > 1, 'there is a list to filter');
   await options.locator('#list-filter').fill('thread');
-  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem').length < n, before);
+  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem:not([hidden])').length < n, before);
   assert.ok(await options.evaluate(() => {
-    const names = Array.from(document.querySelectorAll('#redirector-list .ritem b')).map((b) => b.textContent);
+    const names = Array.from(document.querySelectorAll('#redirector-list .ritem:not([hidden]) b')).map((b) => b.textContent);
     return names.length > 0 && names.every((n) => /thread/i.test(n));
   }), 'only matching rows remain');
   // A group left with no rows must not leave its heading standing.
   assert.equal(await options.evaluate(() =>
-    Array.from(document.querySelectorAll('#redirector-list .rgroup'))
-      .filter((g) => !g.querySelector('.ritem')).length), 0, 'no empty group headings');
+    Array.from(document.querySelectorAll('#redirector-list .rgroup:not([hidden])'))
+      .filter((g) => !g.querySelector('.ritem:not([hidden])')).length), 0, 'no empty group headings');
   await options.locator('#list-filter').fill('zzzznothing');
   await options.waitForSelector('#list-empty:not([hidden])');
   await options.locator('#list-filter').fill('');
-  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem').length === n, before);
+  await waitFor(options, (n) => document.querySelectorAll('#redirector-list .ritem:not([hidden])').length === n, before);
   await options.reload();
   await options.waitForSelector('#en-fxtwitter');
   assert.equal(await options.locator('#list-filter').inputValue(), '', 'the filter does not persist');

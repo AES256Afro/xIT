@@ -33,6 +33,9 @@ try {
   const settle = () => worker.evaluate(() => initChain);
   const save = async (patch) => { await worker.evaluate(patch => XITStore.save(patch), patch); await settle(); };
   await settle();
+  // The first-run picker (1.1.0) opens over Settings on a fresh profile and
+  // takes every click. These checks are about what is behind it.
+  await save({pickerDone:true});
   const options=await context.newPage();
   const second=await context.newPage();
   for(const page of [options,second]) {await page.goto(`chrome-extension://${id}/options/options.html`);await page.waitForSelector('#en-fxtwitter');}
@@ -91,6 +94,10 @@ try {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const mock=(await readFile(path.join(root,'tools/store-assets/mock-x.html'),'utf8')).replace(/<script[\s\S]*$/,'</body></html>');
   await page.route('https://x.com/**',route=>route.fulfill({contentType:'text/html',body:mock}));
+  // A short window, so the dropdown has to scroll. With three redirectors
+  // enabled by default since 1.1.0 it fits on a normal screen, and the
+  // scrolling check below would be asking a menu that cannot scroll to move.
+  await page.setViewportSize({width:1280,height:360});
   await page.goto('https://x.com/home');await page.waitForSelector('.xit-btn-caret');
   const cdp=await context.newCDPSession(page);const worlds=[];
   cdp.on('Runtime.executionContextCreated',({context})=>worlds.push(context));await cdp.send('Runtime.enable');
@@ -108,7 +115,9 @@ try {
       testMessages.push(message);return Promise.resolve({ok:true});
     };`);
   const openMenu=async()=>{await page.bringToFront();await page.locator('.xit-btn-caret').first().click();};
-  await openMenu();await page.locator('.xit-menu').evaluate(el=>el.scrollTop=el.scrollHeight);
+  await openMenu();
+  assert.ok(await page.locator('.xit-menu').evaluate(el=>el.scrollHeight>el.clientHeight),'the dropdown must overflow for the scrolling check to mean anything');
+  await page.locator('.xit-menu').evaluate(el=>el.scrollTop=el.scrollHeight);
   await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   assert.equal(await page.locator('.xit-menu').evaluate(el=>el.hidden),false);
   assert.ok(await page.locator('.xit-menu').evaluate(el=>el.scrollTop>0));

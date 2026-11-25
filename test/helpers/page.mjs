@@ -84,10 +84,40 @@ export async function loadPage(page, options = {}) {
     },
     runtime: {
       getURL: (path) => 'chrome-extension://test/' + path,
-      sendMessage: async (message) => { sent.push(message); return { ok: true, results: {}, report: {} }; },
+      sendMessage: async (message) => {
+        sent.push(message);
+        /*
+         * C19: settings writes go to the real writer, as they go to the
+         * background in a browser. This used to answer every write with
+         * success and no settings, so a test could see what a page asked for
+         * and never what the user was left with, which is how B12 passed 153
+         * tests: the picker's request was well formed and its outcome wrong.
+         */
+        if (message && message.type === 'xit:mutate-settings') {
+          try {
+            return { ok: true, settings: await writer.XITStore.mutate(message.operation) };
+          } catch (error) {
+            return { ok: false, error: error.message };
+          }
+        }
+        return { ok: true, results: {}, report: {} };
+      },
       onMessage: { addListener() {} },
     },
   };
+
+  // The background's half: the same libraries, the same storage, and the
+  // writer switched on. It is a context of its own so that the page keeps
+  // the non-writer store it has in a browser.
+  const writer = vm.createContext({
+    console, URL, URLSearchParams, JSON, Set, Map, Date, Promise, setTimeout, clearTimeout, setImmediate,
+    chrome: api,
+  });
+  writer.globalThis = writer;
+  vm.runInContext(read('lib/i18n.js'), writer);
+  vm.runInContext(read('lib/redirectors.js'), writer);
+  vm.runInContext(read('lib/storage.js'), writer);
+  writer.XITStore.startWriter();
 
   const context = vm.createContext({
     console, URL, URLSearchParams, JSON, Set, Map, Date, Promise,

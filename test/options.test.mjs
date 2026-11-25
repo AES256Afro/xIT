@@ -196,4 +196,26 @@ test('saving the picker keeps the redirectors it does not list', async () => {
   assert.ok(patch.enabledIds.includes('fxtwitter'), 'the ticked bundled one should stay too');
   assert.equal(patch.defaultRedirector, 'c-mine', 'a custom default should survive the picker');
   assert.deepEqual([...patch.pinnedIds], ['c-mine'], 'and so should its pin');
+
+  // C19: what the user is left with, not only what the page asked for.
+  const stored = page.local.settings;
+  assert.ok(stored.enabledIds.includes('c-mine'), 'the saved settings keep the custom redirector on');
+  assert.equal(stored.defaultRedirector, 'c-mine', 'and keep it as the default');
+  assert.equal(stored.pickerDone, true, 'and record that the picker was used');
+  assert.equal(page.$('default-select').value, 'c-mine', 'and the page shows it');
+});
+
+test('a switch in Settings is saved, not only requested', async () => {
+  /*
+   * C19. The page helper answered every settings write with success and
+   * changed nothing, so no test here could see a write land. This one fails
+   * if that stub comes back.
+   */
+  const page = await loadPage('options/options.js', { settings: { pickerDone: true } });
+  const box = page.$('t-toast');
+  box.checked = false;
+  box.dispatch('change');
+  await page.settle(10);
+  assert.equal(page.local.settings.toast, false);
+  assert.equal(page.$('t-toast').checked, false, 'the page renders what was saved');
 });
