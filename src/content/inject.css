@@ -237,6 +237,20 @@ html[data-xit-theme="light"] {
 }
 
 .xit-toast[data-show="1"] { opacity: 1; transform: translate(-50%, 0); }
+/* Clickable only while it is on screen and offers an action. */
+.xit-toast[data-show="1"][data-action] { pointer-events: auto; }
+.xit-toast-act {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.xit-toast-act:focus-visible { outline: 2px solid var(--xit-toast-fg); outline-offset: 2px; }
 .xit-toast[data-kind="error"] { background: var(--xit-toast-error); }
 /* The copy worked, but not with the redirector that was asked for. */
 .xit-toast[data-kind="warn"] { background: var(--xit-toast-warn); }

@@ -69,7 +69,13 @@ function createMenu(opts) {
   });
 }
 
+// Menu items for redirectors that need a link to a tweet. Firefox hides them
+// for a target that is not one; see the onShown listener below.
+let tweetOnlyMenuIds = [];
+const needsTweet = (r) => (r.requires || []).includes('id');
+
 async function buildMenus(settings) {
+  tweetOnlyMenuIds = [];
   await removeAllMenus();
   if (!settings.contextMenu) return;
 
@@ -100,6 +106,11 @@ async function buildMenus(settings) {
     await createMenu({ id: rootId, title: XITI18N.t('extensionName'), ...ctx });
     await createMenu({ id: prefix + 'copy-default', parentId: rootId, ...ctx,
       title: XITI18N.t('menuCopyAs', [XITStore.defaultRedirector(settings).name]) });
+    // A selection can hold many links where a link holds one.
+    if (rootId === MENU_ROOT_SEL) {
+      await createMenu({ id: prefix + 'copy-all', parentId: rootId, ...ctx,
+        title: XITI18N.t('menuCopyAllWith', [XITStore.defaultRedirector(settings).name]) });
+    }
     if (list.length) {
       await createMenu({ id: prefix + 'sep1', parentId: rootId, ...ctx, type: 'separator' });
     }
@@ -107,6 +118,7 @@ async function buildMenus(settings) {
     const pair = async (parentId, r) => {
       await createMenu({ id: prefix + 'copy:' + r.id, parentId, ...ctx, title: XITI18N.t('menuCopyAs', [r.name]) });
       await createMenu({ id: prefix + 'open:' + r.id, parentId, ...ctx, title: XITI18N.t('menuOpenWith', [r.name]) });
+      if (needsTweet(r)) tweetOnlyMenuIds.push(prefix + 'copy:' + r.id, prefix + 'open:' + r.id);
     };
 
     if (grouped) {
@@ -139,6 +151,7 @@ async function buildMenus(settings) {
   for (const r of list) {
     await createMenu({ id: 'xit-page-open:' + r.id, parentId: MENU_ROOT_PAGE, ...page,
       title: XITI18N.t('menuOpenPageWith', [r.name]) });
+    if (needsTweet(r)) tweetOnlyMenuIds.push('xit-page-open:' + r.id);
   }
 }
 
@@ -395,6 +408,22 @@ async function handleMenuClick(info, tab) {
     const reason = XITI18N.t('menuNoTweetInSelection');
     console.warn('[xit]', reason);
     if (tab) await tellTab(tab.id, reason);
+    return;
+  }
+
+  if (scope === 'sel' && what === 'copy-all') {
+    // Each link converted with the default and written in the chosen format,
+    // one per line. A link the default cannot take is left out, not swapped
+    // for its x.com form, since a list is read as all one kind of link.
+    const lines = XIT.findLinks(info.selectionText, opts.extraHosts)
+      .map((link) => XIT.convert(link, XITStore.defaultRedirector(settings), opts))
+      .filter((out) => out.ok)
+      .map((out) => XIT.formatCopy(out.url, out.parts, settings.copyFormat));
+    if (!lines.length) {
+      if (tab) await tellTab(tab.id, XITI18N.t('menuNoTweetInSelection'));
+      return;
+    }
+    if (tab) await copyInTab(tab.id, lines.join('\n'), settings.toast);
     return;
   }
 
@@ -775,6 +804,26 @@ api.runtime.onInstalled.addListener((details) => {
 if (api.runtime.onStartup) {
   api.runtime.onStartup.addListener(() => init('startup').catch(() => {}));
 }
+/*
+ * Firefox can change a menu as it opens, so a redirector that needs a tweet
+ * is hidden where the target is a profile or another X page, and shown again
+ * for a tweet. Chrome has no such event and keeps offering it, and a choice
+ * that cannot apply says why. A target that cannot be read hides nothing.
+ */
+if (api.menus && api.menus.onShown && api.menus.update && api.menus.refresh) {
+  api.menus.onShown.addListener((info) => {
+    if (!tweetOnlyMenuIds.length) return;
+    const target = info.linkUrl
+      || (info.selectionText ? XIT.findLink(info.selectionText) : null)
+      || info.frameUrl || info.pageUrl;
+    const parts = target ? XIT.parse(target) : null;
+    const visible = !parts || parts.kind === 'status';
+    Promise.all(tweetOnlyMenuIds.map((id) => api.menus.update(id, { visible }).catch(() => {})))
+      .then(() => api.menus.refresh())
+      .catch(() => {});
+  });
+}
+
 api.contextMenus.onClicked.addListener((info, tab) => {
   handleMenuClick(info, tab).catch((e) => console.warn('[xit] menu click failed', e));
 });

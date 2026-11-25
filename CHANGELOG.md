@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The right-click menu on selected text can copy every tweet link in it at once, one per line, each converted with your default. A link that appears twice, or on both twitter.com and x.com, is copied once.
+- Making a redirector the default from the tweet menu now offers Undo in the banner that confirms it, since one click there changes a setting that applies everywhere.
+- On Firefox, redirectors that only work with a tweet, such as Thread Reader App, are hidden from the right-click menu on a profile and other pages that are not tweets.
+
 - The right-click menu now also appears on links that are already on a redirector, a thread reader or a front-end xIT no longer offers, so you can switch such a link to your default or open it on X. Links to your own custom redirectors count too.
 - Replacing all your settings from a file can be undone. The Backup panel offers to put back what you had, until the browser restarts, you import again, or you reset.
 - Exported settings files are named with the version and the date, so backups no longer overwrite each other.

@@ -130,9 +130,15 @@ try {
   assert.equal((await evaluate('testCopies')).at(-1),'https://x.com/jack/status/20');
   await openMenu();await page.locator('[data-id="vxtwitter"] [data-act="open"]').focus();await page.keyboard.press('Enter');
   assert.equal((await evaluate('testMessages')).at(-1).url,'https://vxtwitter.com/jack/status/20');
+  const before=await worker.evaluate(async()=>(await XITStore.load()).defaultRedirector);
   await openMenu();await page.locator('[data-id="vxtwitter"] [data-act="default"]').focus();await page.keyboard.press('Space');
   await waitFor(options, async()=>(await XITStore.load()).defaultRedirector==='vxtwitter');
   assert.equal((await evaluate('testCopies')).length,1);
+  // Q12: the toast offers to put the previous default back, even with
+  // confirmations turned off, since it carries an action.
+  await page.locator('.xit-toast .xit-toast-act').click();
+  await waitFor(options, async(want)=>(await XITStore.load()).defaultRedirector===want, before);
+  await save({defaultRedirector:'vxtwitter'});
   check('Dropdown scroll, Settings, clean copy, Open, default selection, and Escape use the focused control');
   await evaluate(`globalThis.testScans=0;const originalQuery=Document.prototype.querySelectorAll;
     Document.prototype.querySelectorAll=function(selector){if(selector==='article [role="group"]')testScans++;return originalQuery.call(this,selector);};`);

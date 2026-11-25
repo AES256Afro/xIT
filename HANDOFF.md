@@ -164,7 +164,8 @@ The one status list. AUDIT-LOOP.md is the history of the first audit; this
 is what is still open from it and from the eight-stage audit of 25 November
 2026. Severities are that audit's. Closed so far from the second audit: B12
 to B21, C14 to C19, D1, O6, P6, P10, Q7, Q8, Q10, Q13, U12, U13, U15, U16, V1,
-S7 to S9, R1 to R5, and Q9 and P7 with them. D5 needed no change: the badge
+S7 to S9, R1 to R5, P8, P9, Q12, and Q9 and P7 with them. P9's Firefox menu
+hiding is unit-tested only: no suite can open a real context menu. D5 needed no change: the badge
 reads "Cannot be checked" with a tooltip saying why, which is accurate. B22 needed no change: the menu rebuild in diagnostics is the
 probe that makes the report's menu status current, and is commented as such.
 
@@ -174,9 +175,8 @@ probe that makes the report's menu status current, and is commented as such.
 | Needs a person (M5) | U4, U13 | | One pass with VoiceOver or NVDA over the tweet menu, the popup and Settings. The structure is tested; whether it is usable by ear never has been. |
 | M7, needs a design call | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. A new mark is a visual decision, best made looking at live X. |
 | M7, needs a design call | D3, D4 | Low | The toast may stack with X's own "Copied" toast (not seen on live X); the popup rows are crowded. |
-| M7 | P8, P9 | Low | Convert every link in a selection; hide tweet-only redirectors on profiles (Firefox's `menus.onShown`). |
 | M7 | P11 | Low | Choose the copy format at copy time. Shift-click was the proposal, but Shift and Alt already open the tweet menu, so it needs another gesture. |
-| M7 | Q11, Q12 | Low | Opt-in sync, which needs a PRIVACY.md change; undo for Make default from the tweet menu. |
+| M7 | Q11 | Low | Opt-in sync, which needs a PRIVACY.md change. |
 | M7 | U9 | Low | From the first audit: pinning is explained in prose and never prompted. |
 | After Firefox 1.4.1 is live | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after the cleanup is live in both stores. |
 | Unscheduled | C12 | | The converter's own failure messages are still inline English. |
@@ -187,7 +187,7 @@ documented in the README, so it is not listed.
 ## Verifying a change
 
 ```bash
-npm test              # 209 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route, the package
+npm test              # 213 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route, the package
 npm run check         # every script parses
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
@@ -228,8 +228,8 @@ from the tagged commit.
 **CI runs on GitHub, not here.** `.github/workflows/test.yml` first ran on
 25 November 2026: the unit job passed and the Chrome job failed at install,
 because `ubuntu-latest` had moved to 26.04, where Playwright 1.59.1 cannot
-install Chromium. Both jobs are now pinned to `ubuntu-24.04`; that fix had not
-run when this was written. It runs the syntax check, the unit suite, the catalogue check, and
+install Chromium. Both jobs are pinned to `ubuntu-24.04` now, and the next run
+passed both. Moving to a newer image means moving Playwright with it. It runs the syntax check, the unit suite, the catalogue check, and
 the Chrome and QoL suites. The Firefox suite needs a desktop Firefox.
 
 **The weekly redirector check** is `.github/workflows/redirectors.yml`,

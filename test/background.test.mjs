@@ -64,10 +64,11 @@ test(`Firefox=${firefox}: install, startup, storage events and popup messages ca
   assert.equal(response?.ok,true);
   assert.equal(h.menus.get('xit-link-copy-default').title,'Copy as latest');
   // Three trees: one on links, one on selected text (P5), one on the page.
-  // The link and selection trees come to eight items each with one
-  // redirector configured, because the capped menu puts its entries at the
-  // top level rather than inside a group submenu (U3); the page tree is four.
-  assert.equal(h.menus.size,20);
+  // The link tree comes to eight items with one redirector configured,
+  // because the capped menu puts its entries at the top level rather than
+  // inside a group submenu (U3); the selection tree is the same plus Copy
+  // every tweet link (P8), nine; the page tree is four.
+  assert.equal(h.menus.size,21);
   assert.ok(h.menus.has('xit-link-open-original'));
   assert.ok(h.menus.has('xit-sel-open-original'));
   assert.ok(h.menus.has('xit-page-open-original'));
@@ -239,12 +240,14 @@ test('the selection menu is not restricted to any host', async () => {
   assert.ok(link.targetUrlPatterns.length, 'the link menu still only offers itself on tweet links');
 });
 
-test('the selection menu offers exactly what the link menu offers', async () => {
+test('the selection menu offers what the link menu offers, plus copying every link', async () => {
   /*
    * Somebody who right-clicked a selection wants what somebody who
    * right-clicked a link wants, and the two trees are built by one function
    * so they cannot drift. Writing the selection tree out a second time, by
    * hand, is what this is here to stop: it would pass today and rot later.
+   * A selection can hold many links where a link holds one, so it alone
+   * offers to copy them all (P8).
    */
   const h = harness();
   await h.settle();
@@ -253,7 +256,8 @@ test('the selection menu offers exactly what the link menu offers', async () => 
     .map((id) => id.slice(prefix.length))
     .sort();
 
-  assert.deepEqual(suffixes('xit-sel-'), suffixes('xit-link-'));
+  assert.deepEqual(suffixes('xit-sel-').filter((s) => s !== 'copy-all'), suffixes('xit-link-'));
+  assert.ok(suffixes('xit-sel-').includes('copy-all'), 'the selection menu can copy every link');
   assert.ok(suffixes('xit-sel-').includes('copy-original'));
 });
 
@@ -933,4 +937,72 @@ test('Open on X works from a link on a thread reader', async () => {
   h.events.clicked({ menuItemId: 'xit-link-open-original', linkUrl: 'https://threadreaderapp.com/thread/20.html' }, { id: 7, index: 2 });
   await h.settle();
   assert.equal(h.opened.at(-1).url, 'https://x.com/i/web/status/20');
+});
+
+test('every tweet link in a selection can be copied at once', async () => {
+  /*
+   * P8. A selection holding a list of tweets, from a thread, a newsletter or
+   * a chat log, converted only the first. This copies each tweet or profile
+   * link once, in the order they appear, one per line, and skips anything
+   * that is not one.
+   *
+   * Removing the copy-all branch makes this fail.
+   */
+  const h = harness();
+  await h.settle();
+  const text = 'see https://x.com/jack/status/20 and x.com/biz/status/21?s=20, '
+    + 'again https://twitter.com/jack/status/20, home https://x.com/home, @ https://x.com/ev';
+  h.events.clicked({ menuItemId: 'xit-sel-copy-all', selectionText: text }, { id: 7, index: 2 });
+  await h.settle();
+  const writes = h.sent.filter((m) => m.type === 'xit:copy-text');
+  assert.equal(writes.length, 1, 'one clipboard write');
+  assert.equal(writes[0].text, [
+    'https://example.com/jack/status/20',
+    'https://example.com/biz/status/21',
+    'https://example.com/ev',
+  ].join('\n'));
+});
+
+test('a selection with no tweet links copies nothing when asked for all of them', async () => {
+  const h = harness();
+  await h.settle();
+  h.events.clicked({ menuItemId: 'xit-sel-copy-all', selectionText: 'nothing here' }, { id: 7, index: 2, url: 'https://x.com/home' });
+  await h.settle();
+  assert.deepEqual(h.sent.filter((m) => m.type === 'xit:copy-text'), []);
+  assert.equal(h.sent.filter((m) => m.type === 'xit:toast').length, 1, 'and says so');
+});
+
+test('Firefox hides tweet-only redirectors where the target is not a tweet', async () => {
+  /*
+   * P9. Thread Reader and the like need a tweet, and were offered on every
+   * profile link and profile page, where choosing one could only fail.
+   * Firefox can change a menu as it opens, so there they are hidden for a
+   * target that is not a tweet and shown again for one that is. Chrome
+   * cannot, and keeps offering them, with the refusal explained.
+   *
+   * Taking the onShown listener out makes this fail.
+   */
+  const h = harness(true);
+  await h.settle();
+  // The harness's signature reads the name, so changing it rebuilds the menu.
+  h.change({ name: 'with a thread reader', menuList: [
+    { id: 'example', group: 'test', name: 'Example' },
+    { id: 'thread', group: 'test', name: 'Thread', requires: ['id'] },
+  ] });
+  await h.settle();
+  assert.ok(h.menus.has('xit-link-copy:thread'), 'the tweet-only entry is in the menu');
+
+  h.events.shown({ contexts: ['link'], linkUrl: 'https://x.com/jack' }, { id: 7 });
+  await h.settle();
+  const hidden = h.menuUpdates.filter((u) => u.visible === false).map((u) => u.id);
+  for (const id of ['xit-link-copy:thread', 'xit-link-open:thread', 'xit-page-open:thread']) {
+    assert.ok(hidden.includes(id), id + ' is hidden on a profile');
+  }
+  assert.ok(!hidden.some((id) => id.endsWith(':example')), 'an entry that takes profiles stays');
+  assert.ok(h.menuRefreshes() > 0, 'and the open menu is refreshed');
+
+  h.menuUpdates.length = 0;
+  h.events.shown({ contexts: ['link'], linkUrl: 'https://x.com/jack/status/20' }, { id: 7 });
+  await h.settle();
+  assert.ok(h.menuUpdates.some((u) => u.id === 'xit-link-copy:thread' && u.visible === true), 'and shown again on a tweet');
 });

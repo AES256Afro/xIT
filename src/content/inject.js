@@ -86,20 +86,45 @@
     return toastEl;
   }
 
-  function toast(text, kind) {
+  /**
+   * Show a message. `action`, when given, is { label, run }: a button in the
+   * toast, such as Undo. The toast is click-through otherwise, and takes
+   * clicks only while it is showing an action, so a faded toast never leaves
+   * an invisible button over the page.
+   */
+  function toast(text, kind, action) {
     // The switch is "Confirm copies with a toast", so it hides
-    // confirmations only. A failure or a substituted link is still shown.
-    if (settings && settings.toast === false && (kind || 'ok') === 'ok') return;
+    // confirmations only. A failure, a substituted link, or anything that
+    // offers an action is still shown.
+    if (settings && settings.toast === false && (kind || 'ok') === 'ok' && !action) return;
     toastRegion();
     toastEl.textContent = text;
     toastEl.setAttribute('data-kind', kind || 'ok');
+    toastEl.removeAttribute('data-action');
+    if (action) {
+      const button = element('button', 'xit-toast-act', action.label);
+      button.type = 'button';
+      button.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        hideToast();
+        action.run();
+      });
+      toastEl.append(' ', button);
+      toastEl.setAttribute('data-action', '1');
+    }
     // Force a frame so the transition runs on repeat copies.
     toastEl.removeAttribute('data-show');
     requestAnimationFrame(() => toastEl && toastEl.setAttribute('data-show', '1'));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      if (toastEl) toastEl.removeAttribute('data-show');
-    }, kind === 'error' ? 3800 : 2200);
+    toastTimer = setTimeout(hideToast, action ? 6000 : kind === 'error' ? 3800 : 2200);
+  }
+
+  function hideToast() {
+    clearTimeout(toastTimer);
+    if (!toastEl) return;
+    toastEl.removeAttribute('data-show');
+    toastEl.removeAttribute('data-action');
   }
 
   /* ---------------------------------------------------------------- *
@@ -264,8 +289,15 @@
         return;
       }
       if (act && act.getAttribute('data-act') === 'default') {
+        // One click from any tweet changes a setting that applies everywhere,
+        // so the toast offers to put the previous default back.
+        const before = settings.defaultRedirector;
         await XITStore.save({ defaultRedirector: redirector.id });
-        toast(XITI18N.t('popupNowDefault', [redirector.name]), 'ok');
+        toast(XITI18N.t('popupNowDefault', [redirector.name]), 'ok', before === redirector.id ? null : {
+          label: XITI18N.t('actionUndo'),
+          run: () => XITStore.save({ defaultRedirector: before })
+            .catch(() => toast(XITI18N.t('toastUndoFailed'), 'error')),
+        });
         closeMenu();
         return;
       }

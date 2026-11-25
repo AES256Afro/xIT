@@ -459,6 +459,14 @@
     "message": "Could not open that link.",
     "description": "In-page menu on X: toast when a redirected link cannot be opened."
   },
+  "actionUndo": {
+    "message": "Undo",
+    "description": "Button in the in-page banner after the default redirector was changed from the tweet menu; puts the previous default back."
+  },
+  "toastUndoFailed": {
+    "message": "Could not put the previous default back.",
+    "description": "In-page banner when the Undo after changing the default redirector could not be saved."
+  },
   "menuCopyAsDefault": {
     "message": "Copy as $name$, the default",
     "description": "In-page menu on X: the same, for the row that is currently the default. $name$ is a redirector name.",
@@ -514,6 +522,15 @@
   "extensionName": {
     "message": "xIT",
     "description": "The extension's name, shown in the browser and in both stores."
+  },
+  "menuCopyAllWith": {
+    "message": "Copy every tweet link as $name$",
+    "description": "Right-click menu on selected text: copies every tweet or profile link in the selection, one per line, converted with the default redirector. $name$ is a redirector name, as in menuCopyAs.",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
   },
   "menuCopyPageAs": {
     "message": "Copy this page as $name$",

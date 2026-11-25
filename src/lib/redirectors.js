@@ -429,15 +429,32 @@
   const TRAILING = /[.,;:!?'"*_)\]}>]+$/;
 
   function findLink(text, extraHosts) {
+    return findLinks(text, extraHosts, 1)[0] || null;
+  }
+
+  /**
+   * Every tweet or profile link in a run of text, in order, each once. The
+   * same tweet on twitter.com and on x.com is one tweet, so links are told
+   * apart by status id, or by account for a profile. For copying every link
+   * in a selection; findLink is the first of these.
+   */
+  function findLinks(text, extraHosts, limit = 50) {
     const hay = String(text == null ? '' : text).slice(0, MAX_SEARCH);
+    const found = [];
+    const seen = new Set();
     for (const match of hay.matchAll(LINK_CANDIDATE)) {
+      if (found.length >= limit) break;
       const trimmed = match[0].replace(TRAILING, '');
       if (!trimmed) continue;
       const url = /^https?:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
       const parts = parse(url, extraHosts);
-      if (parts && (parts.kind === 'status' || parts.kind === 'profile')) return url;
+      if (!parts || (parts.kind !== 'status' && parts.kind !== 'profile')) continue;
+      const key = parts.kind === 'status' ? 'status:' + parts.id : 'profile:' + parts.user.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push(url);
     }
-    return null;
+    return found;
   }
 
   /** Canonical x.com URL for a parsed link, tracking params dropped. */
@@ -472,7 +489,7 @@
   root.XIT = {
     GROUPS, PRESETS, CATALOGUE, TOKENS, TRACKING_PARAMS, HOST_PATTERNS, MIRROR_PATTERNS, CHECK_ORIGINS, COPY_FORMATS,
     MAX_TEMPLATE,
-    parse, findLink, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
+    parse, findLink, findLinks, expand, convert, canonical, cleanCopy, stripTracking, formatCopy, handleOf,
     validateTemplate, templateHost, isPresetTemplate, findCatalogue, checkOrigin,
     isSourceHost, isMirrorHost, bareHost,
   };

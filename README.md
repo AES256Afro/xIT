@@ -18,8 +18,9 @@ Both copy routes give you the same rewritten link:
 
 Plus a right-click menu on any tweet link anywhere on the web, including links
 already on a redirector or a thread reader, the same menu on selected text that
-has a tweet URL somewhere in it, and keyboard shortcuts for copying or opening
-the tweet in view.
+has a tweet URL somewhere in it, which can also copy every tweet link in the
+selection at once, and keyboard shortcuts for copying or opening the tweet in
+view.
 
 A copied link can be written out as the bare URL, as a markdown link, or as the
 author's handle followed by the link. Opening a link in a tab is unaffected.

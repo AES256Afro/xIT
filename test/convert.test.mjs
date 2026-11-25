@@ -481,3 +481,12 @@ test('a template cannot put a token in the host', () => {
     assert.equal(XIT.validateTemplate(t).ok, true, t + ' should still be fine');
   }
 });
+
+test('findLinks finds every tweet or profile link once, in order', () => {
+  const text = 'a https://x.com/jack/status/20 b x.com/biz/status/21?s=20 '
+    + 'c https://twitter.com/jack/status/20 d https://x.com/home e x.com/ev.';
+  assert.deepEqual([...XIT.findLinks(text)],
+    ['https://x.com/jack/status/20', 'https://x.com/biz/status/21?s=20', 'https://x.com/ev']);
+  assert.equal(XIT.findLink(text), 'https://x.com/jack/status/20', 'findLink is the first of them');
+  assert.deepEqual([...XIT.findLinks('no links')], []);
+});

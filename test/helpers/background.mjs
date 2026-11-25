@@ -130,7 +130,15 @@ export function harness(firefox = false, { session = {} } = {}) {
       },
     },
   };
+  // Firefox's menus namespace: what onShown hides, and how often it refreshed.
+  const menuUpdates = [];
+  let menuRefreshes = 0;
   if (firefox) {
+    api.menus = {
+      onShown: event('shown'),
+      update: async (id, props) => { menuUpdates.push({ id, ...props }); },
+      refresh: async () => { menuRefreshes += 1; },
+    };
     // Firefox alone has this, and the background reads it to tell the two apart.
     runtime.getBrowserInfo = async () => ({ name: 'Firefox', version: '155.0' });
     api.contextMenus.removeAll = () => new Promise((resolve, reject) => {
@@ -159,7 +167,8 @@ export function harness(firefox = false, { session = {} } = {}) {
       changed({ ...settings });
     },
     onChanged(fn) { changed = fn; },
-    enabledRedirectors: (s) => [{id:'example',group:'test',name:s.name}],
+    // A test can give the menu a list of its own with `menuList`.
+    enabledRedirectors: (s) => s.menuList || [{id:'example',group:'test',name:s.name}],
     /*
      * Every redirector that exists, enabled or not, which is what C13's
      * prune judges a stored result against.
@@ -238,6 +247,8 @@ export function harness(firefox = false, { session = {} } = {}) {
     dropContentScript() { noContentScript = true; },
     failInjection() { injectionFails = true; },
     dnrReads: () => dnrReads,
+    menuUpdates,
+    menuRefreshes: () => menuRefreshes,
     removeAllCalls: () => removeAllCalls,
     badgeCalls,
     command: (name) => ctx.handleCommand(name),
