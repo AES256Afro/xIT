@@ -460,9 +460,12 @@ async function diagnostics() {
  * loads to a third-party front-end, including ones xIT no longer offers.
  * Dynamic rules survive extension updates, so they are removed on every
  * start. This outlives the release that removed the feature: it can only go
- * one release after a release carrying it has been published, and the live
- * Store version is still 1.0.3, which is what installed the rules. Until
- * then, dropping the permission strands those users mid-redirect (S5).
+ * one release after a release carrying it has been published. Chrome published 1.4.0, which carries this cleanup, on 9 November
+ * 2026. Firefox's published version is still 1.0.6, which installed rules
+ * and has never run it. One package builds both, so the permission stays
+ * until a Firefox release carrying the cleanup has been published too, and
+ * then one release more.
+ * Dropping it early strands those users mid-redirect (S5).
  * -------------------------------------------------------------------- */
 
 async function clearLegacyRedirects() {

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.1
 
 - Choosing redirectors no longer switches off the ones you added yourself. Saving the "Choose your redirectors" dialog rebuilt your list from the entries it shows, which are only the ones xIT bundles or catalogues, so every custom redirector was turned off and a custom default was replaced with FxTwitter. Your own entries, your default and your pins now stay as they were.
 - Only a tweet or a profile is converted. Any other X address, such as Home, a search, a list, a community, a Space or a message thread, used to come out as a broken redirector link with a "Copied" confirmation. That reached X's own Copy link on those pages, the tweet button when it could not find the tweet's link, and the popup. Those links now stay exactly as X wrote them, and the popup says the page cannot be converted instead of offering a Copy that does nothing useful.

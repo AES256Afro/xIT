@@ -13,34 +13,30 @@ traps. For how the extension works and how to build it, read the
 | Working copy | `~/Projects/xIT` |
 | Chrome listing | <https://chromewebstore.google.com/detail/xit/clilllbfkoeamfonhoeaaepglgceanlc> |
 | Chrome item ID | `clilllbfkoeamfonhoeaaepglgceanlc` |
-| Firefox add-on ID | `xit@aes256afro.github.io` (permanent once submitted) |
-| Published | Chrome **1.0.3** |
-| In the repo | **1.4.0**. Versions 1.0.4 to 1.4.0 are built and committed; none has been uploaded. |
+| Firefox listing | <https://addons.mozilla.org/firefox/addon/xit/> |
+| Firefox add-on ID | `xit@aes256afro.github.io` (permanent) |
+| Published | Chrome **1.4.0**, updated 9 November 2026. Firefox **1.0.6**, public since 14 September 2026. Checked 25 November 2026. |
+| In the repo | **1.4.1**. Built into `dist/`, not uploaded to either store. |
 
 ## Do this next
 
-1. **`main` is ahead of 1.4.0.** The audit's first milestone fixed five
-   defects in what lands on the clipboard (see CHANGELOG, Unreleased). They
-   are not in `dist/xit-*-1.4.0.zip`. Uploading 1.4.0 as it stands is still
-   possible, but the better upload is the next version with those fixes in it.
-   The store copy in `store/` was corrected on 25 November 2026 for that
-   upload: check the live listing's fields against it.
+1. **Upload 1.4.1 to Firefox first.** The public Firefox version is 1.0.6,
+   which still offers the Nitter-based front-ends withdrawn in 1.0.7 after a
+   cease and desist, and still redirects page loads for anyone who turned
+   that on. Upload `dist/xit-firefox-1.4.1.zip` as a new version of the
+   existing listing. The release notes and reviewer notes are in
+   [store/firefox-amo.md](store/firefox-amo.md); the reviewer sees the whole
+   span from 1.0.6, so paste the implementation notes in full.
 
-   The three browser suites ran on 25 November 2026 for the first time since
-   1.0.3, against the code on `main`, and all pass: 6 Chrome checks and 9 QoL
-   checks on Chromium 159, 6 Firefox checks on Firefox 155. Each suite had
-   fallen behind the product, and each needed a test-only fix: the first-run
-   picker (1.1.0) covered Settings, the filter (1.3.9) hides rows rather than
-   removing them, three bundled redirectors (1.1.0) no longer overflow the
-   dropdown, and the Firefox check still expected eight rows and no Check
-   buttons. No product code was wrong. How to run them is under
-   [Verifying a change](#verifying-a-change).
+2. **Upload 1.4.1 to Chrome.** Upload `dist/xit-chrome-1.4.1.zip`. On the
+   Privacy practices tab, replace the single-purpose field with the text in
+   [store/chrome-web-store.md](store/chrome-web-store.md): the live one still
+   describes page redirecting, which was removed in 1.0.7.
 
-2. **Upload the screenshots and promo tiles** from `store/assets/` on the Store
-   listing tab. They were re-rendered from 1.4.0 on 6 November 2026 and show
-   the current UI; the live listing still carries the 1.0.3 images. A listing
-   edit gets a light review and needs no version bump. To render them again
-   after a UI change:
+3. **Check the store images.** `store/assets/` was rendered from 1.4.0 on 6
+   November 2026 and still matches the UI. If either listing still shows older
+   images, upload these. A listing edit gets a light review and needs no
+   version bump. To render them again after a UI change:
 
    ```bash
    npm run store-assets   # needs a real Chrome on the host
@@ -49,28 +45,10 @@ traps. For how the extension works and how to build it, read the
    The tool drives Chrome over its DevTools protocol. It used to use Chrome's
    own `--screenshot` flag, and in Chrome 156 that captured the content
    script's open menu as nothing at all while the DOM said it was open and
-   visible; the live capture does not have that gap. Two of the stubs had
-   also fallen behind the product: the first-run picker was covering the
-   Settings page, and the mock X page did not load `lib/i18n.js`, which the
-   content script has needed since 1.3.0. Both are fixed, and the stub now
-   serves the real `_locales` catalogue so that nothing built in JavaScript
-   comes out blank.
+   visible; the live capture does not have that gap.
 
-3. **Upload `dist/xit-chrome-1.4.0.zip`.** It supersedes the unuploaded 1.0.4
-   to 1.3.9 packages. Since the live listing is 1.0.3, the changes a reviewer
-   sees are the whole span: the Nitter-based front-ends withdrawn after a cease
-   and desist, page redirecting removed along with the `alarms` permission, and
-   everything added since. Check the listing fields against
-   [store/chrome-web-store.md](store/chrome-web-store.md) rather than assuming
-   they are current: every one of them was written for 1.0.3. The single-purpose
-   field is the one most likely to read as a mismatch, because the extension now
-   also converts selected text, reads a link out of pasted prose, checks host
-   reachability, and keeps a user-editable redirector list.
-
-4. **Firefox has never been submitted.** The package is `dist/xit-firefox-1.4.0.zip`
-   and the copy is in [store/firefox-amo.md](store/firefox-amo.md). No fee.
-   Unlisted skips the review queue if a signed build for personal use is all
-   that is wanted.
+4. **Once Firefox 1.4.1 is live, read S5 below again.** It is the condition
+   for retiring `declarativeNetRequest`, and Firefox is what still holds it.
 
 ## Traps
 
@@ -109,9 +87,11 @@ removal pattern is that commit.
 lets `clearLegacyRedirects` delete the rules earlier versions left on users'
 machines, and dynamic rules survive extension updates. The condition for
 dropping it is not a version number or a waiting period: it can go one release
-after a release carrying that cleanup has actually been *published*. The live
-listing is 1.0.3, which is what installed the rules, so nothing published has
-ever run the cleanup. Drop the permission before then and anyone on 1.0.3 with
+after a release carrying that cleanup has actually been *published*, in both
+stores. Chrome's 1.4.0, published on 9 November 2026, carries it. Firefox's
+published 1.0.6 installed rules and has never run it, and one package builds
+both, so the permission stays until a Firefox release with the cleanup is
+live, and then one release more. Drop it before then and anyone on 1.0.6 with
 redirecting enabled keeps being sent to a front-end xIT no longer offers, with
 no setting left to turn it off, because the feature itself is gone. A sweep for
 unused permissions will flag this; it is wrong. Recorded as S5 in
@@ -187,7 +167,7 @@ to B17, B21, U12, C16, C19, S8, R2, R3, R5, and Q9 and P7 with them.
 
 | Next | ID | Sev | What is open |
 |---|---|---|---|
-| Publish (M4) | | | Bump the version, upload Chrome, submit Firefox, upload the store images. |
+| Publish (M4) | | | 1.4.1 is built. Upload it to Firefox, then Chrome, and correct Chrome's single-purpose field. |
 | M5 | D1 | High | The in-page toast fails contrast: white on the accent is 3.00:1, on the error red 4.11:1. |
 | M5 | Q7 | High | Settings states Alt+Shift+C even when the browser dropped that binding. Read `commands.getAll()`. |
 | M5 | U13 | Medium | The toast's live region is created as its first text arrives, so a screen reader likely misses it. |
@@ -213,7 +193,7 @@ to B17, B21, U12, C16, C19, S8, R2, R3, R5, and Q9 and P7 with them.
 | M7 | P8, P9, P11 | Low | Convert every link in a selection; hide tweet-only redirectors on profiles; copy-time format. |
 | M7 | Q11, Q12, Q13, U16 | Low | Opt-in sync; undo Make default; dated export names; preview the popup's diagnostics. |
 | M7 | U9 | Low | From the first audit: pinning is explained in prose and never prompted. |
-| After publishing | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after a release carrying the cleanup is live. |
+| After Firefox 1.4.1 is live | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after the cleanup is live in both stores. |
 | Unscheduled | C12 | | The converter's own failure messages are still inline English. |
 
 Q3 from the first audit, Undo ending at browser restart, is deliberate and
@@ -281,7 +261,9 @@ document scans for 60 unrelated mutations at 50, 200, and 1,000 mounted tweets.
 The earlier audit recorded 31 scans for each workload. This is a synthetic DOM
 measurement, not an authenticated live X performance claim.
 
-The public version badge still reports 1.0.3: versions 1.0.4 to 1.4.0 were
-built but never uploaded. Store upload and publication are separate from the
-checked-in version and package build, so the badge lagging is expected and is
-not a sign that a build or a commit failed.
+The public version badge reports what Chrome has published, which on 25
+November 2026 was 1.4.0. Upload and publication are separate from the
+checked-in version and the package build, so the badge lagging behind the
+repo is expected and is not a sign that a build or a commit failed. Firefox's
+published version can be read from
+`https://addons.mozilla.org/api/v5/addons/addon/xit@aes256afro.github.io/`.

@@ -64,8 +64,9 @@ function baseManifest() {
     // redirect rules earlier versions installed, which survive updates. The
     // condition for dropping it is not a version number: it can go one
     // release after a release carrying that cleanup has actually been
-    // published. The live Store version is still 1.0.3, which installed
-    // those rules, so nothing published has run the cleanup yet (S5).
+    // published, in both stores. Chrome's 1.4.0 (9 November 2026) carries
+    // it; Firefox's published 1.0.6 installed rules and does not, so it stays
+    // until a Firefox release with the cleanup is live too (S5).
     permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'declarativeNetRequest', 'clipboardWrite'],
     host_permissions: HOSTS,
     // Not granted on install. The Settings page requests one of these only

@@ -77,7 +77,9 @@ list of eight did not.
 Works in Chrome, Edge, Brave and any other Chromium browser that accepts Web
 Store installs.
 
-Firefox is not published yet. Build it and load it yourself, per
+[**Get it for Firefox**](https://addons.mozilla.org/firefox/addon/xit/). The
+Firefox listing can lag behind Chrome while a new version is in review; to run
+the current code, build it yourself per
 [building from source](#building-from-source) below.
 
 ### Building from source
@@ -207,7 +209,7 @@ address instead.
 | `storage` | Your settings. Local only. |
 | `contextMenus` | The right-click menu. |
 | `activeTab` + `scripting` | Writing to the clipboard when you use the right-click menu on a page where the content script is not running. Granted per click, not standing. |
-| `declarativeNetRequest` | Kept so the extension can remove page-redirect rules that earlier versions installed. It installs none. Cannot be dropped until a release carrying that cleanup has actually been published, and the live Store version is still 1.0.3. |
+| `declarativeNetRequest` | Kept so the extension can remove page-redirect rules that earlier versions installed. It installs none. Cannot be dropped until a release carrying that cleanup has been published in both stores. Chrome's 1.4.0 does; Firefox's published 1.0.6 does not. |
 | `clipboardWrite` | Copying. |
 | Host access to x.com / twitter.com | The button, and reading the tweet permalink. |
 | **Optional** access to the redirector hosts | The reachability check, and nothing else. Not granted on install. Settings asks for it when you press **Check**, for the hosts being checked only, and you can decline or withdraw it afterwards. |

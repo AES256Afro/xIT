@@ -91,18 +91,23 @@ Implementation details for reviewers:
 
 1. content/main-world.js runs in the page's own context (world: "MAIN") for one reason: to wrap navigator.clipboard.writeText and .write so that X's native "Copy link" produces the user's chosen redirected URL. It holds no extension privileges, communicates only via window.postMessage, and modifies a string only when that string is a lone link to an X/Twitter post or profile. Prose, plain text, links to other X pages (Home, lists, messages and so on) and unrelated URLs are passed through untouched. It rewrites only to a redirector xIT ships, because a page script can read and send the same messages it receives. When the user's default is a custom template, it does not rewrite at all: it reports the unchanged link to the isolated content script, which applies the template only within 1.5 seconds of a trusted user click or key press, so a page script cannot trigger a copy. The user can turn it off in Settings.
 
-2. declarativeNetRequest is declared but installs no rules. Page redirecting was removed in 1.0.7, and this permission is retained so the background can delete rules that earlier versions installed: dynamic rules survive extension updates, so without it a user who had redirecting enabled would keep being sent to a front-end that is no longer offered. It is never used to observe, block or receive browsing. It can be dropped once a release carrying that cleanup has actually been published; the live listing is still 1.0.3, so it stays for now.
+2. declarativeNetRequest is declared but installs no rules. Page redirecting was removed in 1.0.7, and this permission is retained so the background can delete rules that earlier versions installed: dynamic rules survive extension updates, so without it a user who had redirecting enabled would keep being sent to a front-end that is no longer offered. It is never used to observe, block or receive browsing. The published Firefox version, 1.0.6, is one of the versions that installed such rules, and this is the first Firefox release that removes them, so the permission has to stay at least until this release is live.
 
 2a. Optional host permissions are declared for the redirector hosts only (fxtwitter.com, vxtwitter.com, threadreaderapp.com, fixupx.com, twittpr.com, fixvx.com, d.fxtwitter.com, twitter-thread.com). None is granted on install. They exist for one feature: the reachability check in Settings, which sends a single HEAD request to a redirector's own front page so a host that has stopped working is marked in the list rather than failing silently at copy time. The permission is requested in the click handler of the Check button, for the hosts being checked only, and no request is made to them at any other time. The permission is required because reading the status code needs it: without host access the response is opaque, and a host answering 503 cannot be told apart from a healthy one. No content script runs on these hosts.
 
 3. storage.session keeps the last removed custom entry for Undo; it is cleared on browser restart. Diagnostics are generated and copied only on request, exclude user URLs and templates, and are never sent by the extension.
 
-Settings are stored with storage.local and never transmitted. The add-on makes no outbound requests of any kind.
+Settings are stored with storage.local and never transmitted. The only outbound request the add-on ever makes is the reachability check in 2a, and only when the user presses Check. Redirects are not followed, so it never reaches any host but the redirector being checked.
 ```
 
-**Version notes (1.0.7)**
+**Version notes (1.4.1)**: the published Firefox version is 1.0.6, so these
+cover the whole span a Firefox user is updating across.
 ```
-Remove the Nitter-based privacy front-ends (xcancel, twiiit and three Nitter instances) after those services received a cease and desist, and remove page redirecting, which had no remaining destination that worked. Redirect rules installed by earlier versions are deleted on startup, and the alarms permission and all optional host permissions are gone. Copying, the tweet button, the right-click menu, pinning, custom instances and Open on X are unchanged.
+Removes the Nitter-based front-ends (xcancel, twiiit and three Nitter instances), which were withdrawn after those services received a cease and desist, and removes page redirecting. Redirect rules installed by earlier versions are deleted on startup.
+
+New since 1.0.6: a first-run picker with a catalogue of optional redirectors; pinning and ordering; editing, duplicating and undoing removal of custom redirectors; markdown and author-then-link copy formats; a right-click menu on selected text; a reachability check you run from Settings; Open on X; copy diagnostics; and every string in a translation catalogue.
+
+Fixed in 1.4.1: links to Home, lists, searches and other X pages that are not posts or profiles are no longer rewritten into broken links; X's own Copy link works with a custom redirector in every language; Open with no longer overwrites the clipboard when it cannot open; failure notices still show with copy confirmations turned off; saving the redirector picker keeps your own redirectors; and the reachability check no longer reports vxTwitter as unreachable.
 ```
 
 ---
