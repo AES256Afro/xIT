@@ -163,20 +163,14 @@ what ships.
 The one status list. AUDIT-LOOP.md is the history of the first audit; this
 is what is still open from it and from the eight-stage audit of 25 November
 2026. Severities are that audit's. Closed so far from the second audit: B12
-to B21, D1, Q7, Q8, Q10, U12, U13, C16, C19, S7 to S9, R2, R3, R5, and Q9 and
-P7 with them. B22 needed no change: the menu rebuild in diagnostics is the
+to B21, C14 to C19, D1, O6, Q7, Q8, Q10, U12, U13, S7 to S9, R1 to R5, and Q9
+and P7 with them. B22 needed no change: the menu rebuild in diagnostics is the
 probe that makes the report's menu status current, and is commented as such.
 
 | Next | ID | Sev | What is open |
 |---|---|---|---|
 | Publish (M4) | | | 1.4.1 is built. Upload it to Firefox, then Chrome, and correct Chrome's single-purpose field. |
 | Needs a person (M5) | U4, U13 | | One pass with VoiceOver or NVDA over the tweet menu, the popup and Settings. The structure is tested; whether it is usable by ear never has been. |
-| M6 | C14, O6 | Medium | Every service worker wake rebuilds the whole menu and reruns three legacy cleanups. |
-| M6 | R1 | Medium | Comments tell audit history instead of describing the code as it is. |
-| M6 | C15 | Low | Four separate clipboard writers with different fallbacks. |
-| M6 | C17 | Low | No `engines` in package.json, no linter, no CI. |
-| M6 | C18 | Low | The package ships `icons/icon-512.png`, which nothing uses. |
-| M6 | R4 | Low | options.js is one 750-line closure. |
 | M7 | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. |
 | M7 | P6 | Medium | The right-click link menu does not appear on links already on a redirector. |
 | M7 | P10 | Medium | Nothing tells the maintainer a bundled redirector died. A weekly repository check would. |
@@ -194,7 +188,8 @@ documented in the README, so it is not listed.
 ## Verifying a change
 
 ```bash
-npm test              # 191 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route
+npm test              # 200 tests: URL logic, settings writes, menus, clipboard, both page render paths, every copy route, the package
+npm run check         # every script parses
 npm run prepare-dist  # icons, both manifests, both zips
 npm run test:browser  # native Chrome API and UI checks; needs Playwright/Chromium
 npm run test:firefox  # native Firefox installation, settings, menus and rules
@@ -227,7 +222,21 @@ None of them exercises X's real share menu, so the native Copy link fixes
 
 **`npm run build` deletes every zip in `dist/` before it builds**, including
 `--no-zip` runs. A test build therefore removes a package waiting to be
-uploaded. Copy the zips aside first, or rebuild them from the tagged commit.
+uploaded. Build elsewhere with `XIT_DIST=/some/folder npm run build`, which is
+what the package test does, or copy the zips aside first, or rebuild them
+from the tagged commit.
+
+**CI runs on GitHub, not here.** `.github/workflows/test.yml` was written on
+25 November 2026 and had not run when this was written: its first push is its
+first run. It runs the syntax check, the unit suite, the catalogue check, and
+the Chrome and QoL suites. The Firefox suite needs a desktop Firefox.
+
+**Menus on a woken worker.** Chrome keeps context menus across service worker
+restarts, so a woken worker leaves them alone when the signature it stored in
+`storage.session` still matches. That reliance is on Chrome's documented
+behaviour and is not exercised by any suite, since none can restart the
+worker. If right-click menus ever go missing in Chrome after a while idle,
+this is the first place to look. Firefox rebuilds on every start.
 
 What they covered when they last ran, which is worth knowing before reading a
 failure: the Chrome checks install a redirect rule the way earlier versions

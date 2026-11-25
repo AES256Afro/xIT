@@ -50,9 +50,8 @@
 
   // Bundled and enabled on install. Three, one per job: embeds, embeds with
   // better galleries, threads. Everything else is in CATALOGUE below, off
-  // until the user asks for it. Eight pre-ticked presets made the choice look
-  // like a list to read rather than a decision to make, and five of them were
-  // aliases of the other three (U6).
+  // until the user asks for it, so the choice reads as a decision rather than
+  // a list, and aliases are not presented as peers of what they alias.
   const PRESETS = [
     { id: 'fxtwitter', name: 'FxTwitter', group: 'embed', host: 'fxtwitter.com',
       template: 'https://fxtwitter.com/{path}{query}',
@@ -93,7 +92,7 @@
 
   // Every host xIT itself vouches for: bundled or catalogue. isMirrorHost
   // reads these so a link already pointing at one can be retargeted, and the
-  // main world accepts a config template only for one of them (S1).
+  // main world accepts a config template only for one of them.
   const PRESET_HOSTS = new Set(PRESETS.concat(CATALOGUE).map((p) => p.host));
 
   // Origins the reachability check may ask for. Only hosts xIT itself ships,
@@ -213,13 +212,12 @@
   /**
    * The account a link actually names, or null.
    *
-   * B6: `parse` reports `user` for a status link by reading the path segment
+   * `parse` reports `user` for a status link by reading the path segment
    * before `status`, and falls back to `'i'` when there is none, because
    * x.com itself writes authorless links as `/i/web/status/<id>` and
    * `/i/status/<id>`. That makes `user` a sentinel rather than a handle, and
-   * `'i'` is truthy, so every consumer has to know. One did (the popup) and
-   * one did not (`formatCopy`), which is how `@i` reached a release. The
-   * knowledge lives here now, and nothing else tests `parts.user` directly.
+   * `'i'` is truthy, so a consumer testing it directly writes "@i". This is
+   * the one place that knows; nothing else tests `parts.user` directly.
    *
    * Checked against RESERVED rather than against `'i'` alone, because the
    * same read can surface any site feature that happens to sit before
@@ -245,7 +243,7 @@
 
   const TOKENS = ['user', 'id', 'path', 'query', 'hash', 'host'];
 
-  // S6: a template arrives from a file as often as from the form, and the
+  // A template arrives from a file as often as from the form, and the
   // form's own maxlength is a hint the file never sees. The longest template
   // xIT ships is 44 characters, so this is far more room than a real one
   // needs and still a bound. Rejected rather than truncated: a shortened
@@ -276,8 +274,8 @@
     if (t.length > MAX_TEMPLATE) return { ok: false, error: 'Template is too long: ' + MAX_TEMPLATE + ' characters at most.' };
     if (!/^https:\/\//i.test(t)) return { ok: false, error: 'Must start with https://' };
     if (/[\\\u0000-\u0020]/.test(t)) return { ok: false, error: 'Use URL encoding for spaces; backslashes and control characters are not allowed.' };
-    // S9: the host is fixed. A token there lets the link being copied choose
-    // where it goes, and templateURL already refuses one, so the two agree.
+    // The host is fixed. A token there would let the link being copied choose
+    // where it goes, and templateURL refuses one too, so the two agree.
     if (/[{}]/.test(/^https:\/\/([^/?#]*)/i.exec(t)[1])) return { ok: false, error: 'Tokens go in the path, query or fragment, not in the host.' };
     const used = [];
     const bad = [];
@@ -305,12 +303,12 @@
   /**
    * Is this template pointed at one of the redirectors we ship?
    *
-   * S1: the main world cannot authenticate the config it is handed, because
-   * the only channel into a page's own context is postMessage, which every
-   * script on the page can both read and send. So it does not trust the
-   * template: it accepts one only when the host is a bundled preset. A page
-   * script can still switch the user between two redirectors xIT ships, which
-   * is a nuisance; it can no longer aim the native copy at a host it chose.
+   * The main world cannot authenticate the config it is handed, because the
+   * only channel into a page's own context is postMessage, which every script
+   * on the page can both read and send. So it does not trust the template: it
+   * accepts one only when the host is one xIT ships. A page script can at most
+   * switch the user between two redirectors xIT ships, a nuisance; it cannot
+   * aim the native copy at a host of its choosing.
    */
   function isPresetTemplate(template) {
     const host = templateHost(template);
@@ -337,10 +335,10 @@
     if (!redirector || !redirector.template) return { ok: false, reason: 'No redirector selected.' };
     const parts = parse(raw, o.extraHosts);
     if (!parts) return { ok: false, reason: 'Not an X/Twitter link.' };
-    // B13: only a tweet or a profile is something a redirector shows. Any
-    // other X page, such as Home, a list or a DM thread, came out as a
-    // broken link that every copy route reported as copied. findLink holds
-    // out for the same two kinds, so the routes agree on what counts.
+    // Only a tweet or a profile is something a redirector shows. Any other
+    // X page, such as Home, a list or a DM thread, would come out as a broken
+    // link. findLink holds out for the same two kinds, so every route agrees
+    // on what counts; test/paths.test.mjs holds them to it.
     if (parts.kind !== 'status' && parts.kind !== 'profile') {
       return { ok: false, reason: 'Not a link to a tweet or a profile.' };
     }
@@ -358,7 +356,7 @@
   }
 
   /*
-   * Q4: only bare URLs could be copied. These wrap the converted link without
+   * How a copied link is written out. These wrap the converted link without
    * touching how it is built, so a format is a presentation choice and every
    * copy path shares one implementation.
    */
@@ -398,13 +396,12 @@
   }
 
   /*
-   * P5: the first tweet link inside a run of text, or null.
+   * The first tweet link inside a run of text, or null.
    *
-   * The context menus could only act on something the browser had already
-   * identified as a link, a page or a frame. A tweet URL sitting in prose,
-   * which is how they arrive in a mailing-list archive, a code block or a
-   * pasted quote, had no route but the popup's paste field. A selection is
-   * text, not a URL, so the URL has to be found in it.
+   * For the selection menu and the popup's paste field. A tweet URL often
+   * arrives as prose, in a mailing-list archive, a code block or a pasted
+   * quote, and a selection is text, not a URL, so the URL has to be found
+   * in it.
    *
    * Scheme-less candidates are accepted because plain text often carries
    * them that way, and the result always comes back with a scheme on it so
@@ -447,19 +444,15 @@
    * The clean x.com link, written out in the chosen copy format. Null when
    * the input is not a link to a tweet.
    *
-   * Q6: four paths copy a clean link rather than a converted one, and all
-   * four wrote a bare URL while every redirector copy honoured the format.
-   * Two buttons sitting next to each other therefore disagreed about a
-   * choice the user had made. `canonical` returns a string and drops the
-   * parts it just computed, so each of the four would have had to parse a
-   * second time to format; parsing once here keeps the format decision in
-   * the one place `formatCopy` already keeps it for a converted link.
+   * Four paths copy a clean link rather than a converted one, and they honour
+   * the copy format exactly as a redirector copy does, so two buttons side by
+   * side never disagree about a choice the user made. `canonical` returns a
+   * string and drops the parts it computed; parsing once here keeps the format
+   * decision in the one place `formatCopy` keeps it for a converted link.
    *
    * No exception is made for the handle already being in an x.com path. It
    * is in a mirror's path too, so `@jack https://fxtwitter.com/jack/status/20`
-   * has always been redundant in the same way and is what the format asks
-   * for. A clean link is not a different case, and treating it as one would
-   * be another instance of the disagreement this fixes.
+   * is redundant in the same way and is what the format asks for.
    */
   function cleanCopy(raw, opts, format) {
     const o = opts || {};

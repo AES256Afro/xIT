@@ -133,8 +133,14 @@ export function manifestKeys() {
   return new Set(Array.from(build.matchAll(/msg\('([^']+)'\)/g), (m) => m[1]));
 }
 
+/** The Settings page's own scripts, in the order options.html loads them. */
+export function settingsScripts() {
+  const html = readFileSync(path.join(ROOT, 'src/options/options.html'), 'utf8');
+  return [...html.matchAll(/<script src="([^"/]+\.js)"><\/script>/g)].map((m) => 'src/options/' + m[1]);
+}
+
 // Everything that can call XITI18N.t at runtime.
-const CODE = ['src/options/options.js', 'src/popup/popup.js', 'src/content/inject.js',
+const CODE = [...settingsScripts(), 'src/popup/popup.js', 'src/content/inject.js',
   'src/content/main-world.js', 'src/background.js', 'src/lib/storage.js'];
 
 /**

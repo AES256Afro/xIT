@@ -4,10 +4,14 @@
   "private": true,
   "description": "Chrome and Firefox extension that copies X/Twitter links through a redirector of your choice.",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node tools/build.mjs",
     "icons": "node tools/make-icons.mjs",
     "test": "node --test test/*.test.mjs",
+    "check": "node tools/check.mjs",
     "i18n": "node tools/i18n-sync.mjs",
     "i18n:write": "node tools/i18n-sync.mjs --write",
     "test:browser": "node tools/test-browser.mjs",

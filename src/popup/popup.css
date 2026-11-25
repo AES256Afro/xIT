@@ -4,7 +4,7 @@
   --muted: #536471;
   --line: #eff3f4;
   --accent: #1d9bf0;
-  /* U10: brand blue is 2.84:1 on the card and carries white text at 3.00:1,
+  /* Brand blue is 2.84:1 on the card and carries white text at 3.00:1,
      both under the 4.5:1 floor. --accent stays the fill, the logo and the
      checkbox accent; these are the text, border and filled-button forms,
      verified against the card, the background and the 12% to 15% blue tints

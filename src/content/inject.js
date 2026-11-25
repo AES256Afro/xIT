@@ -11,7 +11,7 @@
   const XITStore = globalThis.XITStore;
 
   let settings = null;
-  // B19: resolves once start() has read the settings. A keyboard command can
+  // Resolves once start() has read the settings. A keyboard command can
   // reach a tab before then, just after the page loads, and has to wait.
   let markReady;
   const ready = new Promise((resolve) => { markReady = resolve; });
@@ -70,7 +70,7 @@
   let toastTimer = 0;
 
   /*
-   * U13: the live region the toast speaks through. A screen reader announces
+   * The live region the toast speaks through. A screen reader announces
    * a change to a region that already exists, and tends to miss one that
    * arrives together with its first text, so start() makes it empty and
    * toast() only fills it. Put back if the page ever detaches it.
@@ -87,7 +87,7 @@
   }
 
   function toast(text, kind) {
-    // B16: the switch is "Confirm copies with a toast", so it hides
+    // The switch is "Confirm copies with a toast", so it hides
     // confirmations only. A failure or a substituted link is still shown.
     if (settings && settings.toast === false && (kind || 'ok') === 'ok') return;
     toastRegion();
@@ -106,27 +106,8 @@
    * Clipboard
    * ---------------------------------------------------------------- */
 
-  async function writeClipboard(text) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (_) { /* fall through */ }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch (_) {
-      return false;
-    }
-  }
+  // One implementation for every page that copies (lib/clipboard.js).
+  const writeClipboard = (text) => XITClipboard.write(text);
 
   function shortLabel(url) {
     return url.length > 78 ? url.slice(0, 75) + '…' : url;
@@ -141,7 +122,7 @@
       toast(out.reason, 'error');
       return false;
     }
-    // Q4: the format is how the link is written out, so the toast shows what
+    // The format is how the link is written out, so the toast shows what
     // actually went on the clipboard rather than the bare URL behind it.
     const text = XIT.formatCopy(out.url, out.parts, settings.copyFormat);
     const ok = await writeClipboard(text);
@@ -292,7 +273,7 @@
       await copyWith(redirector, src);
     });
 
-    // Every action is a real button now (U4), so Enter and Space are left to
+    // Every action is a real button, so Enter and Space are left to
     // native activation. Up and Down step between rows, Left and Right across
     // the actions within one row, which is how a menu of grouped items is
     // meant to behave.
@@ -377,10 +358,10 @@
       groupLabel.setAttribute('role', 'presentation');
       fragment.appendChild(groupLabel);
       for (const r of inGroup) {
-        // U4: the row used to be a role="menuitem" div with buttons inside it.
-        // ARIA forbids interactive descendants of menuitem, so a screen reader
-        // could not reliably reach the pin, open and default buttons. The row
-        // is a group now, and every action in it is a real menuitem button.
+        // The row is a group and every action in it is its own menuitem
+        // button. ARIA forbids interactive descendants of a menuitem, so a row
+        // that was itself the menuitem would hide its pin, open and default
+        // buttons from a screen reader.
         const row = element('div', 'xit-row');
         row.setAttribute('role', 'group');
         row.setAttribute('aria-label', r.name);
@@ -628,7 +609,7 @@
 
   function nativeCopyFallback(ev) {
     if (!settings || !settings.hijackNativeCopy) return;
-    // B17: with the main world running, a declined copy is reported to us as
+    // With the main world running, a declined copy is reported to us as
     // a declined-copy message, whatever language X is in. This text match is
     // only for a main world that never reported in at all.
     if (mainWorldReady) return;
@@ -651,7 +632,7 @@
   }
 
   /*
-   * B17: the time of the last genuine user gesture. A declined-copy report
+   * The time of the last genuine user gesture. A declined-copy report
    * arrives over postMessage, which any page script can send, so it is acted
    * on only within a moment of a real click or key press. isTrusted cannot be
    * set by a script, and a page that has the user's click can already write
@@ -669,7 +650,7 @@
     const redirector = XITStore.defaultRedirector(settings);
     // X copies links to lists, Spaces and the like through the same call.
     // Those stay as X wrote them, quietly, exactly as the main world leaves
-    // them when it handles the copy itself (B13).
+    // them when it handles the copy itself.
     const out = XIT.convert(text, redirector, { stripTracking: settings.stripTracking, extraHosts });
     if (!out.ok) return;
     copyWith(redirector, text);
@@ -739,14 +720,12 @@
     }
 
     /*
-     * B10: `handled` says this tab dealt with the command, whether or not the
-     * redirector applied. The background used to fall back whenever the reply
-     * was not {ok:true}, which treats "I looked at the tweet and the
-     * redirector does not apply, and I have told the user so" the same as "I
-     * am not here". The user was shown a refusal and then handed a different
-     * link. sourceUrlFor falls back to location.href, so a content script that
-     * is running always has something to try; there is nothing for the
-     * background to add.
+     * `handled` says this tab dealt with the command, whether or not the
+     * redirector applied, and has told the user the outcome. The background
+     * falls back to the tab's own URL only when nobody answers; doing so after
+     * a refusal would hand the user a different link from the one they were
+     * just told about. sourceUrlFor falls back to location.href, so a running
+     * content script always has something to try.
      */
     if (msg.type === 'xit:copy-current') {
       ready.then(() => copyWith(XITStore.defaultRedirector(settings), sourceUrlFor(currentArticle())))
@@ -755,10 +734,8 @@
     }
 
     // openWith converts, toasts the reason if the redirector does not apply,
-    // and opens otherwise. It used to be preceded by a second convert() whose
-    // only use was deciding the reply; with `handled` the reply no longer
-    // depends on the outcome, so the duplicate conversion is gone and a
-    // refusal is now explained instead of being silent.
+    // and opens otherwise. The reply does not depend on the outcome, so no
+    // second conversion is needed to decide it.
     if (msg.type === 'xit:open-current') {
       ready.then(() => {
         openWith(XITStore.defaultRedirector(settings), sourceUrlFor(currentArticle()));
@@ -767,7 +744,7 @@
       return true;
     }
 
-    // P5: the background has something to say and nothing to copy. A
+    // The background has something to say and nothing to copy. A
     // selection that holds no tweet link is the case this exists for.
     if (msg.type === 'xit:toast') {
       toast(msg.text, msg.kind || 'warn');

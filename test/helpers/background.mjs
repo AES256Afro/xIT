@@ -16,7 +16,10 @@ const realCtx = vm.createContext({ console, URL, URLSearchParams, JSON });
 vm.runInContext(readFileSync(new URL('../../src/lib/redirectors.js', import.meta.url), 'utf8'), realCtx);
 export const REAL = realCtx.XIT;
 
-export function harness(firefox = false) {
+// `session` stands in for storage.session, which outlives a service worker
+// restart but not a browser restart. Pass the same object to two harnesses to
+// play the second as the same browser waking the worker again.
+export function harness(firefox = false, { session = {} } = {}) {
   const menus = new Map();
   const errors = [];
   let created = 0;
@@ -25,6 +28,9 @@ export function harness(firefox = false) {
   let changed;
   let rules = [];
   let ruleUpdates = 0;
+  // How often the redirect-rule cleanup looked, so a test can tell whether it ran.
+  let dnrReads = 0;
+  let removeAllCalls = 0;
   const local = {};
   // How many times anything was written to storage.local, so a test can say
   // that a settings change caused no write of its own.
@@ -64,6 +70,7 @@ export function harness(firefox = false) {
     contextMenus: {
       onClicked: event('clicked'),
       removeAll(cb) {
+        removeAllCalls += 1;
         setImmediate(() => {
           if (failRemoval) { failRemoval = false; complete(cb, 'remove failed'); return; }
           menus.clear(); complete(cb);
@@ -84,6 +91,10 @@ export function harness(firefox = false) {
       get: async (keys) => Object.fromEntries([].concat(keys).filter((k) => k in local).map((k) => [k, JSON.parse(JSON.stringify(local[k]))])),
       remove: async (keys) => { for (const k of [].concat(keys)) delete local[k]; },
       set: async (value) => { localSets++; Object.assign(local, value); },
+    }, session: {
+      get: async (keys) => Object.fromEntries([].concat(keys).filter((k) => k in session).map((k) => [k, JSON.parse(JSON.stringify(session[k]))])),
+      remove: async (keys) => { for (const k of [].concat(keys)) delete session[k]; },
+      set: async (value) => { Object.assign(session, JSON.parse(JSON.stringify(value))); },
     } },
     action: {
       setBadgeText: async ({ text, tabId }) => { if (tabId === undefined) badge.text = text; else badgeCalls.push({ tabId, text }); },
@@ -112,7 +123,7 @@ export function harness(firefox = false) {
     },
     permissions: { contains: async ({ origins }) => origins.every((o) => grantedOrigins.has(o)) },
     declarativeNetRequest: {
-      getDynamicRules: async () => rules,
+      getDynamicRules: async () => { dnrReads += 1; return rules; },
       updateDynamicRules: async ({removeRuleIds = [], addRules = []}) => {
         ruleUpdates += 1;
         rules = rules.filter(r => !removeRuleIds.includes(r.id)).concat(addRules);
@@ -120,6 +131,8 @@ export function harness(firefox = false) {
     },
   };
   if (firefox) {
+    // Firefox alone has this, and the background reads it to tell the two apart.
+    runtime.getBrowserInfo = async () => ({ name: 'Firefox', version: '155.0' });
     api.contextMenus.removeAll = () => new Promise((resolve, reject) => {
       setImmediate(() => {
         if (failRemoval) { failRemoval = false; reject(new Error('remove failed')); return; }
@@ -224,6 +237,8 @@ export function harness(firefox = false) {
     fetched,
     dropContentScript() { noContentScript = true; },
     failInjection() { injectionFails = true; },
+    dnrReads: () => dnrReads,
+    removeAllCalls: () => removeAllCalls,
     badgeCalls,
     command: (name) => ctx.handleCommand(name),
     answerTab(reply) { tabReply = reply; },

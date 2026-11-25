@@ -7,7 +7,7 @@
   --card: #f7f9f9;
   --danger: #f4212e;
   --ok: #00ba7c;
-  /* U10: the three brand colours above are fills, checkbox accents and the
+  /* The three brand colours above are fills, checkbox accents and the
      logo. As text they fail WCAG AA: on the light card they measure 2.84:1
      (accent), 2.39:1 (ok) and 3.89:1 (danger) against a 4.5:1 floor. These
      are the text and border forms, solved per theme and verified against the
@@ -108,7 +108,7 @@ kbd { border: 1px solid var(--line); }
 .switch b { display: block; font-weight: 600; font-size: 13.5px; }
 .switch i { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-style: normal; }
 
-/* Q4: a setting with a value rather than a switch, so it shares the switch's
+/* A setting with a value rather than a switch, so it shares the switch's
    label layout but puts its control at the end of the row. */
 .field { display: flex; gap: 10px; align-items: center; justify-content: space-between;
   flex-wrap: wrap; padding: 8px 0; cursor: pointer; }
@@ -116,7 +116,7 @@ kbd { border: 1px solid var(--line); }
 .field i { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-style: normal; }
 .field .select { flex: 0 0 auto; }
 
-/* U7: the filter and the ordering sit together above the list. */
+/* The filter and the ordering sit together above the list. */
 .list-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 2px; }
 .list-tools input[type=search] { flex: 1 1 220px; min-width: 0; }
 .inline-field { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; font-size: 12px; color: var(--muted); }
@@ -181,7 +181,7 @@ button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-/* U8: the address sits beside its copy button, so it reads as the thing the
+/* The address sits beside its copy button, so it reads as the thing the
    button acts on rather than as part of the sentence above. */
 #shortcut-url { padding: 7px 10px; font-size: 12px; overflow-wrap: anywhere; }
 

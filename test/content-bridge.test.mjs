@@ -74,6 +74,7 @@ async function bridge({ mainFirst = true, toast = false, holdLoad = false } = {}
     // The manifest lists lib/i18n.js before content/inject.js, so this is the
     // order the browser uses. With no chrome.i18n here every string falls back
     // to the English the code passes, which is also what the assertions read.
+    vm.runInContext(script('lib/clipboard.js'), isolated);
     vm.runInContext(script('content/inject.js'), isolated);
     await setImmediate();
   }

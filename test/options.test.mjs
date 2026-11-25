@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { loadPage } from './helpers/page.mjs';
+import { loadPage, pageScripts } from './helpers/page.mjs';
 
-const SRC = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+// Every Settings script, in the order the page loads them, read as one text.
+const SRC = pageScripts('options/options.js').filter((f) => f.startsWith('options/'))
+  .map((f) => readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')).join('\n');
 
 /**
  * The source of one top-level function in options.js, by brace matching.

@@ -6,7 +6,7 @@
   --xit-fg-strong: rgb(231, 233, 234);
   --xit-accent: rgb(29, 155, 240);
   --xit-accent-soft: rgba(29, 155, 240, 0.1);
-  /* U10: as text over --xit-accent-soft this reads 6.43:1 on the dark panel
+  /* As text over --xit-accent-soft this reads 6.43:1 on the dark panel
      but only 2.70:1 on the light one, against a 4.5:1 floor. --xit-accent
      stays the dot, the bar and the focus ring, which are not text; this is
      the text form, and the light theme overrides it below. */
@@ -16,8 +16,8 @@
   --xit-shadow: rgba(255, 255, 255, 0.2) 0 0 15px, rgba(255, 255, 255, 0.15) 0 0 3px 1px;
   --xit-row-hover: rgba(231, 233, 234, 0.1);
   --xit-muted: rgb(113, 118, 123);
-  /* D1: the toast's fills, measured against its white text. The brand
-     accent was 3.00:1 and X's red 4.11:1, under the 4.5:1 floor for 14px
+  /* The toast's fills, measured against its white text: the brand accent
+     would be 3.00:1 and X's red 4.11:1, under the 4.5:1 floor for 14px
      text. Same in both themes: the toast is a solid banner, not a surface
      that follows the page. */
   --xit-toast-fg: rgb(255, 255, 255);
@@ -131,7 +131,7 @@ html[data-xit-theme="light"] {
 
 .xit-row[data-default="1"] .xit-row-dot { background: var(--xit-accent); }
 
-/* The row's primary action is a real button now (U4), so it has to shed the
+/* The row's primary action is a real button, so it has to shed the
    browser's button styling and sit flush in the row. */
 .xit-row-main {
   all: unset;

@@ -25,14 +25,14 @@
     stripTracking: true,
     contextMenu: true,
     // Right-click menu shows the default and the pinned entries only. The
-    // full list ran to roughly 25 items in one menu (U3).
+    // full list can run to a couple of dozen items in one menu.
     contextMenuAll: false,
     // The first-run picker has been through once. Set by the picker itself,
     // not by install, so somebody who never opens it still gets it.
     pickerDone: false,
-    // How a copied link is written out: one of XIT.COPY_FORMATS (Q4).
+    // How a copied link is written out: one of XIT.COPY_FORMATS.
     copyFormat: 'url',
-    // How unpinned entries are ordered in every list (U7). 'group' keeps the
+    // How unpinned entries are ordered in every list. 'group' keeps the
     // order they are defined in; 'name' sorts alphabetically. Pinned entries
     // always keep the order you put them in, which is the point of pinning.
     listSort: 'group',
@@ -64,12 +64,8 @@
    * has them, so a template using it needs nothing in particular. A template
    * that names {id} or {user} on their own does: without this, convert()
    * expands the missing piece to an empty string and copies a link pointing
-   * at the host root.
-   *
-   * B7: only {id} was inferred, so convert()'s requires-'user' branch was
-   * unreachable and a template of https://host/{user} silently produced
-   * https://host/ for a search page and https://host/ for an authorless
-   * tweet.
+   * at the host root. {user} counts as much as {id}: without it,
+   * https://host/{user} would copy https://host/ for an authorless tweet.
    */
   function inferRequires(template) {
     const t = String(template || '');
@@ -81,14 +77,12 @@
   }
 
   /*
-   * S6: a redirector arriving in a file was bounded in every field but the
-   * ones a person reads. Its id has to match ID_RE and its template is capped
-   * by validateTemplate, but the name and the note were taken as given. The
-   * 48-character limit on the two form fields is `maxlength`, which is a hint
-   * to the form and is never seen by import, by a merge, or by a file edited
-   * by hand. Nothing here is an injection risk, since both are rendered as
-   * textContent; an unbounded one is a file that can put 100 KB into storage,
-   * into the redirector list, into the popup and into a context-menu title.
+   * Bounds on the fields a person reads. A redirector's id has to match ID_RE
+   * and its template is capped by validateTemplate; these cap its name and
+   * note. The form's `maxlength` is only a hint to the form and is never seen
+   * by import, a merge, or a file edited by hand. Nothing here is an injection
+   * risk, since both are rendered as textContent; unbounded, a file could put
+   * 100 KB into storage, the lists, the popup and a context-menu title.
    *
    * Truncated rather than rejected: the redirector still works, and losing
    * the end of a label is a smaller harm than losing the entry. The name cap
@@ -107,8 +101,8 @@
   }
 
   // The shape a stored redirector id may have. normalize drops anything else,
-  // so every route that invents or accepts an id has to agree with this: B9
-  // was the merge accepting an id normalize would then throw away.
+  // so every route that invents or accepts an id has to agree with this, or
+  // an entry is accepted and then silently thrown away.
   const ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
 
   function normalize(raw) {
@@ -220,17 +214,15 @@
       if (!operation.settings || typeof operation.settings !== 'object' || Array.isArray(operation.settings)) throw new Error(XITI18N.t('errNotJsonObject'));
       raw = operation.settings;
     } else if (operation.type === 'merge') {
-      // Q2: import used to replace the whole object, so taking one redirector
-      // from somebody meant adopting their default, pins and toggles too. A
-      // merge brings across their redirectors and nothing else: which of them
-      // you pin, star or turn off stays your decision.
+      // A merge brings across somebody else's redirectors and nothing else:
+      // their default, pins and switches stay theirs, and which of the new
+      // entries you pin, star or turn off stays your decision.
       const incoming = operation.settings;
       if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error(XITI18N.t('errNotJsonObject'));
       const theirs = Array.isArray(incoming.custom) ? incoming.custom : [];
       const taken = new Set(allRedirectors(current).map((r) => r.id));
-      // B8: every redirector already available, bundled ones included. Keyed
-      // on current.custom alone this added a second FxTwitter whenever their
-      // file happened to carry it as an entry of their own.
+      // Every redirector already available, bundled ones included, or a file
+      // carrying FxTwitter as an entry of its own would add a second one.
       const held = new Set(allRedirectors(current).map((r) => r.template));
       const added = [];
       for (const entry of theirs) {
@@ -246,10 +238,9 @@
         const name = cap(String(entry.name || (catalogue && catalogue.name) || '').trim(), MAX_NAME);
         if (!name) continue;
         let id = catalogue ? catalogue.id : String(entry.id || '');
-        // B9: a taken id was replaced and an invalid one was not, so an entry
-        // whose id merely had a space in it was added here and then dropped by
-        // normalize. The template was fine and the redirector was usable; only
-        // the name it arrived under was not.
+        // A taken or malformed id gets a fresh one. An id normalize would
+        // reject, such as one with a space, would otherwise be added here and
+        // then dropped, though the template and the redirector were fine.
         if (!id || taken.has(id) || !ID_RE.test(id)) id = freshId(name, taken);
         taken.add(id);
         held.add(template);
@@ -263,11 +254,10 @@
       raw = current;
     } else if (operation.type === 'reset') {
       raw = DEFAULTS;
-      // C13: the whole point of a reset is leaving nothing behind, and these
-      // two are the observations stored outside settings. A reachability badge
-      // that outlived the reset reads as a fact about the extension rather
-      // than about a check somebody ran weeks ago, and it carries a timestamp
-      // from before the reset to prove it.
+      // A reset leaves nothing behind, and these two are the observations
+      // stored outside settings. A reachability badge that outlived a reset
+      // would read as a fact about the extension rather than about a check
+      // somebody ran weeks ago.
       await promisify((cb) => api.storage.local.remove(['lastCopyFailure', 'hostChecks'], cb));
     } else if (operation.type === 'enabled') {
       const ids = new Set(current.enabledIds);
@@ -301,9 +291,9 @@
     } else if (['add-custom', 'edit-custom', 'duplicate-custom'].includes(operation.type)) {
       const original = current.custom.find((c) => c.id === operation.id);
       if (operation.type !== 'add-custom' && !original) throw new Error(XITI18N.t('errNoSuchCustom'));
-      // C16 and B21: the suffix comes from the catalogue, and the name it is
-      // added to is shortened first, so the cap on names can never cut the
-      // suffix off and leave two entries called the same thing.
+      // The suffix comes from the catalogue, and the name it is added to is
+      // shortened first, so the cap on names can never cut the suffix off and
+      // leave two entries called the same thing.
       const entry = operation.type === 'duplicate-custom'
         ? { ...original, name: duplicateName(original.name) } : operation.entry || {};
       const name = String(entry.name || '').trim();
@@ -370,9 +360,9 @@
   }
 
   /**
-   * What the right-click menu should list. Everything the user enabled was
-   * roughly 25 items in a single menu (U3), so unless they ask for the full
-   * list it is the default plus whatever they pinned.
+   * What the right-click menu should list. Everything the user enabled can be
+   * a couple of dozen items in one menu, so unless they ask for the full list
+   * it is the default plus whatever they pinned.
    */
   function menuRedirectors(settings) {
     const enabled = enabledRedirectors(settings);
@@ -388,7 +378,7 @@
 
   /**
    * A fingerprint of everything the right-click menu is built from, so a
-   * settings write that cannot change the menu does not rebuild it (O4).
+   * settings write that cannot change the menu does not rebuild it.
    */
   function menuSignature(settings) {
     if (!settings || !settings.contextMenu) return 'off';
@@ -397,12 +387,10 @@
   }
 
   /**
-   * O3: this runs on every render in four places, and used to do a linear
-   * `find` over every redirector for each pinned id, plus a linear `includes`
-   * over the pinned list for every redirector. Both are indexed once per call
-   * instead. A cache across calls was the other option and is not worth it:
-   * it would have to be invalidated on every settings write, and the work
-   * here is now proportional to the list rather than to its square.
+   * Runs on every render in four places, so the redirectors and the pins are
+   * indexed once per call and the work is proportional to the list rather
+   * than to its square. A cache across calls is not worth it: it would have
+   * to be invalidated on every settings write.
    */
   function redirectorGroups(settings, enabledOnly = true) {
     const on = new Set(settings.enabledIds || []);
@@ -410,7 +398,7 @@
     const byId = new Map(all.map((r) => [r.id, r]));
     const pinned = settings.pinnedIds || [];
     const isPinned = new Set(pinned);
-    // U7: pinning says "these first, in this order", so only the rest sorts.
+    // Pinning says "these first, in this order", so only the rest sorts.
     const order = settings && settings.listSort === 'name'
       ? (entries) => entries.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
       : (entries) => entries;

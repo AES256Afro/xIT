@@ -17,6 +17,19 @@ import { makeDom } from './dom.mjs';
 
 const read = (name) => readFileSync(new URL('../../src/' + name, import.meta.url), 'utf8');
 
+/** The src-relative scripts a page's HTML loads, for 'popup/popup.js' and the like. */
+export function pageScripts(page) {
+  const html = read(page.replace(/\.js$/, '.html'));
+  const dir = page.split('/').slice(0, -1);
+  return [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => {
+    const parts = [...dir];
+    for (const piece of m[1].split('/')) {
+      if (piece === '..') parts.pop(); else if (piece !== '.') parts.push(piece);
+    }
+    return parts.join('/');
+  });
+}
+
 /**
  * @param page one of 'popup/popup.js' or 'options/options.js'
  * @param options.tabUrl what the active tab is showing
@@ -139,10 +152,9 @@ export async function loadPage(page, options = {}) {
 
   if (options.settings) local.settings = options.settings;
 
-  vm.runInContext(read('lib/i18n.js'), context);
-  vm.runInContext(read('lib/redirectors.js'), context);
-  vm.runInContext(read('lib/storage.js'), context);
-  vm.runInContext(read(page), context);
+  // Exactly the scripts the page's own HTML loads, in its order, so a script
+  // added to or split out of a page is loaded here without anyone listing it.
+  for (const name of pageScripts(page)) vm.runInContext(read(name), context);
 
   // init() is async: let every await in it settle before a test looks.
   for (let i = 0; i < 12; i++) await tick();

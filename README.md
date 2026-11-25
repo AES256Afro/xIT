@@ -223,7 +223,9 @@ and it happens only when you press the button. See
 ## Development
 
 ```bash
-npm test                 # URL parsing, templates, generated redirect rules
+npm test                 # unit suite: URL logic, settings, menus, every copy route, the package
+npm run check            # every script parses, with nothing to install
+npm run i18n             # the catalogue matches the markup and the code
 npm run icons            # regenerate src/icons/*.png
 npm run build            # dist/chrome + dist/firefox + zips
 npm run prepare-dist     # icons + build, in one go
@@ -321,12 +323,20 @@ src/
   lib/i18n.js          message lookup for markup and code
   lib/redirectors.js   presets, URL parsing, templates, redirect-rule compiler
   lib/storage.js       settings, defaults, normalisation
+  lib/clipboard.js     the one clipboard writer the pages share
   _locales/en/         the message catalogue
   background.js        context menus, redirect rules, shortcuts
   content/inject.js    the button, dropdown, toast          (isolated world)
   content/main-world.js  wraps navigator.clipboard          (main world)
-  popup/  options/     UI
+  popup/               the toolbar popup
+  options/             Settings: page.js holds shared state, then one
+                       script per panel, and options.js starts the page
 ```
+
+Every push and pull request runs `.github/workflows/test.yml`: the syntax
+check, the unit suite and the catalogue check, then the Chrome and QoL
+browser suites with Playwright installed for that run only. The Firefox suite
+and the store screenshots are not in CI and are run on a desktop.
 
 `content/main-world.js` is the only part that runs in the page's own JS context,
 and only so it can wrap `navigator.clipboard`. It holds no extension privileges,

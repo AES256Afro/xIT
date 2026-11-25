@@ -1,7 +1,7 @@
 /*
- * C10, P3: xIT had no _locales at all, so every string was inline English and
- * both stores reported it as single-locale. The manifest's strings now come
- * from _locales/en; this is the same thing for anything shown at runtime.
+ * Message lookup for everything shown at runtime. The manifest's strings come
+ * from _locales/en through __MSG_ placeholders; this is the same catalogue for
+ * the pages and scripts.
  *
  * Mark text in HTML with data-i18n="<key>", and an attribute with
  * data-i18n-<attr>="<key>", for example data-i18n-placeholder. Call

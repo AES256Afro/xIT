@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The right-click menu is no longer rebuilt every time the browser wakes xIT in the background, which it does every half minute or so of idleness. Chrome keeps the menu across those restarts, so the rebuild was repeated work, and a right-click at that moment could find the menu half built. The one-time cleanups left over from old versions also run once per browser session now instead of on every wake.
+- The package no longer includes an unused 512-pixel icon.
+
 - The copy confirmation and error banners on X are easier to read. White text sat on a blue and a red that fell short of the contrast needed for text that size; both are darker now.
 - Screen readers announce the first banner on a page too. The announcement area used to be created at the same moment as its first message, which screen readers tend to miss; it now exists from the start.
 - Settings shows the keyboard shortcuts the browser actually has, instead of the suggested ones. A suggested key that clashes with another is dropped at install without a word, and Settings used to show it anyway. A shortcut you set yourself now appears too, and the panel updates when you come back from the browser's shortcuts page.

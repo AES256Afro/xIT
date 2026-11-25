@@ -40,6 +40,8 @@ class Element {
     // Properties the page scripts set and read directly. They are plain
     // fields, not reflected attributes, because nothing selects on them.
     this.value = '';
+    // Inline style, as a bag of properties; cssText included.
+    this.style = {};
     this.checked = false;
     this.disabled = false;
     this.title = '';

@@ -19,13 +19,13 @@
     if (ev.source !== window) return;
     const d = ev.data;
     if (!d || d.__xit !== 'config' || !d.payload) return;
-    // S1: postMessage is readable and writable by every script on the page,
-    // so this config cannot be authenticated. The template is therefore only
+    // postMessage is readable and writable by every script on the page, so
+    // this config cannot be authenticated. The template is therefore only
     // honoured when it points at a redirector xIT ships: a hostile page script
     // can swap one bundled redirector for another, but it cannot aim the
     // user's own "Copy link" at a host of its choosing. A custom redirector is
-    // declined here and handled by the isolated world's DOM-level fallback,
-    // which no page script can speak to.
+    // declined here, and the copy is reported to the isolated world, which
+    // holds the real template and acts only after a genuine user gesture.
     const template = typeof d.payload.template === 'string'
       && XIT.validateTemplate(d.payload.template).ok
       && XIT.isPresetTemplate(d.payload.template)
@@ -36,7 +36,7 @@
       name: typeof d.payload.name === 'string' ? d.payload.name : '',
       requires: Array.isArray(d.payload.requires) ? d.payload.requires.filter((v) => v === 'id' || v === 'user') : [],
       stripTracking: d.payload.stripTracking !== false,
-      // Q4: constrained the same way as the template. The worst a page script
+      // Constrained the same way as the template. The worst a page script
       // can do by changing it is pick a different one of our three renderings
       // of a link the user was going to copy anyway.
       format: XIT.COPY_FORMATS.some((f) => f.id === d.payload.format) ? d.payload.format : 'url',
@@ -65,12 +65,12 @@
   }
 
   /*
-   * B17: a lone link the page copied that this world declined to rewrite,
-   * because the default is a custom redirector it cannot vouch for. The
-   * isolated world holds the real template and finishes the job, so it is
-   * told about the copy rather than the DOM being searched for X's menu item
-   * by its English label. The isolated world acts on this only straight after
-   * a genuine user click, which no page script can forge.
+   * A lone link the page copied that this world declined to rewrite, because
+   * the default is a custom redirector it cannot vouch for. The isolated world
+   * holds the real template and finishes the job, so it is told about the copy
+   * itself, which works in any language, rather than looking for X's menu
+   * item by its label. It acts only straight after a genuine user click,
+   * which no page script can forge.
    */
   function declinedLink(text) {
     if (!cfg.enabled || cfg.template || typeof text !== 'string') return null;

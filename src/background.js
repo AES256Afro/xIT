@@ -57,14 +57,14 @@ async function buildMenus(settings) {
   await removeAllMenus();
   if (!settings.contextMenu) return;
 
-  // The default and the pinned entries, unless the user asked for the lot.
-  // Listing everything enabled came to roughly 25 items in one menu (U3).
+  // The default and the pinned entries, unless the user asked for the lot,
+  // which can run to a couple of dozen items in one menu.
   const list = XITStore.menuRedirectors(settings);
   const grouped = !!settings.contextMenuAll;
   const link = { contexts: ['link'], targetUrlPatterns: LINK_PATTERNS };
   const page = { contexts: ['page', 'frame'], documentUrlPatterns: LINK_PATTERNS };
   /*
-   * P5: no URL patterns, deliberately. The whole point of the selection menu
+   * No URL patterns, deliberately. The whole point of the selection menu
    * is text on a page xIT knows nothing about, so there is nothing to match
    * on: the browser cannot tell us what a selection contains before the menu
    * opens. The cost is one line in the menu wherever text is selected, which
@@ -76,10 +76,8 @@ async function buildMenus(settings) {
   /*
    * The link menu and the selection menu offer the same choices, because
    * somebody who right-clicked a selection wants what somebody who
-   * right-clicked a link wants. They were going to be two copies of the same
-   * twenty lines, which is the shape this audit has spent nine releases
-   * taking back out, so the tree is written once and the context and the id
-   * prefix are what differ.
+   * right-clicked a link wants. The tree is written once, and the context
+   * and the id prefix are what differ, so the two cannot drift apart.
    */
   async function copyOpenTree(rootId, prefix, ctx) {
     await createMenu({ id: rootId, title: XITI18N.t('extensionName'), ...ctx });
@@ -128,11 +126,11 @@ async function buildMenus(settings) {
 }
 
 /* -------------------------------------------------------------------- *
- * Reachability check (P4, Q5)
+ * Reachability check
  *
- * A dead redirector and a live one looked identical in the list: unrollnow
- * was caught by a user, not by the UI. This answers the question honestly,
- * which means reading the status code, which means a host permission. Those
+ * A public redirector can quietly stop working, and the list should say so
+ * before a copy fails. Answering honestly means reading the status code,
+ * which means a host permission. Those
  * are optional and requested by the Settings page at the moment the user
  * presses Check. Nothing here runs on a timer, on startup, or on a settings
  * change: every request below is one the user asked for.
@@ -162,15 +160,14 @@ async function checkHost(template) {
   try {
     // With the host permission granted the response is readable, so the
     // status is real. Without it this would be an opaque no-cors response,
-    // where a 503 is indistinguishable from a 200: that version would have
-    // called the host that retired unrollnow healthy.
+    // where a 503 is indistinguishable from a 200.
     //
-    // B15: redirects are not followed. vxtwitter.com sends its front page to
-    // github.com, which no permission covers, so following it ended in a
-    // refused cross-origin response and a working host shown as silent. It
-    // also sent a request to a host the privacy policy says xIT never asks
-    // (S8). A redirect is an answer: the browser returns it as an opaque
-    // response with status 0, and that is all this needs to know.
+    // Redirects are not followed. vxtwitter.com sends its front page to
+    // github.com, which no permission covers, so following it would end in a
+    // refused cross-origin response and a working host shown as silent, and
+    // would reach a host the privacy policy says xIT never contacts. A
+    // redirect is an answer: the browser returns it as an opaque response
+    // with status 0, and that is all this needs to know.
     const res = await fetch(origin, { method: 'HEAD', redirect: 'manual', cache: 'no-store', signal: control.signal });
     if (res.type === 'opaqueredirect') return { state: 'ok' };
     const status = res.status;
@@ -219,13 +216,11 @@ async function checkHosts(ids) {
  * whose redirector exists. Disabled counts as existing: that is a choice the
  * user can take back, and the result is still about the same host.
  *
- * C13: nothing ever removed an entry, so a redirector the user deleted left
- * its result in storage for good. The obvious fix is a delete next to the
- * removal, but there are several ways a redirector can stop existing, and the
- * list grows: remove, import over the top, a merge, a reset. B8 and B9 were
- * both one rule applied at some of the places it had to hold and not others,
- * so this is a predicate applied in the two places that write, rather than a
- * deletion remembered at each place that removes.
+ * There are several ways a redirector can stop existing, and the list grows:
+ * remove, import over the top, a merge, a reset. So this is a predicate
+ * applied in the two places that write results, rather than a deletion
+ * remembered at each place that removes, which is how a rule ends up held in
+ * some places and not others.
  */
 function liveChecks(checks, settings) {
   const live = new Set(XITStore.allRedirectors(settings).map((r) => r.id));
@@ -306,10 +301,10 @@ async function copyInTab(tabId, text, showToast, note) {
 }
 
 /*
- * Q8: the one signal xIT can give on a page it does not script. A failed
- * copy there used to go nowhere, and the user pasted whatever the clipboard
+ * The one signal xIT can give on a page it does not script. Without it a
+ * failed copy there goes nowhere, and the user pastes whatever the clipboard
  * held before. The toolbar icon on that tab carries a mark and a tooltip for
- * a few seconds instead; nothing is injected to show it.
+ * a few seconds; nothing is injected to show it.
  */
 const FAILURE_BADGE_MS = 4000;
 
@@ -378,8 +373,7 @@ async function handleMenuClick(info, tab) {
     : (info.linkUrl || info.frameUrl || (tab && tab.url) || '');
 
   if (scope === 'sel' && !target) {
-    // B10's lesson: never leave the clipboard holding the last thing without
-    // saying so. On a page xIT does not script there is no toast to show, and
+    // Never leave the clipboard holding the last thing without saying so. On a page xIT does not script there is no toast to show, and
     // this records that honestly rather than pretending otherwise.
     const reason = XITI18N.t('menuNoTweetInSelection');
     console.warn('[xit]', reason);
@@ -413,9 +407,9 @@ async function handleMenuClick(info, tab) {
   const redirector = XITStore.findRedirector(settings, redirectorId);
   const out = XIT.convert(target, redirector, opts);
   if (!out.ok && action === 'open') {
-    // B14: an Open that cannot happen says why and touches nothing else. The
-    // copy fallback below used to run here too, so asking to open a profile
-    // with a tweet-only redirector overwrote the clipboard and opened no tab.
+    // An Open that cannot happen says why and touches nothing else. The copy
+    // fallback below is for copies: somebody who asked to open something did
+    // not ask to lose what is on their clipboard.
     console.warn('[xit]', out.reason);
     if (tab) await tellTab(tab.id, out.reason);
     return;
@@ -454,7 +448,7 @@ async function openOriginal(input, tab) {
 async function diagnostics() {
   // Deliberate, not a side effect to remove: rebuilding is the probe that
   // makes the contextMenus field describe now rather than the last build.
-  // A menu that cannot be created right now reports 'error' (audit B22).
+  // A menu that cannot be created right now reports 'error'.
   await init('diagnostics').catch(() => {});
   const settings = await XITStore.load();
   const report = { extension: 'xIT', version: api.runtime.getManifest().version };
@@ -492,12 +486,11 @@ async function diagnostics() {
  * loads to a third-party front-end, including ones xIT no longer offers.
  * Dynamic rules survive extension updates, so they are removed on every
  * start. This outlives the release that removed the feature: it can only go
- * one release after a release carrying it has been published. Chrome published 1.4.0, which carries this cleanup, on 9 November
- * 2026. Firefox's published version is still 1.0.6, which installed rules
- * and has never run it. One package builds both, so the permission stays
- * until a Firefox release carrying the cleanup has been published too, and
- * then one release more.
- * Dropping it early strands those users mid-redirect (S5).
+ * one release after a release carrying it has been published, in both
+ * stores. Chrome published 1.4.0, which carries it, on 9 November 2026.
+ * Firefox's published version is still 1.0.6, which installed rules and has
+ * never run it, and one package builds both. Dropping it early strands those
+ * users mid-redirect; HANDOFF.md has the condition in full.
  * -------------------------------------------------------------------- */
 
 async function clearLegacyRedirects() {
@@ -521,7 +514,7 @@ async function clearLegacyRedirects() {
  * -------------------------------------------------------------------- */
 
 async function handleCommand(command, tab) {
-  // Q1: copy and open are the same journey up to the last step, so they share
+  // Copy and open are the same journey up to the last step, so they share
   // everything but what they do with the converted link.
   const open = command === 'open-current-tweet';
   if (command !== 'copy-current-tweet' && !open) return;
@@ -531,7 +524,7 @@ async function handleCommand(command, tab) {
 
   // Let the content script pick the tweet under the cursor / in view.
   //
-  // B10: fall back only when no content script answered. `handled` means that
+  // Fall back only when no content script answered. `handled` means that
   // tab dealt with the command and has already told the user the outcome, so
   // substituting the tab's own URL here would contradict a refusal the user
   // just read. A thrown sendMessage is the real "nobody is there" case.
@@ -581,7 +574,7 @@ function fromExtensionPage(sender) {
   return String((sender && sender.url) || '').startsWith(api.runtime.getURL(''));
 }
 
-/** The settings writes a content script is allowed to ask for (S7). */
+/** The settings writes a content script is allowed to ask for. */
 function tabMayMutate(operation) {
   if (!operation || typeof operation !== 'object') return false;
   if (operation.type === 'pin') return true;
@@ -593,9 +586,8 @@ function tabMayMutate(operation) {
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
   // Every sender is one of our own pages or content scripts. There is no
-  // externally_connectable, so nothing on the web can reach this listener,
-  // but three of the handlers below used to skip this check while the other
-  // three made it. One rule for all of them.
+  // externally_connectable, so nothing on the web can reach this listener;
+  // checking the id anyway is one rule for every handler below.
   if (sender.id !== api.runtime.id) return;
 
   if (msg.type === 'xit:open-original' || msg.type === 'xit:diagnostics') {
@@ -612,11 +604,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'xit:mutate-settings') {
-    // S7: a content script lives in a page's renderer, which is the least
-    // trusted place any of our code runs. It only ever pins an entry or picks
-    // the default from the tweet menu, so from a web page that is all it may
-    // do. Told apart by URL, not by sender.tab: Settings opens in a tab of its
-    // own, and testing for a tab locked it out of every save.
+    // A content script lives in a page's renderer, the least trusted place
+    // any of our code runs. It only ever pins an entry or picks the default
+    // from the tweet menu, so from a web page that is all it may do. Told
+    // apart by URL, not by sender.tab: Settings opens in a tab of its own.
     if (!fromExtensionPage(sender) && !tabMayMutate(msg.operation)) {
       sendResponse({ ok: false, error: XITI18N.t('errUnknownOperation') });
       return;
@@ -673,8 +664,32 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 let initChain = Promise.resolve();
 // The signature of the menu currently installed, or null when we do not know.
-// A service worker that was torn down starts over, which costs one rebuild.
 let lastMenuSignature = null;
+
+/*
+ * Chrome keeps context menus across service worker restarts, and the worker
+ * restarts after every idle half minute. So the installed menu's signature is
+ * kept in storage.session, which outlives the worker but not the browser, and
+ * a woken worker that finds it current leaves the menu alone. Firefox's event
+ * pages are not relied on to keep their menus the same way, so there the
+ * signature stays in memory and every start rebuilds.
+ */
+// Firefox alone has runtime.getBrowserInfo; Chrome may grow a `browser` global.
+const MENUS_OUTLIVE_WORKER = !api.runtime.getBrowserInfo;
+
+async function sessionValue(key) {
+  try {
+    const got = await api.storage.session.get(key);
+    return got ? got[key] : undefined;
+  } catch (_) { return undefined; }
+}
+
+async function setSessionValue(key, value) {
+  try {
+    if (value === undefined) await api.storage.session.remove(key);
+    else await api.storage.session.set({ [key]: value });
+  } catch (_) { /* no session storage: the next start rebuilds */ }
+}
 
 /** All startup and settings events share one queue, including storage notifications. */
 function init(reason) {
@@ -697,13 +712,16 @@ async function doInit(reason) {
     if (stored && stored.settings) await XITStore.save({ pickerDone: true });
   }
   const settings = await XITStore.load();
-  // O4: a settings write used to rebuild all of it, one removeAll plus a
-  // couple of dozen awaited create calls, even when the change was the toast
-  // toggle. Rebuild only when something the menu is actually built from moved.
-  // Startup and install always rebuild, since the worker starts with no idea
-  // what is already installed.
+  // The menu is rebuilt only when something it is built from has moved. A
+  // settings write and a woken worker compare against what is installed;
+  // install, update, startup and an explicit refresh always rebuild.
   const signature = XITStore.menuSignature(settings);
-  const menuIsCurrent = reason === 'settings' && signature === lastMenuSignature;
+  if (lastMenuSignature === null && MENUS_OUTLIVE_WORKER) lastMenuSignature = (await sessionValue('menuSignature')) ?? null;
+  const menuIsCurrent = (reason === 'settings' || reason === 'wake') && signature === lastMenuSignature;
+  // The legacy cleanups find something at most once per browser session, so
+  // a woken worker skips them once they have run; startup and install run
+  // them regardless. A plain settings write has nothing to clean.
+  const cleanupDue = reason !== 'settings' && (reason !== 'wake' || !(await sessionValue('legacyCleaned')));
   // Menu failures must never prevent the redirect cleanup.
   const results = await Promise.allSettled([
     (async () => {
@@ -711,18 +729,24 @@ async function doInit(reason) {
       try {
         await buildMenus(settings);
         lastMenuSignature = signature;
+        if (MENUS_OUTLIVE_WORKER) await setSessionValue('menuSignature', signature);
         await api.storage.local.remove('menuError');
       } catch (error) {
         lastMenuSignature = null;
+        await setSessionValue('menuSignature', undefined);
         await api.storage.local.set({ menuError: String(error.message || error) });
         throw error;
       }
     })(),
-    clearLegacyRedirects(),
-    api.storage.local.remove('lastCopyFailure'),
+    cleanupDue ? (async () => {
+      await clearLegacyRedirects();
+      await api.storage.local.remove('lastCopyFailure');
+      await setSessionValue('legacyCleaned', true);
+    })() : null,
     // Every route that can remove a redirector ends in a settings write, and
     // a settings write ends here, so this is the one place that has to know.
-    pruneHostChecks(settings),
+    // A woken worker has seen no write.
+    reason === 'wake' && !cleanupDue ? null : pruneHostChecks(settings),
   ]);
   const failure = results.find((r) => r.status === 'rejected');
   if (failure) throw failure.reason;

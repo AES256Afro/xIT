@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
-import { check, derive, codeKeys, manifestKeys, load, CATALOGUE } from '../tools/i18n-sync.mjs';
+import { check, derive, codeKeys, manifestKeys, load, CATALOGUE, settingsScripts } from '../tools/i18n-sync.mjs';
 
 /*
  * C10, C11, P3: the catalogue and the places that reference it have to stay in
@@ -61,7 +61,7 @@ test('no interface string is left outside the catalogue', () => {
   // Capitalised, several words, no template tokens or code-ish punctuation.
   const SENTENCE = /'([A-Z][a-z]+(?: [a-z][a-zA-Z.,'’]*){2,}[.!?]?)'/g;
   const offenders = [];
-  for (const file of ['src/options/options.js', 'src/popup/popup.js', 'src/content/inject.js',
+  for (const file of [...settingsScripts(), 'src/popup/popup.js', 'src/content/inject.js',
     'src/background.js', 'src/lib/storage.js']) {
     const code = read(file);
     for (const m of code.matchAll(SENTENCE)) {
@@ -259,7 +259,7 @@ test('the derived clause has somewhere to go and something to fill it', () => {
   // The span and the code that writes it are two halves of one change: either
   // alone leaves the dialog saying nothing where the defaults should be.
   const html = read('src/options/options.html');
-  const js = read('src/options/options.js');
+  const js = settingsScripts().map(read).join('\n');
   assert.match(html, /<span id="reset-defaults">/);
   assert.match(html, /data-i18n-parts="resetHint"/);
   assert.match(js, /\$\('reset-defaults'\)\.textContent = resetDefaults\(\)/);

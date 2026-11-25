@@ -7,8 +7,8 @@
   const XITStore = globalThis.XITStore;
 
   const $ = (id) => document.getElementById(id);
-  // B4: this used to list three of the six origins the manifest declares, so
-  // the gate below could pass while diagnostics reported access as incomplete.
+  // The library's list, the one the manifest is built from, so this gate and
+  // the diagnostics report always judge access against the same origins.
   const HOST_PATTERNS = XIT.HOST_PATTERNS;
 
   let settings = null;
@@ -21,14 +21,14 @@
     el.textContent = text || '';
     el.setAttribute('data-kind', kind || 'ok');
     clearTimeout(statusTimer);
-    // Q10: a confirmation can go on its own; a problem stays until the next
+    // A confirmation can go on its own; a problem stays until the next
     // message replaces it, so it is still there when somebody looks.
     if (text && kind !== 'error') statusTimer = setTimeout(() => { el.textContent = ''; }, 2600);
   }
 
   /*
-   * The hosts here are gathered by walking every configured redirector, so
-   * building this per row per keystroke was most of O2 on its own. Settings
+   * The hosts here are gathered by walking every configured redirector, which
+   * is too much to repeat per row per keystroke. Settings
    * are replaced wholesale on every change (load and normalize each build a
    * fresh object), so their identity says when this is stale: the same object
    * cannot describe different hosts. Nothing may write to what comes back.
@@ -44,24 +44,9 @@
     return optsCache;
   }
 
-  async function writeClipboard(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (_) {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        ta.remove();
-        return ok;
-      } catch (_e) {
-        return false;
-      }
-    }
-  }
+  // One implementation for every page that copies (lib/clipboard.js). This
+  // page's own fallback textarea was neither read-only nor positioned.
+  const writeClipboard = (text) => XITClipboard.write(text);
 
   async function doCopy(redirector) {
     const out = XIT.convert(sourceUrl, redirector, opts());
@@ -81,9 +66,8 @@
 
   function describe(parts) {
     if (!parts) return XITI18N.t('popupNotATweet');
-    // B6: the sentinel check that used to be here is XIT.handleOf now, so the
-    // popup and the copy formats cannot disagree about what counts as an
-    // account again.
+    // XIT.handleOf decides what counts as an account, so the popup and the
+    // copy formats cannot disagree about it.
     const handle = XIT.handleOf(parts);
     if (parts.kind === 'status') return XITI18N.t(handle ? 'popupTweetBy' : 'popupTweetNoAuthor', [handle]);
     if (parts.kind === 'profile') return XITI18N.t('popupProfileOf', [parts.user]);
@@ -110,13 +94,10 @@
   }
 
   /*
-   * O2: this list is shaped by the settings and written by the source. A
-   * keystroke in the paste field changes only the source, so rebuilding every
-   * row, its five buttons and their listeners per keystroke redid work that
-   * could not have changed, and ran convert once per row to throw the rows
-   * away. The rows are built once per settings object and only the two things
-   * a new source can alter, the sub line and what is still clickable, are
-   * written again. Settings identity is the test for the same reason opts()
+   * This list is shaped by the settings and written by the source. A
+   * keystroke in the paste field changes only the source, so the rows are
+   * built once per settings object and only the two things a new source can
+   * alter, the sub line and what is still clickable, are written again. Settings identity is the test for the same reason opts()
    * uses it: a settings change always brings a fresh object, and nothing else
    * can change the shape of this list.
    */
@@ -282,11 +263,9 @@
 
     $('manual').addEventListener('input', (ev) => {
       const v = ev.target.value.trim();
-      // P5 gave the library a way to find a tweet link inside a run of text,
-      // for the selection menu. This field is the other place somebody
-      // arrives with a URL buried in prose, and two routes for the same job
-      // behaving differently is the drift this audit keeps finding. A value
-      // that is already a URL is unaffected, since findLink then returns it.
+      // Somebody pastes a URL buried in prose here as often as they select
+      // one, so this reads it the way the selection menu does. A value that
+      // is already a URL is unaffected, since findLink then returns it.
       sourceUrl = v ? (XIT.findLink(v, opts().extraHosts) || v) : ((tab && tab.url) || '');
       refreshPreview();
     });
@@ -324,7 +303,7 @@
 
     const toggle = (id, key) => {
       $(id).addEventListener('change', async (ev) => {
-        // B20: a switch that could not be saved goes back to what is saved.
+        // A switch that could not be saved goes back to what is saved.
         const box = ev.target;
         if (!await commit(XITStore.save({ [key]: box.checked }))) box.checked = !box.checked;
       });

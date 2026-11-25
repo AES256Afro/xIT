@@ -43,7 +43,9 @@ test('menu failures cannot prevent the redirect cleanup or clearing old copy dat
   const h=harness(); await h.settle();
   h.setRules(LEFTOVER_RULES);
   h.local.lastCopyFailure={text:'synthetic',at:0};
-  h.failCreate();h.change({name:'after-update'});await h.settle();
+  // The rules 1.0.3 left are met when the update installs, which is the event
+  // that runs the cleanup. A plain settings write no longer does (O6).
+  h.failCreate();h.setSettings({name:'after-update'});h.events.installed({reason:'update'});await h.settle();
   assert.deepEqual(h.rules(),[]);
   assert.match(h.local.menuError,/create failed/);
   assert.equal(h.local.lastCopyFailure,undefined);
@@ -840,4 +842,62 @@ test('a content script can pin and choose a default, and change nothing else', a
   assert.equal((await send({ type: 'reset' }, popup)).ok, true, 'and so can the popup');
   assert.equal((await send({ type: 'replace', settings: {} }, {})).ok, false,
     'a sender that cannot show it is ours is treated as a page');
+});
+
+test('Chrome waking the worker again does not rebuild menus or rerun cleanups', async () => {
+  /*
+   * C14 and O6. Every service worker start ran init('wake'), which removed
+   * every context menu and created them again, 20 to 40 calls in a row, and
+   * reran three cleanups that only ever have anything to do once. Chrome
+   * keeps menus across worker restarts, and the worker restarts after
+   * every idle half minute, so this was nearly all repeated work, with a
+   * window in which a right-click found the menu half built.
+   *
+   * Going back to rebuilding on every wake makes this fail.
+   */
+  const session = {};
+  const first = harness(false, { session });
+  await first.settle();
+  assert.ok(first.createCount() > 0, 'the first start builds the menu');
+  assert.ok(first.dnrReads() > 0, 'and cleans up once');
+
+  const again = harness(false, { session });
+  await again.settle();
+  assert.equal(again.removeAllCalls(), 0, 'a later wake removes nothing');
+  assert.equal(again.createCount(), 0, 'and creates nothing');
+  assert.equal(again.dnrReads(), 0, 'and does not rerun the cleanup');
+});
+
+test('a woken worker still rebuilds when the menu really changed', async () => {
+  const session = {};
+  const first = harness(false, { session });
+  await first.settle();
+  const again = harness(false, { session });
+  await again.settle();
+  again.change({ name: 'second' });
+  await again.settle();
+  assert.ok(again.createCount() > 0, 'a settings change the menu depends on rebuilds it');
+});
+
+test('browser startup still cleans up even after a woken worker skipped it', async () => {
+  const session = {};
+  const first = harness(false, { session });
+  await first.settle();
+  const again = harness(false, { session });
+  await again.settle();
+  again.events.startup();
+  await again.settle();
+  assert.ok(again.dnrReads() > 0, 'startup always runs the cleanup');
+  assert.ok(again.createCount() > 0, 'and builds the menu');
+});
+
+test('Firefox rebuilds its menus on every start', async () => {
+  // Chrome documents that menus outlive a worker restart; Firefox's event
+  // pages are not relied on to do the same, so they keep rebuilding.
+  const session = {};
+  const first = harness(true, { session });
+  await first.settle();
+  const again = harness(true, { session });
+  await again.settle();
+  assert.ok(again.createCount() > 0);
 });

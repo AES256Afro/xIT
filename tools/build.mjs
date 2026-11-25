@@ -19,7 +19,10 @@ import path from 'node:path';
 const run = promisify(execFile);
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const DIST = path.join(ROOT, 'dist');
+// XIT_DIST builds somewhere else, which is what the package test does: a
+// build clears the output folder of zips, and dist/ may hold one waiting to be
+// uploaded.
+const DIST = process.env.XIT_DIST ? path.resolve(process.env.XIT_DIST) : path.join(ROOT, 'dist');
 
 const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
 
@@ -83,7 +86,7 @@ function baseManifest() {
     content_scripts: [
       {
         matches: HOSTS,
-        js: [...LIB, 'content/inject.js'],
+        js: [...LIB, 'lib/clipboard.js', 'content/inject.js'],
         css: ['content/inject.css'],
         run_at: 'document_idle',
         all_frames: false,
@@ -139,6 +142,12 @@ async function buildTarget(name, manifest) {
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   await cp(SRC, out, { recursive: true });
+  // src/icons also holds source art, such as the 512px master. Only the sizes
+  // the manifest names are shipped (C18).
+  const iconsUsed = new Set([...Object.values(manifest.icons), ...Object.values(manifest.action.default_icon)]);
+  for (const name of await readdir(path.join(out, 'icons'))) {
+    if (!iconsUsed.has('icons/' + name)) await rm(path.join(out, 'icons', name));
+  }
   await writeFile(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   return out;
 }

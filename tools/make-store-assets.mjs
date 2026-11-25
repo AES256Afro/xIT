@@ -80,7 +80,10 @@ async function stubPage(dir, file, extraScript) {
   const base = path.basename(file, '.html');
   html = html.replace(/src="\.\.\/lib\//g, 'src="lib/');
   html = html.replace(`href="${base}.css"`, `href="${dir}/${base}.css"`);
-  html = html.replace(`src="${base}.js"`, `src="${dir}/${base}.js"`);
+  // Every script that sits beside the page, not only the one named after it:
+  // Settings is several. A path left as it was finds nothing in the staging
+  // root, and the shot shows bare markup with no script run.
+  html = html.replace(/src="([^"/]+\.js)"/g, `src="${dir}/$1"`);
   // The stub goes in front of the first library script. lib/i18n.js looks for
   // chrome.i18n once, as it loads, so a stub that arrived later would leave
   // every message at its English fallback and some at nothing.
