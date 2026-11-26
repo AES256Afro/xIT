@@ -55,8 +55,8 @@ Plus a right-click menu on tweet links anywhere on the web, Alt+Shift+C for the 
 
 BUILT IN
 
-Embed fixers: fxtwitter, fixupx, twittpr, vxtwitter, fixvx, d.fxtwitter.
-Thread tools: Thread Reader App, Unroll Now.
+Three redirectors are ready when you install: two embed fixers, so tweets unfurl properly in Discord, Slack and Signal, and a thread reader that turns a long thread into one page.
+More are in an optional catalogue in Settings, off until you choose them.
 Custom: any self-hosted instance, via a live-validated URL template.
 
 xIT also strips the ?s=20&t=… share telemetry X appends to copied links.

@@ -127,6 +127,13 @@ exists. It has to stay declared, because `permissions.request()` can only ask
 for origins already in the manifest, so a reachability check against a
 redirector absent from this list cannot be offered at all.
 
+**No lists of service hostnames in listing descriptions.** Chrome rejected a
+submission on 25 November 2026 for keyword spam (violation reference "Yellow
+Argon") over the line "Embed fixers: fxtwitter, fixupx, twittpr, vxtwitter,
+fixvx, and d.fxtwitter". The descriptions in `store/` now name what each
+redirector does, not where it lives. Hostnames belong in the permission
+justifications and the reviewer notes, where they are required.
+
 **No em dashes**, anywhere: docs, listing copy, UI strings, screenshot captions.
 Rewrite the sentence rather than substituting another dash. This was an explicit
 request and the repo was swept for it on 12 September.

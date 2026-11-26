@@ -21,9 +21,13 @@ Upload: `dist/xit-chrome-1.0.6.zip`
 xIT
 ```
 
-**Short description** (132 max, this is 114)
+**Short description** (132 max, this is 107). Not a dashboard field: the
+store reads it from the manifest's `description`, which is the
+`extensionDescription` message in `src/_locales/en/messages.json`. The
+dashboard shows it read-only. Changing it means editing that message and
+uploading a new package with a new version number. The current package says:
 ```
-Copy X/Twitter links through fxtwitter, vxtwitter, a thread reader or your own instance. One click, or X's own Copy link.
+Copy X/Twitter links through fxtwitter, vxtwitter or your own instance. Pick a default, or choose per copy.
 ```
 
 **Category:** Productivity
@@ -44,11 +48,11 @@ Also: a right-click menu on any tweet link anywhere on the web, Alt+Shift+C for 
 
 WHAT'S BUILT IN
 
-Embed fixers: fxtwitter, fixupx, twittpr, vxtwitter, fixvx, and d.fxtwitter for the media file itself. These make tweets unfurl properly, with video and multi-image galleries, in Discord, Slack and Signal.
+Three redirectors are ready when you install, one for each job. Two embed fixers make tweets unfurl properly in Discord, Slack and Signal, with video and multi-image galleries. A thread reader turns a 40-post thread into one readable page.
 
-Thread tools: Thread Reader App and Unroll Now, for turning a 40-post thread into one readable page.
+More are in an optional catalogue in Settings, each with a note saying what it is for, and nothing is enabled until you choose it.
 
-Your own: add any self-hosted instance with a simple template. Tokens are {path}, {query}, {user}, {id}, {hash} and {host}, validated live as you type, with a worked example shown before you save.
+Your own: add any self-hosted instance with a simple URL template, validated live as you type, with a worked example shown before you save.
 
 TIDIER LINKS
 

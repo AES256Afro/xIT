@@ -46,7 +46,9 @@ The steps below are kept for future submissions and version updates.
    before this clears.
 2. **New item** → upload `dist/xit-chrome-1.0.7.zip`.
 3. Fill **Store listing** from [`chrome-web-store.md`](chrome-web-store.md):
-   name, short description, detailed description, category, graphics.
+   detailed description, category, graphics. The name and the short
+   description are not fields there: the store reads both from the package's
+   manifest, and shows them read-only.
 4. Fill **Privacy practices**: single purpose, a justification for every
    permission, and the data-use certifications. All the text is in the same
    file. This is the section that gets submissions rejected, so do not rush it.
