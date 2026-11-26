@@ -254,7 +254,10 @@ try {
 }
 
 server.close();
-await rm(stage, { recursive: true, force: true });
+// Chrome can still be writing to its profile for a moment after it exits,
+// which made this fail now and then with ENOTEMPTY after every asset had
+// rendered. Retried briefly instead.
+await rm(stage, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 
 const written = (await readdir(OUT)).filter((f) => f.endsWith('.png'));
 console.log(`\n${made} rendered, ${written.length} assets in store/assets/`);

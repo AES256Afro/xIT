@@ -16,22 +16,24 @@ traps. For how the extension works and how to build it, read the
 | Firefox listing | <https://addons.mozilla.org/firefox/addon/xit/> |
 | Firefox add-on ID | `xit@aes256afro.github.io` (permanent) |
 | Published | Chrome **1.4.0**, updated 9 November 2026. Firefox **1.0.6**, public since 14 September 2026. Checked 25 November 2026. |
-| In the repo | **1.4.1**. Built into `dist/`, not uploaded to either store. |
+| In the repo | **1.4.2**. Built into `dist/`, not uploaded to either store. 1.4.1 was submitted to Chrome and rejected on 25 November 2026 for keyword spam in the description, so it was never published and its number cannot be used again. |
 
 ## Do this next
 
-1. **Upload 1.4.1 to Firefox first.** The public Firefox version is 1.0.6,
+1. **Upload 1.4.2 to Firefox first.** The public Firefox version is 1.0.6,
    which still offers the Nitter-based front-ends withdrawn in 1.0.7 after a
    cease and desist, and still redirects page loads for anyone who turned
-   that on. Upload `dist/xit-firefox-1.4.1.zip` as a new version of the
+   that on. Upload `dist/xit-firefox-1.4.2.zip` as a new version of the
    existing listing. The release notes and reviewer notes are in
    [store/firefox-amo.md](store/firefox-amo.md); the reviewer sees the whole
    span from 1.0.6, so paste the implementation notes in full.
 
-2. **Upload 1.4.1 to Chrome.** Upload `dist/xit-chrome-1.4.1.zip`. On the
-   Privacy practices tab, replace the single-purpose field with the text in
-   [store/chrome-web-store.md](store/chrome-web-store.md): the live one still
-   describes page redirecting, which was removed in 1.0.7.
+2. **Upload 1.4.2 to Chrome.** Upload `dist/xit-chrome-1.4.2.zip` to the
+   rejected draft. On the Store listing tab, replace the Description with the
+   detailed description in [store/chrome-web-store.md](store/chrome-web-store.md),
+   which no longer has the hostname list the rejection cited. On the Privacy
+   practices tab, replace the single-purpose field with the text in the same
+   file: the live one still describes page redirecting, removed in 1.0.7.
 
 3. **Check the store images.** `store/assets/` was rendered from 1.4.0 on 6
    November 2026 and still matches the UI. If either listing still shows older
@@ -47,7 +49,7 @@ traps. For how the extension works and how to build it, read the
    script's open menu as nothing at all while the DOM said it was open and
    visible; the live capture does not have that gap.
 
-4. **Once Firefox 1.4.1 is live, read S5 below again.** It is the condition
+4. **Once Firefox 1.4.2 is live, read S5 below again.** It is the condition
    for retiring `declarativeNetRequest`, and Firefox is what still holds it.
 
 ## Traps
@@ -178,14 +180,14 @@ probe that makes the report's menu status current, and is commented as such.
 
 | Next | ID | Sev | What is open |
 |---|---|---|---|
-| Publish (M4) | | | 1.4.1 is built. Upload it to Firefox, then Chrome, and correct Chrome's single-purpose field. |
+| Publish (M4) | | | 1.4.2 is built. Upload it to Firefox, then Chrome, and correct Chrome's description and single-purpose field. |
 | Needs a person (M5) | U4, U13 | | One pass with VoiceOver or NVDA over the tweet menu, the popup and Settings. The structure is tested; whether it is usable by ear never has been. |
 | M7, needs a design call | D2 | Medium | The tweet button is an unlabelled arrow next to X's own Share icon. A new mark is a visual decision, best made looking at live X. |
 | M7, needs a design call | D3, D4 | Low | The toast may stack with X's own "Copied" toast (not seen on live X); the popup rows are crowded. |
 | M7 | P11 | Low | Choose the copy format at copy time. Shift-click was the proposal, but Shift and Alt already open the tweet menu, so it needs another gesture. |
 | M7 | Q11 | Low | Opt-in sync, which needs a PRIVACY.md change. |
 | M7 | U9 | Low | From the first audit: pinning is explained in prose and never prompted. |
-| After Firefox 1.4.1 is live | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after the cleanup is live in both stores. |
+| After Firefox 1.4.2 is live | S5 | | Drop `declarativeNetRequest` and `clearLegacyRedirects` one release after the cleanup is live in both stores. |
 | Unscheduled | C12 | | The converter's own failure messages are still inline English. |
 
 Q3 from the first audit, Undo ending at browser restart, is deliberate and

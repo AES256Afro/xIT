@@ -100,14 +100,16 @@ Implementation details for reviewers:
 Settings are stored with storage.local and never transmitted. The only outbound request the add-on ever makes is the reachability check in 2a, and only when the user presses Check. Redirects are not followed, so it never reaches any host but the redirector being checked.
 ```
 
-**Version notes (1.4.1)**: the published Firefox version is 1.0.6, so these
+**Version notes (1.4.2)**: the published Firefox version is 1.0.6, so these
 cover the whole span a Firefox user is updating across.
 ```
 Removes the Nitter-based front-ends (xcancel, twiiit and three Nitter instances), which were withdrawn after those services received a cease and desist, and removes page redirecting. Redirect rules installed by earlier versions are deleted on startup.
 
 New since 1.0.6: a first-run picker with a catalogue of optional redirectors; pinning and ordering; editing, duplicating and undoing removal of custom redirectors; markdown and author-then-link copy formats; a right-click menu on selected text; a reachability check you run from Settings; Open on X; copy diagnostics; and every string in a translation catalogue.
 
-Fixed in 1.4.1: links to Home, lists, searches and other X pages that are not posts or profiles are no longer rewritten into broken links; X's own Copy link works with a custom redirector in every language; Open with no longer overwrites the clipboard when it cannot open; failure notices still show with copy confirmations turned off; saving the redirector picker keeps your own redirectors; and the reachability check no longer reports vxTwitter as unreachable.
+Fixed: links to Home, lists, searches and other X pages that are not posts or profiles are no longer rewritten into broken links; X's own Copy link works with a custom redirector in every language; Open with no longer overwrites the clipboard when it cannot open; failure notices still show with copy confirmations turned off; saving the redirector picker keeps your own redirectors; the reachability check no longer reports vxTwitter as unreachable; and the copy shortcut works straight after a page loads.
+
+Also new: copy every tweet link in a selection at once; the right-click menu on links already on a redirector; undo for a settings import and for a default chosen from the tweet menu; tweet-only redirectors hidden on profiles; the shortcuts Settings shows are the ones the browser has; clearer banners, announced to screen readers; and a toolbar mark when a copy fails on a page xIT cannot run on.
 ```
 
 ---
